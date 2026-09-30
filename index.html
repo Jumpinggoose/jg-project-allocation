@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0F0F0F">
+  <meta name="description" content="JUMPINGGOOSE live project and team allocation dashboard for Pond 1, Pond 2 and Pool.">
+  <title>JG Project Allocation</title>
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="manifest" href="manifest.json">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar" id="sidebar" aria-label="Primary navigation">
+      <div class="brand-lockup">
+        <div class="brand-mark" aria-hidden="true">JG</div>
+        <div>
+          <div class="brand-name">JUMPINGGOOSE</div>
+          <div class="brand-subtitle">Project Allocation</div>
+        </div>
+      </div>
+
+      <nav class="nav-list">
+        <button class="nav-item is-active" type="button" data-view="dashboard">
+          <span class="nav-icon" aria-hidden="true">▦</span>
+          <span>Dashboard</span>
+        </button>
+        <button class="nav-item" type="button" data-view="pond1">
+          <span class="nav-icon" aria-hidden="true">①</span>
+          <span>Pond 1 Projects</span>
+        </button>
+        <button class="nav-item" type="button" data-view="pond2">
+          <span class="nav-icon" aria-hidden="true">②</span>
+          <span>Pond 2 Projects</span>
+        </button>
+        <button class="nav-item" type="button" data-view="team">
+          <span class="nav-icon" aria-hidden="true">◎</span>
+          <span>Team Overview</span>
+        </button>
+        <button class="nav-item" type="button" data-view="setup">
+          <span class="nav-icon" aria-hidden="true">⚙</span>
+          <span>Team Setup</span>
+        </button>
+      </nav>
+
+      <div class="sidebar-spacer"></div>
+
+      <div class="sidebar-note">
+        <div class="sidebar-note-title">Allocation weights</div>
+        <div class="weight-line"><span>Lead SPOC</span><strong>5%</strong></div>
+        <div class="weight-line"><span>Primary 1</span><strong>60%</strong></div>
+        <div class="weight-line"><span>Primary 2</span><strong>40%</strong></div>
+        <div class="weight-line"><span>Support · each</span><strong>10%</strong></div>
+        <div class="weight-line"><span>Mentor · each</span><strong>0%</strong></div>
+      </div>
+
+      <div class="sync-card" id="syncCard" aria-live="polite">
+        <span class="sync-dot" id="syncDot"></span>
+        <div>
+          <strong id="syncLabel">Loading...</strong>
+          <small id="syncDetail">Checking storage</small>
+        </div>
+      </div>
+    </aside>
+
+    <main class="main-area">
+      <header class="topbar">
+        <button class="mobile-menu" id="mobileMenu" type="button" aria-label="Open navigation">☰</button>
+        <div class="page-heading">
+          <div class="eyebrow">JUMPINGGOOSE · 2026–27</div>
+          <h1 id="pageTitle">Consolidated Dashboard</h1>
+          <p id="pageSubtitle">A live view of projects, Pond allocation and team capacity.</p>
+        </div>
+        <div class="topbar-actions">
+          <div class="session-controls" id="sessionControls">
+            <span class="session-user" id="currentUserLabel">Loading account…</span>
+            <button class="button button-secondary button-compact" id="logoutButton" type="button">Log out</button>
+          </div>
+          <label class="search-box" id="globalSearchWrap">
+            <span aria-hidden="true">⌕</span>
+            <input id="globalSearch" type="search" placeholder="Search projects or people" autocomplete="off">
+          </label>
+          <button class="button button-secondary" id="dataButton" type="button">Data</button>
+          <button class="button button-primary" id="primaryAction" type="button">Add project</button>
+        </div>
+      </header>
+
+      <section class="view-container" id="viewContainer" aria-live="polite"></section>
+    </main>
+  </div>
+
+  <div class="mobile-backdrop" id="mobileBackdrop"></div>
+
+  <dialog class="modal" id="appModal">
+    <form method="dialog" class="modal-shell" id="modalFormShell">
+      <div class="modal-header">
+        <div>
+          <div class="modal-eyebrow" id="modalEyebrow"></div>
+          <h2 id="modalTitle">Modal</h2>
+          <p id="modalDescription"></p>
+        </div>
+        <button class="icon-button" id="modalClose" value="cancel" aria-label="Close dialog" type="submit">×</button>
+      </div>
+      <div class="modal-body" id="modalBody"></div>
+      <div class="modal-footer" id="modalFooter"></div>
+    </form>
+  </dialog>
+
+  <div class="toast-region" id="toastRegion" aria-live="polite" aria-atomic="true"></div>
+
+  <template id="emptyStateTemplate">
+    <div class="empty-state">
+      <div class="empty-icon" aria-hidden="true">＋</div>
+      <h3>No projects here yet</h3>
+      <p>Add the first project and assign the relevant Pond and Pool members.</p>
+    </div>
+  </template>
+
+  <script src="app.js" defer></script>
+</body>
+</html>

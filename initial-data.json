@@ -1,0 +1,140 @@
+{
+  "version": 2,
+  "revision": 0,
+  "meta": {
+    "agency": "JUMPINGGOOSE",
+    "period": "2026-27",
+    "lastUpdated": null
+  },
+  "settings": {
+    "projectLimits": {
+      "Retainer": 20,
+      "One-Time": 40,
+      "Pitch": 40,
+      "Internal": 20
+    },
+    "roleWeights": {
+      "leadSpoc": 0.05,
+      "primary1": 0.6,
+      "primary2": 0.4,
+      "support1": 0.1,
+      "support2": 0.1,
+      "mentor1": 0,
+      "mentor2": 0,
+      "support3": 0.1,
+      "support4": 0.1
+    },
+    "loadBands": {
+      "balancedMax": 1,
+      "highMax": 1.5
+    }
+  },
+  "members": [
+    {
+      "id": "piyush",
+      "name": "Piyush",
+      "group": "POND 1",
+      "type": "Employee",
+      "active": true
+    },
+    {
+      "id": "theo",
+      "name": "Theo",
+      "group": "POND 1",
+      "type": "Employee",
+      "active": true
+    },
+    {
+      "id": "apeksha",
+      "name": "Apeksha",
+      "group": "POND 1",
+      "type": "Employee",
+      "active": true
+    },
+    {
+      "id": "siraj",
+      "name": "Siraj",
+      "group": "POND 1",
+      "type": "Employee",
+      "active": true
+    },
+    {
+      "id": "nandini",
+      "name": "Nandini",
+      "group": "POND 1",
+      "type": "Employee",
+      "active": true
+    },
+    {
+      "id": "tuhin",
+      "name": "Tuhin",
+      "group": "POND 2",
+      "type": "Employee",
+      "active": true
+    },
+    {
+      "id": "supriya",
+      "name": "Supriya",
+      "group": "POND 2",
+      "type": "Employee",
+      "active": true
+    },
+    {
+      "id": "manvith",
+      "name": "Manvith",
+      "group": "POND 2",
+      "type": "Employee",
+      "active": true
+    },
+    {
+      "id": "adil",
+      "name": "Adil",
+      "group": "POND 2",
+      "type": "Employee",
+      "active": true
+    },
+    {
+      "id": "pranjal",
+      "name": "Pranjal",
+      "group": "POND 2",
+      "type": "Employee",
+      "active": true
+    },
+    {
+      "id": "midhun",
+      "name": "Midhun",
+      "group": "POOL",
+      "type": "Employee",
+      "active": true
+    },
+    {
+      "id": "vedant",
+      "name": "Vedant",
+      "group": "POOL",
+      "type": "Employee",
+      "active": true
+    },
+    {
+      "id": "anas",
+      "name": "Anas",
+      "group": "POOL",
+      "type": "Employee",
+      "active": true
+    },
+    {
+      "id": "sukanya",
+      "name": "Sukanya",
+      "group": "POOL",
+      "type": "Employee",
+      "active": true
+    },
+    {
+      "id": "bhagya",
+      "name": "Bhagya",
+      "group": "POOL",
+      "type": "Employee",
+      "active": true
+    }
+  ],
+  "projects": []
+}

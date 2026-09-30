@@ -1,0 +1,8 @@
+data.json
+backups/
+audit.jsonl
+*.log
+.DS_Store
+__pycache__/
+*.pyc
+.env
