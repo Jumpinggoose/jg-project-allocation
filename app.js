@@ -649,7 +649,7 @@ function renderDashboard() {
 
 function renderPond(pond) {
   const filter = ui.pondFilters[pond];
-  const allPondProjects = state.projects.filter((project) => project.pond === pond);
+  const allPondProjects = getProjectsForSelectedFY().filter((project) => project.pond === pond);
   const filtered = allPondProjects.filter((project) => {
     if (!matchesProjectSearch(project)) return false;
     if (filter.type !== 'All' && project.type !== filter.type) return false;
@@ -1511,7 +1511,7 @@ function suggestedMembers(pond, excludeProjectId = null) {
 }
 
 function computeMemberStats(memberId, excludeProjectId = null) {
-  const activeProjects = state.projects.filter((project) => project.id !== excludeProjectId && isActiveProject(project));
+  const activeProjects = getProjectsForSelectedFY().filter((project) => project.id !== excludeProjectId && isActiveProject(project));
   const assignedProjects = activeProjects.filter((project) => ROLE_KEYS.some((key) => project[key] === memberId));
   const stats = {
     activeLoad: assignedProjects.length,
@@ -1552,7 +1552,63 @@ function loadStatus(score) {
 }
 
 function getVisibleProjects(projects) {
-  return projects.filter(matchesProjectSearch);
+  return projects.filter(projectMatchesSelectedFY).filter(matchesProjectSearch);
+}
+
+function getProjectsForSelectedFY() {
+  return state.projects.filter(projectMatchesSelectedFY);
+}
+
+function projectMatchesSelectedFY(project) {
+  return ui.financialYear === 'ALL' || project.financialYear === ui.financialYear;
+}
+
+function getFinancialYears() {
+  const years = new Set(Array.isArray(state.meta?.financialYears) ? state.meta.financialYears : []);
+  if (state.meta?.currentFY) years.add(state.meta.currentFY);
+  state.projects.forEach((project) => { if (project.financialYear) years.add(project.financialYear); });
+  return [...years].filter(Boolean).sort(compareFY);
+}
+
+function compareFY(a, b) {
+  return Number(String(a).slice(0, 4)) - Number(String(b).slice(0, 4));
+}
+
+function canEditSelectedFY() {
+  return userCanEdit() && storageMode === 'server' && ui.financialYear === state.meta.currentFY;
+}
+
+function refreshFinancialYearControls() {
+  if (!els.financialYearSelect) return;
+  const years = getFinancialYears();
+  const valid = ui.financialYear === 'ALL' || years.includes(ui.financialYear);
+  if (!valid) ui.financialYear = state.meta.currentFY || years[years.length - 1] || '2026-27';
+  els.financialYearSelect.innerHTML = [
+    ...years.map((fy) => `<option value="${escapeAttr(fy)}" ${ui.financialYear === fy ? 'selected' : ''}>FY ${escapeHtml(fy)}${fy === state.meta.currentFY ? ' · Current' : ''}</option>`),
+    `<option value="ALL" ${ui.financialYear === 'ALL' ? 'selected' : ''}>All Years</option>`
+  ].join('');
+  if (els.appEyebrow) {
+    els.appEyebrow.textContent = `JUMPINGGOOSE · ${ui.financialYear === 'ALL' ? 'ALL FINANCIAL YEARS' : 'FY ' + ui.financialYear}`;
+  }
+}
+
+function financialYearForDate(value) {
+  if (!value) return state.meta?.currentFY || state.meta?.period || '2026-27';
+  const date = parseLocalDate(value);
+  if (!date) return state.meta?.currentFY || state.meta?.period || '2026-27';
+  const year = date.getFullYear();
+  const start = date.getMonth() >= 3 ? year : year - 1;
+  return `${start}-${String((start + 1) % 100).padStart(2, '0')}`;
+}
+
+function nextFinancialYear(fy) {
+  const start = Number(String(fy || '').slice(0, 4)) || new Date().getFullYear();
+  return `${start + 1}-${String((start + 2) % 100).padStart(2, '0')}`;
+}
+
+function financialYearStartDate(fy) {
+  const start = Number(String(fy || '').slice(0, 4));
+  return start ? `${start}-04-01` : '';
 }
 
 function matchesProjectSearch(project) {
@@ -1587,7 +1643,7 @@ function isActiveProject(project) {
 }
 
 function countActiveByPond(pond) {
-  return state.projects.filter((project) => project.pond === pond && isActiveProject(project)).length;
+  return getProjectsForSelectedFY().filter((project) => project.pond === pond && isActiveProject(project)).length;
 }
 
 function renderPondBreakdownRow(pond, projects) {
