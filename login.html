@@ -23,23 +23,32 @@
       <div class="login-copy">
         <div class="eyebrow">CORE TEAM ACCESS</div>
         <h1 id="loginTitle">Sign in to the live workspace.</h1>
-        <p>Use the account provided by the JUMPINGGOOSE administrator.</p>
+        <p>Use your JUMPINGGOOSE Google account, or sign in with email and password.</p>
       </div>
 
-      <form id="loginForm" class="login-form" novalidate>
-        <label class="field">
-          <span>Email address</span>
-          <input id="email" name="email" type="email" autocomplete="username" required autofocus>
-        </label>
-        <label class="field">
-          <span>Password</span>
-          <input id="password" name="password" type="password" autocomplete="current-password" required>
-        </label>
-        <p class="form-message" id="formMessage" role="alert" hidden></p>
-        <button class="sign-in-button" id="signInButton" type="submit">Sign in</button>
-      </form>
+      <div class="login-actions">
+        <button class="google-sign-in-button" id="googleSignInButton" type="button">
+          <span class="google-mark" aria-hidden="true">G</span>
+          <span>Continue with Google</span>
+        </button>
 
-      <p class="login-footnote">Access is limited to approved core-team accounts. Contact the administrator if your login is not active.</p>
+        <div class="login-divider"><span>or</span></div>
+
+        <form id="loginForm" class="login-form" novalidate>
+          <label class="field">
+            <span>Email address</span>
+            <input id="email" name="email" type="email" autocomplete="username" required autofocus>
+          </label>
+          <label class="field">
+            <span>Password</span>
+            <input id="password" name="password" type="password" autocomplete="current-password" required>
+          </label>
+          <p class="form-message" id="formMessage" role="alert" hidden></p>
+          <button class="sign-in-button" id="signInButton" type="submit">Sign in</button>
+        </form>
+      </div>
+
+      <p class="login-footnote">Access is restricted to @jumpinggoose.com accounts. Contact the administrator if your account is not active.</p>
     </section>
 
     <aside class="login-art" aria-hidden="true">
