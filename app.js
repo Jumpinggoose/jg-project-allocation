@@ -1844,12 +1844,12 @@ function assignmentField(id, label, selected, pond, hours, legacyPercent) {
       <div class="allocation-control">
         <select id="${id}" data-role-key="${escapeAttr(key)}">${memberOptions(selected, pond)}</select>
         <label class="allocation-hours" title="Expected weekly hours for this role on this project">
-          <input id="${id}Hours" type="number" min="0" max="168" step="0.5" value="${escapeAttr(String(roundNumber(value, 1)))}" data-role-hours="${escapeAttr(key)}">
-          <span>hrs/wk</span>
+          <input id="${id}Hours" type="number" min="0" max="168" step="0.5" inputmode="decimal" placeholder="0" aria-label="${escapeAttr(label)} weekly hours" value="${escapeAttr(String(roundNumber(value, 1)))}" data-role-hours="${escapeAttr(key)}">
+          <span>HRS/WK</span>
         </label>
       </div>
       <div class="allocation-presets" data-presets-for="${escapeAttr(key)}">
-        ${[2,4,8,12,18].map((preset) => `<button type="button" data-allocation-preset="${preset}" data-role-key="${escapeAttr(key)}">${preset}h</button>`).join('')}
+        ${[2,4,8,12,18].map((preset) => `<button type="button" class="${Number(value) === preset ? 'is-active' : ''}" data-allocation-preset="${preset}" data-role-key="${escapeAttr(key)}" aria-pressed="${Number(value) === preset ? 'true' : 'false'}">${preset}h</button>`).join('')}
       </div>
       <div class="field-help" id="${id}AllocationHelp">${selectedMember ? `${formatPercent(pct)} of ${formatHours(capacity)} weekly capacity` : `Select a person, then set weekly hours. Default role suggestion: ${formatHours(fallbackHours)}.`}</div>
     </div>`;
@@ -1868,11 +1868,14 @@ function bindAllocationFieldEvents() {
         hoursInput.value = String(roundNumber(capacity * defaultAllocationPercent(key) / 100, 1));
       }
       updateAllocationHelp(key);
+      syncAllocationPresetState(key);
     });
     hoursInput.addEventListener('input', () => {
       hoursInput.dataset.touched = 'true';
       updateAllocationHelp(key);
+      syncAllocationPresetState(key);
     });
+    hoursInput.addEventListener('change', () => syncAllocationPresetState(key));
   });
 
   els.modalBody.querySelectorAll('[data-allocation-preset]').forEach((button) => {
@@ -1883,8 +1886,23 @@ function bindAllocationFieldEvents() {
       input.value = button.dataset.allocationPreset;
       input.dataset.touched = 'true';
       updateAllocationHelp(key);
+      syncAllocationPresetState(key);
+      input.focus();
     });
   });
+}
+
+function syncAllocationPresetState(key) {
+  const suffix = roleKeySuffix(key);
+  const input = document.getElementById(`project${suffix}Hours`);
+  if (!input) return;
+  const current = Number(input.value);
+  els.modalBody.querySelectorAll(`[data-presets-for="${key}"] [data-allocation-preset]`).forEach((button) => {
+    const active = Number(button.dataset.allocationPreset) === current;
+    button.classList.toggle('is-active', active);
+    button.setAttribute('aria-pressed', active ? 'true' : 'false');
+  });
+  input.classList.toggle('is-custom-value', Number.isFinite(current) && ![2,4,8,12,18].includes(current));
 }
 
 function updateAllocationHelp(key) {
