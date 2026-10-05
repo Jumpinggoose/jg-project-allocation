@@ -462,7 +462,8 @@ function renderCurrentView() {
   els.pageTitle.textContent = viewMeta.title;
   els.pageSubtitle.textContent = viewMeta.subtitle;
   els.primaryAction.textContent = viewMeta.action;
-  els.primaryAction.hidden = !canEditSelectedFY();
+  const globalSetupView = ui.view === 'team' || ui.view === 'setup';
+  els.primaryAction.hidden = globalSetupView ? (!userCanEdit() || storageMode !== 'server') : !canEditSelectedFY();
   const setupNav = document.querySelector('[data-view="setup"]');
   if (setupNav) setupNav.hidden = !userIsAdmin();
   els.globalSearch.placeholder = ui.view === 'team' || ui.view === 'setup'
@@ -1015,13 +1016,16 @@ function renderMemberSetupRow(member) {
 }
 
 function handlePrimaryAction() {
+  if (ui.view === 'team' || ui.view === 'setup') {
+    if (!userCanEdit() || storageMode !== 'server') return showToast('Editing is not available for this account or connection.', 'warning');
+    return openMemberModal();
+  }
   if (!canEditSelectedFY()) {
     showToast('Select the current financial year to make allocation changes.', 'warning');
     return;
   }
   if (ui.view === 'pond1') return openProjectModal({ pond: 'POND 1' });
   if (ui.view === 'pond2') return openProjectModal({ pond: 'POND 2' });
-  if (ui.view === 'team' || ui.view === 'setup') return openMemberModal();
   openProjectModal({ pond: null });
 }
 
@@ -1029,9 +1033,14 @@ function handleViewClick(event) {
   const trigger = event.target.closest('[data-action]');
   if (!trigger) return;
   const action = trigger.dataset.action;
-  const editActions = new Set(['add-project', 'edit-project', 'delete-project', 'add-member', 'edit-member', 'delete-member']);
-  if (editActions.has(action) && !canEditSelectedFY()) {
+  const projectEditActions = new Set(['add-project', 'edit-project', 'delete-project']);
+  const memberEditActions = new Set(['add-member', 'edit-member', 'delete-member']);
+  if (projectEditActions.has(action) && !canEditSelectedFY()) {
     showToast('Historical financial years are read-only. Select the current FY to edit.', 'warning');
+    return;
+  }
+  if (memberEditActions.has(action) && (!userCanEdit() || storageMode !== 'server')) {
+    showToast('Editing is not available for this account or connection.', 'warning');
     return;
   }
 
