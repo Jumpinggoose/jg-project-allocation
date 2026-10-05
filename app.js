@@ -18,6 +18,8 @@ const DEFAULT_DATA = {
   meta: {
     agency: 'JUMPINGGOOSE',
     period: '2026-27',
+    currentFY: '2026-27',
+    financialYears: ['2026-27'],
     lastUpdated: null
   },
   settings: {
@@ -76,6 +78,7 @@ const supabaseClient = window.supabase.createClient(
 const ui = {
   view: 'dashboard',
   search: '',
+  financialYear: '2026-27',
   pondFilters: {
     'POND 1': { status: 'Open', type: 'All' },
     'POND 2': { status: 'Open', type: 'All' }
@@ -94,6 +97,7 @@ async function init() {
   const authenticated = await loadSession();
   if (!authenticated) return;
   state = normalizeState(await loadState());
+  ui.financialYear = state.meta.currentFY || state.meta.period || '2026-27';
   renderCurrentView();
 
   if (storageMode === 'server') {
@@ -113,6 +117,8 @@ function cacheElements() {
   els.dataButton = document.getElementById('dataButton');
   els.primaryAction = document.getElementById('primaryAction');
   els.currentUserLabel = document.getElementById('currentUserLabel');
+  els.financialYearSelect = document.getElementById('financialYearSelect');
+  els.appEyebrow = document.getElementById('appEyebrow');
   els.logoutButton = document.getElementById('logoutButton');
   els.syncDot = document.getElementById('syncDot');
   els.syncLabel = document.getElementById('syncLabel');
@@ -137,6 +143,11 @@ function bindStaticEvents() {
 
   els.globalSearch.addEventListener('input', (event) => {
     ui.search = event.target.value.trim().toLowerCase();
+    renderCurrentView();
+  });
+
+  els.financialYearSelect.addEventListener('change', (event) => {
+    ui.financialYear = event.target.value;
     renderCurrentView();
   });
 
@@ -419,6 +430,7 @@ function setView(view, clearSearch = false) {
 }
 
 function renderCurrentView() {
+  refreshFinancialYearControls();
   const viewMeta = {
     dashboard: {
       title: 'Consolidated Dashboard',
@@ -450,7 +462,7 @@ function renderCurrentView() {
   els.pageTitle.textContent = viewMeta.title;
   els.pageSubtitle.textContent = viewMeta.subtitle;
   els.primaryAction.textContent = viewMeta.action;
-  els.primaryAction.hidden = !userCanEdit() || storageMode !== 'server';
+  els.primaryAction.hidden = !canEditSelectedFY();
   const setupNav = document.querySelector('[data-view="setup"]');
   if (setupNav) setupNav.hidden = !userIsAdmin();
   els.globalSearch.placeholder = ui.view === 'team' || ui.view === 'setup'
@@ -976,8 +988,8 @@ function renderMemberSetupRow(member) {
 }
 
 function handlePrimaryAction() {
-  if (!userCanEdit() || storageMode !== 'server') {
-    showToast('Editing is not available for this account or connection.', 'warning');
+  if (!canEditSelectedFY()) {
+    showToast('Select the current financial year to make allocation changes.', 'warning');
     return;
   }
   if (ui.view === 'pond1') return openProjectModal({ pond: 'POND 1' });
@@ -991,8 +1003,8 @@ function handleViewClick(event) {
   if (!trigger) return;
   const action = trigger.dataset.action;
   const editActions = new Set(['add-project', 'edit-project', 'delete-project', 'add-member', 'edit-member', 'delete-member']);
-  if (editActions.has(action) && (!userCanEdit() || storageMode !== 'server')) {
-    showToast('Editing is not available for this account or connection.', 'warning');
+  if (editActions.has(action) && !canEditSelectedFY()) {
+    showToast('Historical financial years are read-only. Select the current FY to edit.', 'warning');
     return;
   }
 
@@ -1069,6 +1081,7 @@ function openProjectModal({ pond = null, type = null, project = null } = {}) {
   const isEdit = Boolean(project);
   const draft = project ? deepClone(project) : {
     id: '',
+    financialYear: ui.financialYear === 'ALL' ? state.meta.currentFY : ui.financialYear,
     pond: pond || 'POND 1',
     type: type || 'Retainer',
     brand: '',
@@ -1099,6 +1112,12 @@ function openProjectModal({ pond = null, type = null, project = null } = {}) {
     description: 'One person may hold multiple roles on the same project. Each selected role contributes its configured workload weight, and all dashboards update automatically after saving.',
     body: `
       <div class="form-grid">
+        <div class="field">
+          <label for="projectFinancialYear">Financial year</label>
+          <select id="projectFinancialYear" ${isEdit ? 'disabled' : ''}>
+            ${getFinancialYears().map((fy) => `<option value="${escapeAttr(fy)}" ${(draft.financialYear || state.meta.currentFY) === fy ? 'selected' : ''}>FY ${escapeHtml(fy)}</option>`).join('')}
+          </select>
+        </div>
         <div class="field">
           <label for="projectPond">Pond</label>
           <select id="projectPond" ${fixedPond ? 'disabled' : ''}>
@@ -1213,6 +1232,7 @@ function saveProjectFromModal(projectId, fixedPond) {
   const existing = existingIndex >= 0 ? state.projects[existingIndex] : null;
   const project = {
     id: existing?.id || uid('project'),
+    financialYear: existing?.financialYear || document.getElementById('projectFinancialYear').value || state.meta.currentFY,
     pond,
     type: document.getElementById('projectType').value,
     brand,
@@ -1236,7 +1256,7 @@ function saveProjectFromModal(projectId, fixedPond) {
   els.modal.close();
   renderCurrentView();
 
-  const typeCount = state.projects.filter((item) => item.pond === project.pond && item.type === project.type).length;
+  const typeCount = state.projects.filter((item) => item.financialYear === project.financialYear && item.pond === project.pond && item.type === project.type).length;
   const limit = Number(state.settings.projectLimits[project.type] || 0);
   if (limit && typeCount > limit) showToast(`${project.pond} now exceeds the ${project.type} project limit of ${limit}.`, 'warning');
 }
