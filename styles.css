@@ -2680,3 +2680,104 @@ summary:focus-visible {
   margin-top: 7px;
   line-height: 1.45;
 }
+
+
+/* Allocation input clarity --------------------------------------------------- */
+.allocation-control {
+  grid-template-columns: minmax(0, 1fr) 150px;
+  gap: 10px;
+}
+
+.allocation-hours {
+  min-height: 52px;
+  border: 1.5px solid var(--line-strong);
+  background: #fff;
+}
+
+.allocation-hours:focus-within {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(255, 0, 114, 0.10);
+}
+
+.allocation-hours input {
+  min-width: 68px;
+  padding: 0 12px;
+  color: var(--ink);
+  background: #fff;
+  font-size: 18px;
+  font-weight: 850;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+  caret-color: var(--accent);
+}
+
+.allocation-hours input::placeholder {
+  color: #B8B1AB;
+  opacity: 1;
+}
+
+.allocation-hours input.is-custom-value {
+  background: #FFF5FA;
+}
+
+.allocation-hours span {
+  min-width: 64px;
+  padding: 0 10px;
+  color: #5F5A56;
+  background: var(--surface-soft);
+  font-size: 10px;
+  letter-spacing: .04em;
+}
+
+.allocation-presets {
+  gap: 6px;
+  margin-top: 9px;
+}
+
+.allocation-presets button {
+  min-width: 48px;
+  min-height: 34px;
+  padding: 0 11px;
+  border: 1px solid var(--line-strong);
+  background: #fff;
+  color: var(--ink);
+  font-size: 10px;
+  font-weight: 850;
+  transition: background-color var(--transition), color var(--transition), border-color var(--transition), transform var(--transition);
+}
+
+.allocation-presets button:hover {
+  border-color: var(--accent);
+  background: #FFF5FA;
+}
+
+.allocation-presets button.is-active {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #fff;
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+
+.allocation-presets button.is-active:hover {
+  background: var(--accent-dark);
+  border-color: var(--accent-dark);
+}
+
+.allocation-field .field-help {
+  min-height: 16px;
+  margin-top: 8px;
+  color: #6C6662;
+  font-size: 10px;
+  font-weight: 650;
+}
+
+@media (max-width: 760px) {
+  .allocation-control {
+    grid-template-columns: 1fr;
+  }
+
+  .allocation-hours {
+    width: 100%;
+  }
+}
