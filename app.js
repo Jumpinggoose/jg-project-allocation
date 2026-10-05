@@ -1298,7 +1298,9 @@ function openProjectModal({ pond = null, type = null, project = null } = {}) {
     pondSelect.addEventListener('change', () => refreshAssignmentOptions(pondSelect.value));
   }
   bindAllocationFieldEvents();
-  document.getElementById('saveProjectButton').addEventListener('click', () => saveProjectFromModal(project?.id || null, fixedPond ? selectedPond : null));
+  const saveProjectButton = document.getElementById('saveProjectButton');
+  if (project?.id) saveProjectButton.dataset.projectId = project.id;
+  saveProjectButton.addEventListener('click', () => saveProjectFromModal(project?.id || null, fixedPond ? selectedPond : null));
 }
 
 function refreshAssignmentOptions(pond) {
@@ -1534,8 +1536,9 @@ function getMemberLiveAllocations(memberId) {
   getProjectsForSelectedFY().filter(isLiveCapacityProject).forEach((project) => {
     ROLE_KEYS.forEach((role) => {
       if (project[role] !== memberId) return;
-      const percent = projectAllocationPercent(project, role);
-      rows.push({ project, role, percent, hours: roundNumber(capacity * percent / 100, 2) });
+      const hours = projectAllocationHours(project, role);
+      const percent = capacity ? roundNumber((hours / capacity) * 100, 2) : 0;
+      rows.push({ project, role, percent, hours });
     });
   });
   return rows.sort((a, b) => b.hours - a.hours || a.project.brand.localeCompare(b.project.brand));
@@ -1827,21 +1830,82 @@ function showModalError(element, message) {
   return false;
 }
 
-function assignmentField(id, label, selected, pond, percent) {
+function assignmentField(id, label, selected, pond, hours, legacyPercent) {
   const key = projectRoleKeyFromElementId(id);
-  const pct = Number.isFinite(Number(percent)) ? Number(percent) : defaultAllocationPercent(key);
+  const selectedMember = memberById(selected);
+  const capacity = Math.max(1, Number(selectedMember?.weeklyCapacity || DEFAULT_WEEKLY_CAPACITY));
+  const fallbackHours = roundNumber(capacity * defaultAllocationPercent(key) / 100, 1);
+  const legacyHours = Number.isFinite(Number(legacyPercent)) ? roundNumber(capacity * Number(legacyPercent) / 100, 1) : fallbackHours;
+  const value = Number.isFinite(Number(hours)) ? Number(hours) : legacyHours;
+  const pct = capacity ? value / capacity : 0;
   return `
     <div class="field allocation-field">
       <label for="${id}">${escapeHtml(label)}</label>
       <div class="allocation-control">
-        <select id="${id}">${memberOptions(selected, pond)}</select>
-        <label class="allocation-percent" title="Weekly capacity allocation for this project">
-          <input id="${id}Pct" type="number" min="0" max="100" step="1" value="${escapeAttr(String(roundNumber(pct, 1)))}">
-          <span>%</span>
+        <select id="${id}" data-role-key="${escapeAttr(key)}">${memberOptions(selected, pond)}</select>
+        <label class="allocation-hours" title="Expected weekly hours for this role on this project">
+          <input id="${id}Hours" type="number" min="0" max="168" step="0.5" value="${escapeAttr(String(roundNumber(value, 1)))}" data-role-hours="${escapeAttr(key)}">
+          <span>hrs/wk</span>
         </label>
       </div>
-      <div class="field-help">Project-specific allocation. Default: ${defaultAllocationPercent(key)}%.</div>
+      <div class="allocation-presets" data-presets-for="${escapeAttr(key)}">
+        ${[2,4,8,12,18].map((preset) => `<button type="button" data-allocation-preset="${preset}" data-role-key="${escapeAttr(key)}">${preset}h</button>`).join('')}
+      </div>
+      <div class="field-help" id="${id}AllocationHelp">${selectedMember ? `${formatPercent(pct)} of ${formatHours(capacity)} weekly capacity` : `Select a person, then set weekly hours. Default role suggestion: ${formatHours(fallbackHours)}.`}</div>
     </div>`;
+}
+
+function bindAllocationFieldEvents() {
+  ROLE_KEYS.forEach((key) => {
+    const suffix = roleKeySuffix(key);
+    const select = document.getElementById(`project${suffix}`);
+    const hoursInput = document.getElementById(`project${suffix}Hours`);
+    if (!select || !hoursInput) return;
+    select.addEventListener('change', () => {
+      if (!hoursInput.dataset.touched) {
+        const member = memberById(select.value);
+        const capacity = Math.max(1, Number(member?.weeklyCapacity || DEFAULT_WEEKLY_CAPACITY));
+        hoursInput.value = String(roundNumber(capacity * defaultAllocationPercent(key) / 100, 1));
+      }
+      updateAllocationHelp(key);
+    });
+    hoursInput.addEventListener('input', () => {
+      hoursInput.dataset.touched = 'true';
+      updateAllocationHelp(key);
+    });
+  });
+
+  els.modalBody.querySelectorAll('[data-allocation-preset]').forEach((button) => {
+    button.addEventListener('click', () => {
+      const key = button.dataset.roleKey;
+      const input = document.getElementById(`project${roleKeySuffix(key)}Hours`);
+      if (!input) return;
+      input.value = button.dataset.allocationPreset;
+      input.dataset.touched = 'true';
+      updateAllocationHelp(key);
+    });
+  });
+}
+
+function updateAllocationHelp(key) {
+  const suffix = roleKeySuffix(key);
+  const select = document.getElementById(`project${suffix}`);
+  const input = document.getElementById(`project${suffix}Hours`);
+  const help = document.getElementById(`project${suffix}AllocationHelp`);
+  if (!select || !input || !help) return;
+  const member = memberById(select.value);
+  if (!member) {
+    help.textContent = 'Select a person, then set weekly hours.';
+    return;
+  }
+  const capacity = Math.max(1, Number(member.weeklyCapacity || DEFAULT_WEEKLY_CAPACITY));
+  const hours = Math.max(0, Number(input.value || 0));
+  const utilization = capacity ? hours / capacity : 0;
+  const currentStats = computeMemberStats(member.id);
+  const currentWithoutThisProject = computeMemberStats(member.id, document.getElementById('saveProjectButton')?.dataset.projectId || null);
+  const projectedHours = currentWithoutThisProject.allocatedHours + hours;
+  const projectedUtilization = capacity ? projectedHours / capacity : 0;
+  help.textContent = `${formatPercent(utilization)} of ${formatHours(capacity)} capacity · projected ${formatHours(projectedHours)} / ${formatHours(capacity)} (${formatPercent(projectedUtilization)})`;
 }
 
 function projectRoleKeyFromElementId(id) {
@@ -1902,9 +1966,33 @@ function normalizeProjectAllocations(allocations) {
   }));
 }
 
+function normalizeProjectAllocationHours(project) {
+  const source = project?.allocationHours && typeof project.allocationHours === 'object' ? project.allocationHours : {};
+  return Object.fromEntries(ROLE_KEYS.map((key) => {
+    const direct = Number(source[key]);
+    if (Number.isFinite(direct)) return [key, Math.max(0, direct)];
+    const member = memberById(project?.[key]);
+    const capacity = Math.max(1, Number(member?.weeklyCapacity || DEFAULT_WEEKLY_CAPACITY));
+    const percent = Number(project?.allocations?.[key]);
+    const effectivePercent = Number.isFinite(percent) ? percent : defaultAllocationPercent(key);
+    return [key, roundNumber(capacity * effectivePercent / 100, 2)];
+  }));
+}
+
+function projectAllocationHours(project, key) {
+  const direct = Number(project?.allocationHours?.[key]);
+  if (Number.isFinite(direct)) return Math.max(0, direct);
+  const member = memberById(project?.[key]);
+  const capacity = Math.max(1, Number(member?.weeklyCapacity || DEFAULT_WEEKLY_CAPACITY));
+  const percent = Number(project?.allocations?.[key]);
+  const effectivePercent = Number.isFinite(percent) ? percent : defaultAllocationPercent(key);
+  return roundNumber(capacity * effectivePercent / 100, 2);
+}
+
 function projectAllocationPercent(project, key) {
-  const value = Number(project?.allocations?.[key]);
-  return Number.isFinite(value) ? value : defaultAllocationPercent(key);
+  const member = memberById(project?.[key]);
+  const capacity = Math.max(1, Number(member?.weeklyCapacity || DEFAULT_WEEKLY_CAPACITY));
+  return roundNumber((projectAllocationHours(project, key) / capacity) * 100, 2);
 }
 
 function memberOptions(selectedId, pond) {
@@ -1969,8 +2057,7 @@ function computeMemberStats(memberId, excludeProjectId = null) {
 
     ROLE_KEYS.forEach((key) => {
       if (project[key] !== memberId) return;
-      const percent = projectAllocationPercent(project, key);
-      const hours = weeklyCapacity * (percent / 100);
+      const hours = projectAllocationHours(project, key);
       stats.allocatedHours += hours;
       if (key === 'leadSpoc') stats.roleHours.leadSpoc += hours;
       if (key === 'primary1') stats.roleHours.primary1 += hours;
@@ -2254,6 +2341,7 @@ function normalizeProject(project) {
     status: STATUSES.includes(project.status) ? project.status : 'Not Started',
     priority: PRIORITIES.includes(project.priority) ? project.priority : 'Normal',
     allocations: normalizeProjectAllocations(project.allocations),
+    allocationHours: normalizeProjectAllocationHours(project),
     notes: String(project.notes || ''),
     createdAt: project.createdAt || new Date().toISOString(),
     updatedAt: project.updatedAt || new Date().toISOString()
