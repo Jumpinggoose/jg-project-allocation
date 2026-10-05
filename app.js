@@ -669,7 +669,7 @@ function renderPond(pond) {
   const active = allPondProjects.filter(isActiveProject).length;
   const completed = allPondProjects.filter((project) => project.status === 'Completed').length;
   const poolAssignments = new Set();
-  allPondProjects.filter(isActiveProject).forEach((project) => {
+  allPondProjects.filter(isLiveCapacityProject).forEach((project) => {
     ROLE_KEYS.forEach((key) => {
       const member = memberById(project[key]);
       if (member?.group === 'POOL') poolAssignments.add(member.id);
@@ -1861,8 +1861,10 @@ function suggestedMembers(pond, excludeProjectId = null) {
 }
 
 function computeMemberStats(memberId, excludeProjectId = null) {
-  const activeProjects = getProjectsForSelectedFY().filter((project) => project.id !== excludeProjectId && isActiveProject(project));
-  const assignedProjects = activeProjects.filter((project) => ROLE_KEYS.some((key) => project[key] === memberId));
+  const member = memberById(memberId);
+  const weeklyCapacity = Math.max(1, Number(member?.weeklyCapacity || DEFAULT_WEEKLY_CAPACITY));
+  const liveProjects = getProjectsForSelectedFY().filter((project) => project.id !== excludeProjectId && isLiveCapacityProject(project));
+  const assignedProjects = liveProjects.filter((project) => ROLE_KEYS.some((key) => project[key] === memberId));
   const stats = {
     activeLoad: assignedProjects.length,
     Retainer: 0,
@@ -1872,6 +1874,11 @@ function computeMemberStats(memberId, excludeProjectId = null) {
     asPrimary: 0,
     asSupport: 0,
     asSpoc: 0,
+    weeklyCapacity,
+    allocatedHours: 0,
+    availableHours: weeklyCapacity,
+    utilization: 0,
+    roleHours: { leadSpoc: 0, primary1: 0, primary2: 0, primary: 0, support: 0, mentor: 0 },
     loadScore: 0,
     loadStatus: 'Available'
   };
@@ -1881,24 +1888,39 @@ function computeMemberStats(memberId, excludeProjectId = null) {
     if (project.primary1 === memberId || project.primary2 === memberId) stats.asPrimary += 1;
     if (SUPPORT_KEYS.some((key) => project[key] === memberId)) stats.asSupport += 1;
     if (project.leadSpoc === memberId) stats.asSpoc += 1;
-  });
 
-  activeProjects.forEach((project) => {
     ROLE_KEYS.forEach((key) => {
-      if (project[key] === memberId) stats.loadScore += Number(state.settings.roleWeights[key] || 0);
+      if (project[key] !== memberId) return;
+      const percent = projectAllocationPercent(project, key);
+      const hours = weeklyCapacity * (percent / 100);
+      stats.allocatedHours += hours;
+      if (key === 'leadSpoc') stats.roleHours.leadSpoc += hours;
+      if (key === 'primary1') stats.roleHours.primary1 += hours;
+      if (key === 'primary2') stats.roleHours.primary2 += hours;
+      if (SUPPORT_KEYS.includes(key)) stats.roleHours.support += hours;
+      if (MENTOR_KEYS.includes(key)) stats.roleHours.mentor += hours;
     });
   });
 
-  stats.loadScore = roundNumber(stats.loadScore, 2);
-  stats.loadStatus = loadStatus(stats.loadScore);
+  stats.roleHours.primary = stats.roleHours.primary1 + stats.roleHours.primary2;
+  stats.allocatedHours = roundNumber(stats.allocatedHours, 2);
+  stats.availableHours = roundNumber(Math.max(0, weeklyCapacity - stats.allocatedHours), 2);
+  stats.utilization = weeklyCapacity ? roundNumber(stats.allocatedHours / weeklyCapacity, 4) : 0;
+  stats.loadScore = stats.utilization;
+  stats.loadStatus = loadStatus(stats.utilization);
   return stats;
 }
 
-function loadStatus(score) {
-  if (score === 0) return 'Available';
-  if (score <= Number(state.settings.loadBands.balancedMax ?? 1)) return 'Balanced';
-  if (score <= Number(state.settings.loadBands.highMax ?? 1.5)) return 'High';
+function loadStatus(utilization) {
+  const bands = state.settings.capacityBands || DEFAULT_DATA.settings.capacityBands;
+  if (utilization < Number(bands.availableMax ?? 0.5)) return 'Available';
+  if (utilization <= Number(bands.balancedMax ?? 0.85)) return 'Balanced';
+  if (utilization <= Number(bands.highMax ?? 1)) return 'High';
   return 'Overloaded';
+}
+
+function isLiveCapacityProject(project) {
+  return LIVE_CAPACITY_STATUSES.includes(project.status);
 }
 
 function getVisibleProjects(projects) {
