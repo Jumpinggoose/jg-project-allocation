@@ -463,6 +463,14 @@ function renderDashboard() {
   const pond2 = allProjects.filter((project) => project.pond === 'POND 2').length;
 
   const typeCounts = Object.fromEntries(PROJECT_TYPES.map((type) => [type, allProjects.filter((project) => project.type === type).length]));
+  const typeStatusCounts = Object.fromEntries(PROJECT_TYPES.map((type) => {
+    const projects = allProjects.filter((project) => project.type === type);
+    return [type, {
+      ongoing: projects.filter((project) => !['On Hold', 'Paused', 'Completed'].includes(project.status)).length,
+      holdPaused: projects.filter((project) => ['On Hold', 'Paused'].includes(project.status)).length,
+      completed: projects.filter((project) => project.status === 'Completed').length
+    }];
+  }));
   const activeMembers = state.members.filter((member) => member.active && matchesSearch(member.name, member.group, member.type));
   const capacityCounts = { Available: 0, Balanced: 0, High: 0, Overloaded: 0 };
   activeMembers.forEach((member) => { capacityCounts[computeMemberStats(member.id).loadStatus] += 1; });
@@ -518,7 +526,7 @@ function renderDashboard() {
                 <div class="metric-row">
                   <span class="metric-name">${escapeHtml(type)}</span>
                   <span class="progress-track"><span class="progress-fill ${['forest','','teal','yellow'][index]}" style="width:${(typeCounts[type] / maxType) * 100}%"></span></span>
-                  <span class="metric-value">${typeCounts[type]}</span>
+                  <span class="metric-value">${typeCounts[type]} · Ongoing ${typeStatusCounts[type].ongoing} · Hold/Paused ${typeStatusCounts[type].holdPaused} · Completed ${typeStatusCounts[type].completed}</span>
                 </div>`).join('')}
             </div>
           </div>
