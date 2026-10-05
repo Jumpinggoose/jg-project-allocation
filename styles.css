@@ -2165,3 +2165,97 @@ summary:focus-visible {
   .session-controls { justify-content: space-between; }
   .session-user { max-width: 58vw; }
 }
+
+
+/* Project mix status breakdown ------------------------------------------------ */
+.metric-row {
+  grid-template-columns: minmax(88px, 0.75fr) minmax(120px, 1.65fr) minmax(185px, 1fr);
+  gap: 14px;
+}
+
+.metric-status-summary {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: center;
+  column-gap: 10px;
+  row-gap: 3px;
+  padding-left: 14px;
+  border-left: 1px solid var(--line);
+  font-size: 10px;
+  line-height: 1.25;
+  color: var(--muted);
+  white-space: nowrap;
+}
+
+.metric-status-summary .metric-total {
+  grid-row: 1 / span 3;
+  align-self: stretch;
+  min-width: 32px;
+  display: grid;
+  place-items: center;
+  color: var(--ink);
+  font-size: 19px;
+  font-weight: 850;
+  font-variant-numeric: tabular-nums;
+}
+
+.metric-status-summary span {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.metric-status-summary b {
+  color: var(--ink);
+  font-size: 11px;
+  font-weight: 850;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 1180px) {
+  .metric-row {
+    grid-template-columns: minmax(80px, 0.8fr) minmax(105px, 1.3fr) minmax(170px, 1fr);
+  }
+}
+
+@media (max-width: 900px) {
+  .metric-row {
+    grid-template-columns: minmax(82px, 0.75fr) minmax(120px, 1.5fr) minmax(180px, 1fr);
+  }
+}
+
+@media (max-width: 620px) {
+  .metric-row {
+    grid-template-columns: 1fr;
+    gap: 8px;
+    padding: 10px 0;
+    border-bottom: 1px solid #ECE8E3;
+  }
+
+  .metric-row:last-child {
+    border-bottom: 0;
+  }
+
+  .metric-status-summary {
+    grid-template-columns: auto repeat(3, minmax(0, 1fr));
+    column-gap: 8px;
+    padding-left: 0;
+    padding-top: 7px;
+    border-left: 0;
+    border-top: 1px solid var(--line);
+    white-space: normal;
+  }
+
+  .metric-status-summary .metric-total {
+    grid-row: auto;
+    min-width: 30px;
+  }
+
+  .metric-status-summary span {
+    display: grid;
+    justify-items: start;
+    gap: 1px;
+  }
+}
