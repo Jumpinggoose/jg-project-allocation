@@ -2259,3 +2259,125 @@ summary:focus-visible {
     gap: 1px;
   }
 }
+
+
+/* Financial year controls ---------------------------------------------------- */
+.fy-switcher {
+  min-width: 158px;
+  display: grid;
+  gap: 4px;
+}
+
+.fy-switcher > span {
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 850;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.fy-switcher select {
+  min-height: 42px;
+  padding: 0 34px 0 11px;
+  border: 1px solid var(--line-strong);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.fy-year-list {
+  display: grid;
+  gap: 0;
+  border-top: 1px solid var(--line);
+}
+
+.fy-year-row {
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  gap: 10px;
+  align-items: center;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line);
+  font-size: 11px;
+}
+
+.fy-year-row strong {
+  font-variant-numeric: tabular-nums;
+}
+
+.fy-year-row em {
+  min-width: 58px;
+  padding: 4px 7px;
+  border: 1px solid var(--line);
+  font-size: 9px;
+  font-style: normal;
+  font-weight: 850;
+  text-align: center;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.fy-carry-list {
+  max-height: 310px;
+  overflow-y: auto;
+  border: 1px solid var(--line);
+}
+
+.fy-carry-item {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 11px;
+  align-items: start;
+  padding: 11px 12px;
+  border-bottom: 1px solid var(--line);
+  cursor: pointer;
+}
+
+.fy-carry-item:last-child {
+  border-bottom: 0;
+}
+
+.fy-carry-item:hover {
+  background: var(--surface-soft);
+}
+
+.fy-carry-item input {
+  margin-top: 3px;
+}
+
+.fy-carry-item strong,
+.fy-carry-item small {
+  display: block;
+}
+
+.fy-carry-item strong {
+  font-size: 11px;
+}
+
+.fy-carry-item small {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 9px;
+}
+
+@media (max-width: 760px) {
+  .fy-switcher {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+
+  .fy-switcher select {
+    width: 100%;
+  }
+
+  .fy-year-row {
+    grid-template-columns: 1fr auto;
+  }
+
+  .fy-year-row em {
+    grid-column: 1 / -1;
+    justify-self: start;
+  }
+}
