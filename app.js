@@ -1749,8 +1749,84 @@ function showModalError(element, message) {
   return false;
 }
 
-function assignmentField(id, label, selected, pond) {
-  return `<div class="field"><label for="${id}">${escapeHtml(label)}</label><select id="${id}">${memberOptions(selected, pond)}</select></div>`;
+function assignmentField(id, label, selected, pond, percent) {
+  const key = projectRoleKeyFromElementId(id);
+  const pct = Number.isFinite(Number(percent)) ? Number(percent) : defaultAllocationPercent(key);
+  return `
+    <div class="field allocation-field">
+      <label for="${id}">${escapeHtml(label)}</label>
+      <div class="allocation-control">
+        <select id="${id}">${memberOptions(selected, pond)}</select>
+        <label class="allocation-percent" title="Weekly capacity allocation for this project">
+          <input id="${id}Pct" type="number" min="0" max="100" step="1" value="${escapeAttr(String(roundNumber(pct, 1)))}">
+          <span>%</span>
+        </label>
+      </div>
+      <div class="field-help">Project-specific allocation. Default: ${defaultAllocationPercent(key)}%.</div>
+    </div>`;
+}
+
+function projectRoleKeyFromElementId(id) {
+  return ({
+    projectLeadSpoc: 'leadSpoc',
+    projectPrimary1: 'primary1',
+    projectPrimary2: 'primary2',
+    projectSupport1: 'support1',
+    projectSupport2: 'support2',
+    projectSupport3: 'support3',
+    projectSupport4: 'support4',
+    projectMentor1: 'mentor1',
+    projectMentor2: 'mentor2'
+  })[id] || '';
+}
+
+function roleKeySuffix(key) {
+  return ({
+    leadSpoc: 'LeadSpoc',
+    primary1: 'Primary1',
+    primary2: 'Primary2',
+    support1: 'Support1',
+    support2: 'Support2',
+    support3: 'Support3',
+    support4: 'Support4',
+    mentor1: 'Mentor1',
+    mentor2: 'Mentor2'
+  })[key] || '';
+}
+
+function roleLabel(key) {
+  return ({
+    leadSpoc: 'Lead SPOC',
+    primary1: 'Primary 1',
+    primary2: 'Primary 2',
+    support1: 'Support 1',
+    support2: 'Support 2',
+    support3: 'Support 3',
+    support4: 'Support 4',
+    mentor1: 'Mentor 1',
+    mentor2: 'Mentor 2'
+  })[key] || key;
+}
+
+function defaultAllocationPercent(key) {
+  return roundNumber(Number(state.settings.roleWeights[key] || 0) * 100, 1);
+}
+
+function defaultProjectAllocations() {
+  return Object.fromEntries(ROLE_KEYS.map((key) => [key, defaultAllocationPercent(key)]));
+}
+
+function normalizeProjectAllocations(allocations) {
+  const source = allocations && typeof allocations === 'object' ? allocations : {};
+  return Object.fromEntries(ROLE_KEYS.map((key) => {
+    const value = Number(source[key]);
+    return [key, Number.isFinite(value) ? Math.max(0, Math.min(100, value)) : defaultAllocationPercent(key)];
+  }));
+}
+
+function projectAllocationPercent(project, key) {
+  const value = Number(project?.allocations?.[key]);
+  return Number.isFinite(value) ? value : defaultAllocationPercent(key);
 }
 
 function memberOptions(selectedId, pond) {
@@ -1964,8 +2040,8 @@ function capacityMetric(label, value, total, colorClass) {
   return `<div class="metric-row"><span class="metric-name">${label}</span><span class="progress-track"><span class="progress-fill ${colorClass}" style="width:${width}%"></span></span><span class="metric-value">${value}</span></div>`;
 }
 
-function settingRow(label, value, setting, key, step) {
-  return `<label class="setting-row"><span>${escapeHtml(label)}</span><input type="number" min="0" step="${step}" value="${escapeAttr(String(value))}" data-setting="${setting}" data-key="${escapeAttr(key)}"></label>`;
+function settingRow(label, value, setting, key, step, suffix = '') {
+  return `<label class="setting-row"><span>${escapeHtml(label)}</span><span class="setting-input-wrap"><input type="number" min="0" step="${step}" value="${escapeAttr(String(value))}" data-setting="${setting}" data-key="${escapeAttr(key)}">${suffix ? `<small>${escapeHtml(suffix)}</small>` : ''}</span></label>`;
 }
 
 function memberChip(memberId) {
@@ -2037,11 +2113,13 @@ function normalizeState(input) {
   source.settings.roleWeights = { ...deepClone(DEFAULT_DATA.settings.roleWeights), ...(source.settings.roleWeights || {}) };
   delete source.settings.roleWeights.mentor3;
   source.settings.loadBands = { ...deepClone(DEFAULT_DATA.settings.loadBands), ...(source.settings.loadBands || {}) };
+  source.settings.capacityBands = { ...deepClone(DEFAULT_DATA.settings.capacityBands), ...(source.settings.capacityBands || {}) };
   source.members = Array.isArray(source.members) ? source.members.map((member) => ({
     id: member.id || uniqueMemberId(member.name || 'member'),
     name: String(member.name || '').trim(),
     group: GROUPS.includes(member.group) ? member.group : 'POOL',
     type: MEMBER_TYPES.includes(member.type) ? member.type : 'Employee',
+    weeklyCapacity: Math.max(1, Number(member.weeklyCapacity || DEFAULT_WEEKLY_CAPACITY)),
     active: member.active !== false
   })).filter((member) => member.name) : deepClone(DEFAULT_DATA.members);
   source.projects = Array.isArray(source.projects) ? source.projects.map((project) => normalizeProject({
@@ -2075,6 +2153,7 @@ function normalizeProject(project) {
     endDate: String(project.endDate || ''),
     status: STATUSES.includes(project.status) ? project.status : 'Not Started',
     priority: PRIORITIES.includes(project.priority) ? project.priority : 'Normal',
+    allocations: normalizeProjectAllocations(project.allocations),
     notes: String(project.notes || ''),
     createdAt: project.createdAt || new Date().toISOString(),
     updatedAt: project.updatedAt || new Date().toISOString()
