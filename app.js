@@ -10,6 +10,8 @@ const PRIORITIES = ['Low', 'Normal', 'High', 'Urgent'];
 const SUPPORT_KEYS = ['support1', 'support2', 'support3', 'support4'];
 const MENTOR_KEYS = ['mentor1', 'mentor2'];
 const ROLE_KEYS = ['leadSpoc', 'primary1', 'primary2', ...SUPPORT_KEYS, ...MENTOR_KEYS];
+const LIVE_CAPACITY_STATUSES = ['Not Started', 'Active', 'In Progress', 'Ending Soon', 'Ending Urgent'];
+const DEFAULT_WEEKLY_CAPACITY = 45;
 const AGENCY_SUGGESTIONS = ['SS', 'SSS', 'TT', 'BW', 'FU', 'BD', 'Internal', 'SS + SSS', 'FU + SS', 'BD + FU + TT', 'FU + TT', 'BD + FU', 'FU + SS + TT', 'BW + FU', 'SS + TT', 'SSS + TT', 'BW + SS'];
 
 const DEFAULT_DATA = {
@@ -35,7 +37,8 @@ const DEFAULT_DATA = {
       mentor1: 0,
       mentor2: 0
     },
-    loadBands: { balancedMax: 1, highMax: 1.5 }
+    loadBands: { balancedMax: 1, highMax: 1.5 },
+    capacityBands: { availableMax: 0.5, balancedMax: 0.85, highMax: 1 }
   },
   members: [
     { id: 'piyush', name: 'Piyush', group: 'POND 1', type: 'Employee', active: true },
@@ -83,7 +86,10 @@ const ui = {
     'POND 1': { status: 'Open', type: 'All' },
     'POND 2': { status: 'Open', type: 'All' }
   },
-  teamGroup: 'All'
+  teamGroup: 'All',
+  teamType: 'All',
+  teamStatus: 'All',
+  teamSort: 'utilization-desc'
 };
 
 const els = {};
@@ -807,54 +813,86 @@ function renderEmptyProjectSection(pond, type, totalTypeCount = 0) {
 }
 
 function renderTeamOverview() {
-  const members = state.members
-    .filter((member) => matchesSearch(member.name, member.group, member.type))
-    .filter((member) => ui.teamGroup === 'All' || member.group === ui.teamGroup)
-    .map((member) => ({ member, stats: computeMemberStats(member.id) }))
-    .sort((a, b) => groupOrder(a.member.group) - groupOrder(b.member.group) || b.stats.loadScore - a.stats.loadScore || a.member.name.localeCompare(b.member.name));
-
   const activeMembers = state.members.filter((member) => member.active);
-  const loadCounts = { Available: 0, Balanced: 0, High: 0, Overloaded: 0 };
-  activeMembers.forEach((member) => { loadCounts[computeMemberStats(member.id).loadStatus] += 1; });
+  const teamRows = activeMembers
+    .map((member) => ({ member, stats: computeMemberStats(member.id) }))
+    .filter(({ member, stats }) => {
+      if (!matchesSearch(member.name, member.group, member.type)) return false;
+      if (ui.teamGroup !== 'All' && member.group !== ui.teamGroup) return false;
+      if (ui.teamType !== 'All' && member.type !== ui.teamType) return false;
+      if (ui.teamStatus !== 'All' && stats.loadStatus !== ui.teamStatus) return false;
+      return true;
+    });
+
+  const sorters = {
+    'utilization-desc': (a, b) => b.stats.utilization - a.stats.utilization || a.member.name.localeCompare(b.member.name),
+    'available-desc': (a, b) => b.stats.availableHours - a.stats.availableHours || a.member.name.localeCompare(b.member.name),
+    'projects-desc': (a, b) => b.stats.activeLoad - a.stats.activeLoad || a.member.name.localeCompare(b.member.name),
+    'name-asc': (a, b) => a.member.name.localeCompare(b.member.name)
+  };
+  teamRows.sort(sorters[ui.teamSort] || sorters['utilization-desc']);
+
+  const allStats = activeMembers.map((member) => computeMemberStats(member.id));
+  const totalCapacity = roundNumber(allStats.reduce((sum, stats) => sum + stats.weeklyCapacity, 0), 1);
+  const totalAllocated = roundNumber(allStats.reduce((sum, stats) => sum + stats.allocatedHours, 0), 1);
+  const totalAvailable = roundNumber(allStats.reduce((sum, stats) => sum + stats.availableHours, 0), 1);
+  const avgUtilization = totalCapacity ? totalAllocated / totalCapacity : 0;
+  const overloaded = allStats.filter((stats) => stats.loadStatus === 'Overloaded').length;
 
   return `
     <div class="stack-lg">
-      <section class="grid-5">
-        ${kpiCard('Active people', activeMembers.length, `${state.members.length - activeMembers.length} inactive`,'is-accent')}
-        ${kpiCard('Available', loadCounts.Available, 'No active allocation','is-dark')}
-        ${kpiCard('Balanced', loadCounts.Balanced, `Load score ≤ ${state.settings.loadBands.balancedMax}`)}
-        ${kpiCard('High', loadCounts.High, `Up to ${state.settings.loadBands.highMax}`)}
-        ${kpiCard('Overloaded', loadCounts.Overloaded, 'Requires rebalancing')}
+      <section class="kpi-grid">
+        ${kpiCard('Active team', activeMembers.length, 'Employees, interns & freelancers','is-accent')}
+        ${kpiCard('Weekly capacity', formatHours(totalCapacity), 'Combined available work week','is-dark')}
+        ${kpiCard('Allocated', formatHours(totalAllocated), `${formatPercent(avgUtilization)} team utilisation`)}
+        ${kpiCard('Available', formatHours(totalAvailable), 'Unallocated live capacity')}
+        ${kpiCard('Avg utilisation', formatPercent(avgUtilization), 'Live projects only')}
+        ${kpiCard('Overloaded', overloaded, overloaded ? 'Above individual weekly capacity' : 'No one above capacity')}
       </section>
 
-      <section class="project-toolbar">
+      <section class="project-toolbar team-capacity-toolbar">
         <div class="toolbar-group">
-          <span class="field-label">View group</span>
+          <span class="field-label">Filters</span>
           <select class="select-compact" data-control="team-group-filter">
             <option value="All" ${ui.teamGroup === 'All' ? 'selected' : ''}>All groups</option>
             ${GROUPS.map((group) => `<option value="${group}" ${ui.teamGroup === group ? 'selected' : ''}>${group}</option>`).join('')}
           </select>
+          <select class="select-compact" data-control="team-type-filter">
+            <option value="All" ${ui.teamType === 'All' ? 'selected' : ''}>All member types</option>
+            ${MEMBER_TYPES.map((type) => `<option value="${type}" ${ui.teamType === type ? 'selected' : ''}>${type}</option>`).join('')}
+          </select>
+          <select class="select-compact" data-control="team-status-filter">
+            <option value="All" ${ui.teamStatus === 'All' ? 'selected' : ''}>All capacity states</option>
+            ${['Available','Balanced','High','Overloaded'].map((status) => `<option value="${status}" ${ui.teamStatus === status ? 'selected' : ''}>${status}</option>`).join('')}
+          </select>
         </div>
         <div class="toolbar-group">
-          <span class="capacity-pill">${members.length} people shown</span>
-          <button class="button button-primary" type="button" data-action="add-member">Add team member</button>
+          <span class="field-label">Sort</span>
+          <select class="select-compact" data-control="team-sort">
+            <option value="utilization-desc" ${ui.teamSort === 'utilization-desc' ? 'selected' : ''}>Most utilised</option>
+            <option value="available-desc" ${ui.teamSort === 'available-desc' ? 'selected' : ''}>Most available</option>
+            <option value="projects-desc" ${ui.teamSort === 'projects-desc' ? 'selected' : ''}>Most live projects</option>
+            <option value="name-asc" ${ui.teamSort === 'name-asc' ? 'selected' : ''}>Name A-Z</option>
+          </select>
+          <span class="capacity-pill">${teamRows.length} people shown</span>
         </div>
       </section>
 
-      ${members.length ? `<section class="team-grid">${members.map(({member,stats}) => renderTeamCard(member,stats)).join('')}</section>` : renderMiniEmpty('No team members found', 'Try a different search or group filter.')}
+      ${teamRows.length ? `<section class="team-grid capacity-team-grid">${teamRows.map(({member,stats}) => renderTeamCard(member,stats)).join('')}</section>` : renderMiniEmpty('No team members found', 'Try a different search or capacity filter.')}
 
       <section class="panel">
         <div class="panel-header">
           <div>
             <div class="section-eyebrow">Detailed capacity</div>
-            <h2 class="panel-title">Role and project breakdown</h2>
+            <h2 class="panel-title">Weekly allocation by person</h2>
+            <p class="panel-subtitle">On Hold, Paused and Completed projects are excluded from current capacity.</p>
           </div>
         </div>
         <div class="panel-body flush">
           <div class="table-wrap">
             <table class="data-table data-table--capacity">
-              <thead><tr><th>Team member</th><th>Active load</th><th>Retainers</th><th>One-Time</th><th>Pitches</th><th>Internal</th><th>Primary</th><th>Support</th><th>SPOC</th><th>Score</th><th>Status</th></tr></thead>
-              <tbody>${members.map(({member,stats}) => renderTeamTableRow(member,stats)).join('')}</tbody>
+              <thead><tr><th>Team member</th><th>Capacity</th><th>Allocated</th><th>Available</th><th>Utilisation</th><th>Live Projects</th><th>Lead SPOC</th><th>Primary</th><th>Support</th><th>Mentor</th><th>Status</th></tr></thead>
+              <tbody>${teamRows.map(({member,stats}) => renderTeamTableRow(member,stats)).join('')}</tbody>
             </table>
           </div>
         </div>
@@ -863,27 +901,36 @@ function renderTeamOverview() {
 }
 
 function renderTeamCard(member, stats) {
-  const meterWidth = Math.min(100, (stats.loadScore / Math.max(state.settings.loadBands.highMax, 0.01)) * 100);
+  const meterWidth = Math.min(100, stats.utilization * 100);
   return `
-    <article class="team-card ${member.active ? '' : 'is-inactive'}">
+    <article class="team-card capacity-person-card ${member.active ? '' : 'is-inactive'}" data-action="view-member-profile" data-id="${escapeAttr(member.id)}" tabindex="0" role="button">
       <div class="team-card-head">
         <div style="display:flex;gap:10px;align-items:center">
           <div class="avatar ${slug(member.group)} ${member.active ? '' : 'inactive'}">${escapeHtml(initials(member.name))}</div>
           <div>
             <h3 class="person-name">${escapeHtml(member.name)}</h3>
-            <div class="person-meta">${escapeHtml(member.group)} · ${escapeHtml(member.type)}${member.active ? '' : ' · Inactive'}</div>
+            <div class="person-meta">${escapeHtml(member.group)} · ${escapeHtml(member.type)} · ${formatHours(stats.weeklyCapacity)}/week</div>
           </div>
         </div>
         <div class="load-score">
-          <strong>${formatScore(stats.loadScore)}</strong>
+          <strong>${formatPercent(stats.utilization)}</strong>
           <span style="color:${loadStatusColor(stats.loadStatus)}">${stats.loadStatus}</span>
         </div>
       </div>
+      <div class="capacity-hours-line">
+        <strong>${formatHours(stats.allocatedHours)} / ${formatHours(stats.weeklyCapacity)}</strong>
+        <span>${formatHours(stats.availableHours)} available</span>
+      </div>
       <div class="load-meter"><span class="${slug(stats.loadStatus)}" style="width:${meterWidth}%"></span></div>
-      <div class="team-stat-grid">
-        <div class="team-stat"><strong>${stats.activeLoad}</strong><span>Active</span></div>
-        <div class="team-stat"><strong>${stats.asPrimary}</strong><span>Primary</span></div>
-        <div class="team-stat"><strong>${stats.asSupport}</strong><span>Support</span></div>
+      <div class="role-hour-grid">
+        <div><strong>${formatHours(stats.roleHours.leadSpoc)}</strong><span>Lead SPOC</span></div>
+        <div><strong>${formatHours(stats.roleHours.primary)}</strong><span>Primary</span></div>
+        <div><strong>${formatHours(stats.roleHours.support)}</strong><span>Support</span></div>
+        <div><strong>${formatHours(stats.roleHours.mentor)}</strong><span>Mentor</span></div>
+      </div>
+      <div class="team-card-footer">
+        <span>${stats.activeLoad} live project${stats.activeLoad === 1 ? '' : 's'}</span>
+        <span>View profile -></span>
       </div>
     </article>`;
 }
@@ -891,16 +938,16 @@ function renderTeamCard(member, stats) {
 function renderTeamTableRow(member, stats) {
   return `
     <tr>
-      <td><div class="cell-title">${escapeHtml(member.name)}</div><div class="cell-subtitle">${escapeHtml(member.group)} · ${escapeHtml(member.type)}${member.active ? '' : ' · Inactive'}</div></td>
+      <td><button class="link-button" type="button" data-action="view-member-profile" data-id="${escapeAttr(member.id)}">${escapeHtml(member.name)}</button><div class="cell-subtitle">${escapeHtml(member.group)} · ${escapeHtml(member.type)}</div></td>
+      <td class="num">${formatHours(stats.weeklyCapacity)}</td>
+      <td class="num"><strong>${formatHours(stats.allocatedHours)}</strong></td>
+      <td class="num">${formatHours(stats.availableHours)}</td>
+      <td class="num"><strong>${formatPercent(stats.utilization)}</strong></td>
       <td class="num">${stats.activeLoad}</td>
-      <td class="num">${stats.Retainer}</td>
-      <td class="num">${stats['One-Time']}</td>
-      <td class="num">${stats.Pitch}</td>
-      <td class="num">${stats.Internal}</td>
-      <td class="num">${stats.asPrimary}</td>
-      <td class="num">${stats.asSupport}</td>
-      <td class="num">${stats.asSpoc}</td>
-      <td class="num"><strong>${formatScore(stats.loadScore)}</strong></td>
+      <td class="num">${formatHours(stats.roleHours.leadSpoc)}</td>
+      <td class="num">${formatHours(stats.roleHours.primary)}</td>
+      <td class="num">${formatHours(stats.roleHours.support)}</td>
+      <td class="num">${formatHours(stats.roleHours.mentor)}</td>
       <td><span class="status-pill ${slug(stats.loadStatus)}">${stats.loadStatus}</span></td>
     </tr>`;
 }
