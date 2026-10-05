@@ -2381,3 +2381,244 @@ summary:focus-visible {
     justify-self: start;
   }
 }
+
+
+/* Hours-based capacity planning --------------------------------------------- */
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.capacity-team-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.capacity-person-card {
+  cursor: pointer;
+}
+
+.capacity-person-card:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+.capacity-hours-line {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  margin: 16px 0 8px;
+}
+
+.capacity-hours-line strong {
+  font-size: 18px;
+  letter-spacing: -0.025em;
+}
+
+.capacity-hours-line span {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 750;
+}
+
+.role-hour-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  margin-top: 14px;
+}
+
+.role-hour-grid > div {
+  padding: 12px 8px;
+  border-right: 1px solid var(--line);
+}
+
+.role-hour-grid > div:last-child {
+  border-right: 0;
+}
+
+.role-hour-grid strong,
+.role-hour-grid span {
+  display: block;
+}
+
+.role-hour-grid strong {
+  font-size: 13px;
+}
+
+.role-hour-grid span {
+  margin-top: 3px;
+  color: var(--muted);
+  font-size: 8px;
+  font-weight: 800;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+.team-card-footer {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  padding-top: 12px;
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 750;
+}
+
+.team-capacity-toolbar {
+  align-items: flex-end;
+}
+
+.allocation-control {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 82px;
+  gap: 8px;
+}
+
+.allocation-percent {
+  display: flex;
+  align-items: stretch;
+  border: 1px solid var(--line-strong);
+  background: var(--surface);
+}
+
+.allocation-percent input {
+  width: 100%;
+  min-width: 0;
+  border: 0 !important;
+  text-align: right;
+}
+
+.allocation-percent span {
+  display: grid;
+  place-items: center;
+  width: 27px;
+  border-left: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.setting-input-wrap {
+  display: flex;
+  align-items: stretch;
+}
+
+.setting-input-wrap input {
+  min-width: 80px;
+}
+
+.setting-input-wrap small {
+  display: grid;
+  place-items: center;
+  min-width: 28px;
+  border: 1px solid var(--line-strong);
+  border-left: 0;
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.profile-capacity-hero {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  border: 1px solid var(--line);
+}
+
+.profile-capacity-hero > div {
+  padding: 15px;
+  border-right: 1px solid var(--line);
+}
+
+.profile-capacity-hero > div:last-child {
+  border-right: 0;
+}
+
+.profile-capacity-hero span,
+.profile-capacity-hero strong {
+  display: block;
+}
+
+.profile-capacity-hero span {
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+}
+
+.profile-capacity-hero strong {
+  margin-top: 6px;
+  font-size: 22px;
+  letter-spacing: -.03em;
+}
+
+.profile-load-line {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 12px;
+  margin-top: 14px;
+}
+
+.profile-role-grid {
+  margin-top: 18px;
+}
+
+.profile-section-header {
+  margin-top: 24px;
+  margin-bottom: 12px;
+}
+
+.profile-allocation-table {
+  min-width: 680px;
+}
+
+@media (max-width: 1180px) {
+  .kpi-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .capacity-team-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .kpi-grid,
+  .capacity-team-grid,
+  .profile-capacity-hero {
+    grid-template-columns: 1fr;
+  }
+
+  .profile-capacity-hero > div {
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+  }
+
+  .profile-capacity-hero > div:last-child {
+    border-bottom: 0;
+  }
+
+  .role-hour-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .role-hour-grid > div:nth-child(2) {
+    border-right: 0;
+  }
+
+  .role-hour-grid > div:nth-child(-n+2) {
+    border-bottom: 1px solid var(--line);
+  }
+
+  .allocation-control {
+    grid-template-columns: 1fr;
+  }
+
+  .allocation-percent {
+    width: 100%;
+  }
+}
