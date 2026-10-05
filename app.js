@@ -951,6 +951,33 @@ function renderTeamSetup() {
           ${PROJECT_TYPES.map((type) => settingRow(type, state.settings.projectLimits[type], 'projectLimit', type, 1)).join('')}
         </article>
       </section>
+
+      <section class="section-header">
+        <div>
+          <div class="section-eyebrow">Financial year management</div>
+          <h2>Year rollover & archive</h2>
+          <p>Current FY: <strong>FY ${escapeHtml(state.meta.currentFY)}</strong>. Older financial years remain available from the top selector as read-only history.</p>
+        </div>
+        <button class="button button-primary" type="button" data-action="start-new-fy">Start new financial year</button>
+      </section>
+
+      <section class="settings-grid">
+        <article class="settings-card">
+          <h3>Available years</h3>
+          <p>Switch between years from the top bar. Historical years do not affect current capacity.</p>
+          <div class="fy-year-list">${getFinancialYears().map((fy) => `<div class="fy-year-row"><span>FY ${escapeHtml(fy)}</span><strong>${state.projects.filter((project) => project.financialYear === fy).length} projects</strong>${fy === state.meta.currentFY ? '<em>Current</em>' : '<em>Archived</em>'}</div>`).join('')}</div>
+        </article>
+        <article class="settings-card">
+          <h3>Year-end review</h3>
+          <p>Use Data → Export FY Review to download an Excel workbook that can be opened directly in Google Sheets.</p>
+          <div class="notice">The workbook includes project registers, Pond tabs, project types, status summary and team review for the selected FY.</div>
+        </article>
+        <article class="settings-card">
+          <h3>Rollover rule</h3>
+          <p>Starting a new FY creates fresh allocation records. The previous year's staffing and status history stays unchanged.</p>
+          <div class="notice">Recommended: carry forward active retainers and any ongoing projects that continue beyond 31 March.</div>
+        </article>
+      </section>
     </div>`;
 }
 
@@ -1020,6 +1047,10 @@ function handleViewClick(event) {
   if (action === 'add-member') openMemberModal({ group: trigger.dataset.group || null });
   if (action === 'edit-member') openMemberModal({ member: memberById(trigger.dataset.id) });
   if (action === 'delete-member') deleteMember(trigger.dataset.id);
+  if (action === 'start-new-fy') {
+    if (!userIsAdmin()) return showToast('Only the administrator can start a new financial year.', 'warning');
+    openStartFinancialYearModal();
+  }
   if (action === 'set-pond-status') {
     ui.pondFilters[trigger.dataset.pond].status = trigger.dataset.status;
     renderCurrentView();
@@ -1259,6 +1290,96 @@ function saveProjectFromModal(projectId, fixedPond) {
   const typeCount = state.projects.filter((item) => item.financialYear === project.financialYear && item.pond === project.pond && item.type === project.type).length;
   const limit = Number(state.settings.projectLimits[project.type] || 0);
   if (limit && typeCount > limit) showToast(`${project.pond} now exceeds the ${project.type} project limit of ${limit}.`, 'warning');
+}
+
+function openStartFinancialYearModal() {
+  const currentFY = state.meta.currentFY;
+  const suggestedFY = nextFinancialYear(currentFY);
+  const currentProjects = state.projects.filter((project) => project.financialYear === currentFY && project.status !== 'Completed');
+  openModal({
+    eyebrow: 'Financial year rollover',
+    title: `Start FY ${suggestedFY}`,
+    description: `Create the next allocation year without changing FY ${currentFY}. Carried projects become new allocation records.`,
+    body: `
+      <div class="form-grid">
+        <div class="field">
+          <label for="newFinancialYear">New financial year</label>
+          <input id="newFinancialYear" type="text" value="${escapeAttr(suggestedFY)}" placeholder="2027-28">
+        </div>
+        <div class="field">
+          <label for="fyCarryMode">Carry forward</label>
+          <select id="fyCarryMode">
+            <option value="ongoing">All ongoing projects</option>
+            <option value="retainers">Active retainers only</option>
+            <option value="selected">Select projects manually</option>
+            <option value="empty">Start empty</option>
+          </select>
+        </div>
+        <div class="field span-2">
+          <div class="notice">FY ${escapeHtml(currentFY)} remains archived and read-only after rollover. Team members and allocation settings continue into the new FY.</div>
+        </div>
+      </div>
+      <div id="fyCarryProjectList" class="fy-carry-list" style="margin-top:16px">
+        ${currentProjects.length ? currentProjects.map((project) => `<label class="fy-carry-item"><input type="checkbox" value="${escapeAttr(project.id)}" checked><span><strong>${escapeHtml(project.brand)}</strong><small>${escapeHtml(project.type)} · ${escapeHtml(project.pond)} · ${escapeHtml(project.status)}</small></span></label>`).join('') : '<div class="notice">There are no ongoing projects in the current FY.</div>'}
+      </div>
+      <p class="form-error" id="fyRolloverError" hidden></p>`,
+    footer: `
+      <button class="button button-secondary" type="button" data-modal-action="cancel">Cancel</button>
+      <button class="button button-primary" type="button" id="confirmFYRollover">Create FY ${escapeHtml(suggestedFY)}</button>`
+  });
+
+  const modeSelect = document.getElementById('fyCarryMode');
+  const checkboxes = () => [...document.querySelectorAll('#fyCarryProjectList input[type="checkbox"]')];
+  const syncMode = () => {
+    const mode = modeSelect.value;
+    document.getElementById('fyCarryProjectList').hidden = mode === 'empty';
+    checkboxes().forEach((checkbox) => {
+      const project = projectById(checkbox.value);
+      if (mode === 'ongoing') checkbox.checked = Boolean(project && project.status !== 'Completed');
+      if (mode === 'retainers') checkbox.checked = Boolean(project && project.type === 'Retainer' && project.status !== 'Completed');
+      if (mode === 'empty') checkbox.checked = false;
+    });
+  };
+  modeSelect.addEventListener('change', syncMode);
+  syncMode();
+  document.getElementById('confirmFYRollover').addEventListener('click', createFinancialYearFromModal);
+}
+
+function createFinancialYearFromModal() {
+  const errorEl = document.getElementById('fyRolloverError');
+  const newFY = document.getElementById('newFinancialYear').value.trim();
+  if (!/^\d{4}-\d{2}$/.test(newFY)) return showModalError(errorEl, 'Use the format 2027-28.');
+  if (getFinancialYears().includes(newFY)) return showModalError(errorEl, `FY ${newFY} already exists.`);
+
+  const mode = document.getElementById('fyCarryMode').value;
+  const selectedIds = mode === 'empty' ? [] : [...document.querySelectorAll('#fyCarryProjectList input[type="checkbox"]:checked')].map((input) => input.value);
+  const sourceFY = state.meta.currentFY;
+  const startDate = financialYearStartDate(newFY);
+  const now = new Date().toISOString();
+  const carried = selectedIds.map((id) => projectById(id)).filter(Boolean).map((source) => {
+    const copy = deepClone(source);
+    copy.id = uid('project');
+    copy.financialYear = newFY;
+    copy.previousProjectId = source.id;
+    copy.startDate = (!source.startDate || source.startDate < startDate) ? startDate : source.startDate;
+    if (copy.endDate && copy.endDate < startDate) copy.endDate = '';
+    copy.createdAt = now;
+    copy.updatedAt = now;
+    const carryNote = `Carried forward from FY ${sourceFY}.`;
+    copy.notes = [copy.notes, carryNote].filter(Boolean).join('\n');
+    return copy;
+  });
+
+  state.projects.push(...carried);
+  state.meta.currentFY = newFY;
+  state.meta.period = newFY;
+  state.meta.financialYears = [...new Set([...getFinancialYears(), newFY])].sort(compareFY);
+  ui.financialYear = newFY;
+  scheduleSave();
+  modalCommitted = true;
+  els.modal.close();
+  renderCurrentView();
+  showToast(`FY ${newFY} created with ${carried.length} carried project${carried.length === 1 ? '' : 's'}.`);
 }
 
 function openMemberModal({ member = null, group = null } = {}) {
