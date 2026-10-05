@@ -1733,13 +1733,14 @@ function exportProjectsCsv() {
 }
 
 function exportTeamCsv() {
-  const headers = ['Team Member','Group','Type','Active','Active Load','Retainers','One-Time','Pitches','Internal','As Primary','As Support','As SPOC','Load Score','Load Status'];
+  const headers = ['Team Member','Group','Type','Weekly Capacity (hrs)','Live Projects','Allocated (hrs/wk)','Available (hrs/wk)','Utilisation','Lead SPOC (hrs)','Primary (hrs)','Support (hrs)','Mentor (hrs)','Capacity Status'];
   const rows = state.members.map((member) => {
     const stats = computeMemberStats(member.id);
-    return [member.name,member.group,member.type,member.active ? 'Yes' : 'No',stats.activeLoad,stats.Retainer,stats['One-Time'],stats.Pitch,stats.Internal,stats.asPrimary,stats.asSupport,stats.asSpoc,formatScore(stats.loadScore),stats.loadStatus];
+    return [member.name,member.group,member.type,stats.weeklyCapacity,stats.activeLoad,stats.allocatedHours,stats.availableHours,formatPercent(stats.utilization),stats.roleHours.leadSpoc,stats.roleHours.primary,stats.roleHours.support,stats.roleHours.mentor,stats.loadStatus];
   });
-  downloadCsv(`JG_Team_Capacity_${dateStamp()}.csv`, headers, rows);
-  showToast('Team CSV exported.');
+  const fyLabel = ui.financialYear === 'ALL' ? 'All_Years' : `FY_${ui.financialYear}`;
+  downloadCsv(`JG_Team_Capacity_${fyLabel}_${dateStamp()}.csv`, headers, rows);
+  showToast('Team capacity CSV exported.');
 }
 
 function exportFYReviewWorkbook(fy) {
@@ -1786,11 +1787,11 @@ function exportFYReviewWorkbook(fy) {
     addSheet('Internal', projectHeaders, projects.filter((project) => project.type === 'Internal').map(projectRow));
     const statusRows = STATUSES.map((status) => [status, projects.filter((project) => project.status === status).length]);
     addSheet('Status Summary', ['Status','Project Count'], statusRows);
-    const teamHeaders = ['Team Member','Group','Type','Active','Projects Worked','Active Load','Retainers','One-Time','Pitches','Internal','As Primary','As Support','As SPOC','Load Score','Load Status'];
+    const teamHeaders = ['Team Member','Group','Type','Weekly Capacity (hrs)','Projects Worked','Live Projects','Allocated (hrs/wk)','Available (hrs/wk)','Utilisation','Lead SPOC (hrs)','Primary (hrs)','Support (hrs)','Mentor (hrs)','Capacity Status'];
     const teamRows = state.members.map((member) => {
       const stats = computeMemberStats(member.id);
       const worked = projects.filter((project) => ROLE_KEYS.some((key) => project[key] === member.id)).length;
-      return [member.name,member.group,member.type,member.active ? 'Yes' : 'No',worked,stats.activeLoad,stats.Retainer,stats['One-Time'],stats.Pitch,stats.Internal,stats.asPrimary,stats.asSupport,stats.asSpoc,formatScore(stats.loadScore),stats.loadStatus];
+      return [member.name,member.group,member.type,stats.weeklyCapacity,worked,stats.activeLoad,stats.allocatedHours,stats.availableHours,formatPercent(stats.utilization),stats.roleHours.leadSpoc,stats.roleHours.primary,stats.roleHours.support,stats.roleHours.mentor,stats.loadStatus];
     });
     addSheet('Team Review', teamHeaders, teamRows);
     XLSX.writeFile(workbook, `JG_FY_${fy}_Review_${dateStamp()}.xlsx`);
