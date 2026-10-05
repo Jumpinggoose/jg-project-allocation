@@ -1103,6 +1103,7 @@ function handleViewClick(event) {
   if (action === 'add-member') openMemberModal({ group: trigger.dataset.group || null });
   if (action === 'edit-member') openMemberModal({ member: memberById(trigger.dataset.id) });
   if (action === 'delete-member') deleteMember(trigger.dataset.id);
+  if (action === 'view-member-profile') openMemberProfile(trigger.dataset.id);
   if (action === 'start-new-fy') {
     if (!userIsAdmin()) return showToast('Only the administrator can start a new financial year.', 'warning');
     openStartFinancialYearModal();
@@ -1124,6 +1125,21 @@ function handleViewChange(event) {
 
   if (control === 'team-group-filter') {
     ui.teamGroup = event.target.value;
+    renderCurrentView();
+  }
+
+  if (control === 'team-type-filter') {
+    ui.teamType = event.target.value;
+    renderCurrentView();
+  }
+
+  if (control === 'team-status-filter') {
+    ui.teamStatus = event.target.value;
+    renderCurrentView();
+  }
+
+  if (control === 'team-sort') {
+    ui.teamSort = event.target.value;
     renderCurrentView();
   }
 
@@ -1152,13 +1168,14 @@ function handleViewInput(event) {
   const value = Number(event.target.value);
   if (!Number.isFinite(value) || value < 0) return;
 
-  if (setting === 'roleWeight') {
-    state.settings.roleWeights[event.target.dataset.key] = value;
+  if (setting === 'roleWeightPercent') {
+    const decimal = value / 100;
+    state.settings.roleWeights[event.target.dataset.key] = decimal;
     if (event.target.dataset.key === 'mentor1') {
-      MENTOR_KEYS.forEach((key) => { state.settings.roleWeights[key] = value; });
+      MENTOR_KEYS.forEach((key) => { state.settings.roleWeights[key] = decimal; });
     }
   }
-  if (setting === 'loadBand') state.settings.loadBands[event.target.dataset.key] = value;
+  if (setting === 'capacityBandPercent') state.settings.capacityBands[event.target.dataset.key] = value / 100;
   if (setting === 'projectLimit') state.settings.projectLimits[event.target.dataset.key] = Math.round(value);
 
   scheduleSave({ silent: true });
@@ -1440,7 +1457,7 @@ function createFinancialYearFromModal() {
 
 function openMemberModal({ member = null, group = null } = {}) {
   const isEdit = Boolean(member);
-  const draft = member ? deepClone(member) : { id: '', name: '', group: group || 'POND 1', type: 'Employee', active: true };
+  const draft = member ? deepClone(member) : { id: '', name: '', group: group || 'POND 1', type: 'Employee', active: true, weeklyCapacity: DEFAULT_WEEKLY_CAPACITY };
   openModal({
     eyebrow: isEdit ? 'Update team setup' : 'New team member',
     title: isEdit ? `Edit ${member.name}` : 'Add team member',
@@ -1458,6 +1475,11 @@ function openMemberModal({ member = null, group = null } = {}) {
         <div class="field">
           <label for="memberType">Member type</label>
           <select id="memberType">${MEMBER_TYPES.map((item) => `<option value="${item}" ${draft.type === item ? 'selected' : ''}>${item}</option>`).join('')}</select>
+        </div>
+        <div class="field">
+          <label for="memberWeeklyCapacity">Weekly capacity (hours)</label>
+          <input id="memberWeeklyCapacity" type="number" min="1" max="168" step="0.5" value="${escapeAttr(String(draft.weeklyCapacity ?? DEFAULT_WEEKLY_CAPACITY))}">
+          <div class="field-help">Default employee capacity is 45 hrs/week. Adjust for freelancers, interns or part-time availability.</div>
         </div>
         <div class="field span-2">
           <label class="toggle" style="width:auto;height:auto;gap:10px;align-items:center">
@@ -1489,6 +1511,7 @@ function saveMemberFromModal(memberId) {
     name,
     group: document.getElementById('memberGroup').value,
     type: document.getElementById('memberType').value,
+    weeklyCapacity: Math.max(1, Number(document.getElementById('memberWeeklyCapacity').value) || DEFAULT_WEEKLY_CAPACITY),
     active: document.getElementById('memberActive').checked
   };
 
