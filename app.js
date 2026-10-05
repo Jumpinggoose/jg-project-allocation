@@ -582,7 +582,7 @@ function renderDashboard() {
             <div>
               <div class="section-eyebrow">Team capacity</div>
               <h2 class="panel-title">Current allocation health</h2>
-              <p class="panel-subtitle">Calculated from active project roles and workbook-equivalent weights.</p>
+              <p class="panel-subtitle">Calculated from live project hours against each person's weekly capacity.</p>
             </div>
             <button class="link-button" type="button" data-action="go-view" data-view="team">View team</button>
           </div>
@@ -1206,6 +1206,7 @@ function openProjectModal({ pond = null, type = null, project = null } = {}) {
     mentor1: '',
     mentor2: '',
     allocations: defaultProjectAllocations(),
+    allocationHours: {},
     notes: ''
   };
   const fixedPond = pond && !isEdit;
@@ -1215,7 +1216,7 @@ function openProjectModal({ pond = null, type = null, project = null } = {}) {
   openModal({
     eyebrow: isEdit ? 'Update allocation' : 'New project entry',
     title: isEdit ? `Edit ${project.brand}` : 'Add project',
-    description: 'Assign people to project roles and set the actual weekly allocation percentage for each role. The defaults are only starting points and can be changed per project.',
+    description: 'Assign people to project roles and set the weekly hours this project is expected to use. Utilisation percentages are calculated automatically from each person\'s weekly capacity.',
     body: `
       <div class="form-grid">
         <div class="field">
@@ -1268,19 +1269,19 @@ function openProjectModal({ pond = null, type = null, project = null } = {}) {
 
       <div class="recommendation-box" style="margin:18px 0">
         <h4>Lowest-load suggestions for ${escapeHtml(selectedPond)}</h4>
-        <div class="recommendation-list">${suggestions.length ? suggestions.map(({member,stats}) => `<span class="recommendation-chip">${escapeHtml(member.name)} · ${escapeHtml(member.group)} · ${formatScore(stats.loadScore)}</span>`).join('') : '<span class="field-help">No active members available.</span>'}</div>
+        <div class="recommendation-list">${suggestions.length ? suggestions.map(({member,stats}) => `<span class="recommendation-chip">${escapeHtml(member.name)} · ${escapeHtml(member.group)} · ${formatHours(stats.availableHours)} free</span>`).join('') : '<span class="field-help">No active members available.</span>'}</div>
       </div>
 
       <div class="form-grid">
-        ${assignmentField('projectLeadSpoc','Lead SPOC',draft.leadSpoc,selectedPond,draft.allocations?.leadSpoc)}
-        ${assignmentField('projectPrimary1','Primary 1',draft.primary1,selectedPond,draft.allocations?.primary1)}
-        ${assignmentField('projectPrimary2','Primary 2',draft.primary2,selectedPond,draft.allocations?.primary2)}
-        ${assignmentField('projectSupport1','Support talent 1',draft.support1,selectedPond,draft.allocations?.support1)}
-        ${assignmentField('projectSupport2','Support talent 2',draft.support2,selectedPond,draft.allocations?.support2)}
-        ${assignmentField('projectSupport3','Support talent 3',draft.support3,selectedPond,draft.allocations?.support3)}
-        ${assignmentField('projectSupport4','Support talent 4',draft.support4,selectedPond,draft.allocations?.support4)}
-        ${assignmentField('projectMentor1','Mentor / Escalation 1',draft.mentor1,selectedPond,draft.allocations?.mentor1)}
-        ${assignmentField('projectMentor2','Mentor / Escalation 2',draft.mentor2,selectedPond,draft.allocations?.mentor2)}
+        ${assignmentField('projectLeadSpoc','Lead SPOC',draft.leadSpoc,selectedPond,draft.allocationHours?.leadSpoc,draft.allocations?.leadSpoc)}
+        ${assignmentField('projectPrimary1','Primary 1',draft.primary1,selectedPond,draft.allocationHours?.primary1,draft.allocations?.primary1)}
+        ${assignmentField('projectPrimary2','Primary 2',draft.primary2,selectedPond,draft.allocationHours?.primary2,draft.allocations?.primary2)}
+        ${assignmentField('projectSupport1','Support talent 1',draft.support1,selectedPond,draft.allocationHours?.support1,draft.allocations?.support1)}
+        ${assignmentField('projectSupport2','Support talent 2',draft.support2,selectedPond,draft.allocationHours?.support2,draft.allocations?.support2)}
+        ${assignmentField('projectSupport3','Support talent 3',draft.support3,selectedPond,draft.allocationHours?.support3,draft.allocations?.support3)}
+        ${assignmentField('projectSupport4','Support talent 4',draft.support4,selectedPond,draft.allocationHours?.support4,draft.allocations?.support4)}
+        ${assignmentField('projectMentor1','Mentor / Escalation 1',draft.mentor1,selectedPond,draft.allocationHours?.mentor1,draft.allocations?.mentor1)}
+        ${assignmentField('projectMentor2','Mentor / Escalation 2',draft.mentor2,selectedPond,draft.allocationHours?.mentor2,draft.allocations?.mentor2)}
         <div class="field span-2">
           <label for="projectNotes">Notes</label>
           <textarea id="projectNotes" maxlength="1000" placeholder="Dependencies, next steps or additional allocation notes">${escapeHtml(draft.notes)}</textarea>
@@ -1296,6 +1297,7 @@ function openProjectModal({ pond = null, type = null, project = null } = {}) {
   if (!fixedPond && pondSelect) {
     pondSelect.addEventListener('change', () => refreshAssignmentOptions(pondSelect.value));
   }
+  bindAllocationFieldEvents();
   document.getElementById('saveProjectButton').addEventListener('click', () => saveProjectFromModal(project?.id || null, fixedPond ? selectedPond : null));
 }
 
@@ -1333,11 +1335,16 @@ function saveProjectFromModal(projectId, fixedPond) {
     mentor1: document.getElementById('projectMentor1').value,
     mentor2: document.getElementById('projectMentor2').value
   };
+  const allocationHours = Object.fromEntries(ROLE_KEYS.map((key) => {
+    const input = document.getElementById(`project${roleKeySuffix(key)}Hours`);
+    const raw = Number(input?.value ?? 0);
+    return [key, Math.max(0, Number.isFinite(raw) ? raw : 0)];
+  }));
   const allocations = Object.fromEntries(ROLE_KEYS.map((key) => {
-    const input = document.getElementById(`project${roleKeySuffix(key)}Pct`);
-    const fallback = defaultAllocationPercent(key);
-    const raw = Number(input?.value ?? fallback);
-    return [key, Math.max(0, Math.min(100, Number.isFinite(raw) ? raw : fallback))];
+    const memberId = assignments[key];
+    const capacity = Math.max(1, Number(memberById(memberId)?.weeklyCapacity || DEFAULT_WEEKLY_CAPACITY));
+    const hours = memberId ? Number(allocationHours[key] || 0) : 0;
+    return [key, roundNumber((hours / capacity) * 100, 2)];
   }));
   const now = new Date().toISOString();
   const existingIndex = projectId ? state.projects.findIndex((item) => item.id === projectId) : -1;
@@ -1356,6 +1363,7 @@ function saveProjectFromModal(projectId, fixedPond) {
     priority: document.getElementById('projectPriority').value,
     ...assignments,
     allocations,
+    allocationHours,
     notes: document.getElementById('projectNotes').value.trim(),
     createdAt: existing?.createdAt || now,
     updatedAt: now
