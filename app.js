@@ -1756,6 +1756,8 @@ function normalizeState(input) {
   source.version = 2;
   source.revision = Number(source.revision || 0);
   source.meta = { ...deepClone(DEFAULT_DATA.meta), ...(source.meta || {}) };
+  source.meta.currentFY = source.meta.currentFY || source.meta.period || '2026-27';
+  source.meta.period = source.meta.currentFY;
   source.settings = source.settings || {};
   source.settings.projectLimits = { ...deepClone(DEFAULT_DATA.settings.projectLimits), ...(source.settings.projectLimits || {}) };
   source.settings.roleWeights = { ...deepClone(DEFAULT_DATA.settings.roleWeights), ...(source.settings.roleWeights || {}) };
@@ -1768,7 +1770,14 @@ function normalizeState(input) {
     type: MEMBER_TYPES.includes(member.type) ? member.type : 'Employee',
     active: member.active !== false
   })).filter((member) => member.name) : deepClone(DEFAULT_DATA.members);
-  source.projects = Array.isArray(source.projects) ? source.projects.map((project) => normalizeProject(project)).filter((project) => project.brand) : [];
+  source.projects = Array.isArray(source.projects) ? source.projects.map((project) => normalizeProject({
+    ...project,
+    financialYear: project.financialYear || source.meta.currentFY
+  })).filter((project) => project.brand) : [];
+  const fySet = new Set(Array.isArray(source.meta.financialYears) ? source.meta.financialYears : []);
+  fySet.add(source.meta.currentFY);
+  source.projects.forEach((project) => { if (project.financialYear) fySet.add(project.financialYear); });
+  source.meta.financialYears = [...fySet].filter(Boolean).sort(compareFY);
   source.projects.forEach((project) => {
     if (!project.legacyMentor3) return;
     const legacyName = source.members.find((member) => member.id === project.legacyMentor3)?.name || project.legacyMentor3;
@@ -1782,6 +1791,7 @@ function normalizeState(input) {
 function normalizeProject(project) {
   const normalized = {
     id: project.id || uid('project'),
+    financialYear: String(project.financialYear || state.meta?.currentFY || state.meta?.period || financialYearForDate(project.startDate)),
     pond: project.pond === 'POND 2' ? 'POND 2' : 'POND 1',
     type: PROJECT_TYPES.includes(project.type) ? project.type : 'Retainer',
     brand: String(project.brand || '').trim(),
