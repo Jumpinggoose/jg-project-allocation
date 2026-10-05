@@ -174,14 +174,23 @@ async function loadSession() {
       return false;
     }
 
+    const email = String(data.user.email || '').toLowerCase();
+    if (!email.endsWith('@jumpinggoose.com')) {
+      await supabaseClient.auth.signOut();
+      showToast('Access is limited to @jumpinggoose.com accounts.', 'error');
+      redirectToLogin();
+      return false;
+    }
+
     sessionUser = {
       id: data.user.id,
-      email: data.user.email || '',
+      email,
       name: data.user.user_metadata?.name || data.user.email || 'JG user',
-      role: 'editor'
+      role: email === 'theo@jumpinggoose.com' ? 'admin' : 'editor'
     };
 
-    els.currentUserLabel.textContent = `${sessionUser.name} · Editor`;
+    const roleLabel = sessionUser.role === 'admin' ? 'Admin' : 'Editor';
+    els.currentUserLabel.textContent = `${sessionUser.name} · ${roleLabel}`;
     return true;
   } catch (error) {
     console.error(error);
@@ -192,6 +201,10 @@ async function loadSession() {
 
 function userCanEdit() {
   return Boolean(sessionUser);
+}
+
+function userIsAdmin() {
+  return Boolean(sessionUser && sessionUser.role === 'admin');
 }
 
 function redirectToLogin() {
@@ -439,7 +452,7 @@ function renderCurrentView() {
   els.primaryAction.textContent = viewMeta.action;
   els.primaryAction.hidden = !userCanEdit() || storageMode !== 'server';
   const setupNav = document.querySelector('[data-view="setup"]');
-  if (setupNav) setupNav.hidden = !userCanEdit();
+  if (setupNav) setupNav.hidden = !userIsAdmin();
   els.globalSearch.placeholder = ui.view === 'team' || ui.view === 'setup'
     ? 'Search team members'
     : 'Search projects or people';
@@ -448,7 +461,15 @@ function renderCurrentView() {
   if (ui.view === 'pond1') els.viewContainer.innerHTML = renderPond('POND 1');
   if (ui.view === 'pond2') els.viewContainer.innerHTML = renderPond('POND 2');
   if (ui.view === 'team') els.viewContainer.innerHTML = renderTeamOverview();
-  if (ui.view === 'setup') els.viewContainer.innerHTML = renderTeamSetup();
+  if (ui.view === 'setup') {
+    if (!userIsAdmin()) {
+      ui.view = 'dashboard';
+      els.viewContainer.innerHTML = renderDashboard();
+      showToast('Admin Panel access is limited to theo@jumpinggoose.com.', 'warning');
+    } else {
+      els.viewContainer.innerHTML = renderTeamSetup();
+    }
+  }
 
   updateSyncUI(storageMode === 'server' ? 'saved' : 'error', storageMode === 'server' ? 'Shared cloud storage' : 'Read-only browser backup');
 }
