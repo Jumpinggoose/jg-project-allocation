@@ -1464,6 +1464,75 @@ function createFinancialYearFromModal() {
   showToast(`FY ${newFY} created with ${carried.length} carried project${carried.length === 1 ? '' : 's'}.`);
 }
 
+function openMemberProfile(memberId) {
+  const member = memberById(memberId);
+  if (!member) return;
+  const stats = computeMemberStats(memberId);
+  const liveAllocations = getMemberLiveAllocations(memberId);
+  const projectCount = new Set(liveAllocations.map((item) => item.project.id)).size;
+
+  openModal({
+    eyebrow: `${member.group} · ${member.type}`,
+    title: member.name,
+    description: `FY ${ui.financialYear === 'ALL' ? state.meta.currentFY : ui.financialYear} live weekly allocation. On Hold, Paused and Completed projects are excluded from capacity.`,
+    body: `
+      <section class="profile-capacity-hero">
+        <div><span>Weekly capacity</span><strong>${formatHours(stats.weeklyCapacity)}</strong></div>
+        <div><span>Allocated</span><strong>${formatHours(stats.allocatedHours)}</strong></div>
+        <div><span>Available</span><strong>${formatHours(stats.availableHours)}</strong></div>
+        <div><span>Utilisation</span><strong>${formatPercent(stats.utilization)}</strong></div>
+      </section>
+      <div class="profile-load-line">
+        <div class="load-meter"><span class="${slug(stats.loadStatus)}" style="width:${Math.min(100, stats.utilization * 100)}%"></span></div>
+        <span class="status-pill ${slug(stats.loadStatus)}">${stats.loadStatus}</span>
+      </div>
+      <section class="role-hour-grid profile-role-grid">
+        <div><strong>${formatHours(stats.roleHours.leadSpoc)}</strong><span>Lead SPOC</span></div>
+        <div><strong>${formatHours(stats.roleHours.primary)}</strong><span>Primary</span></div>
+        <div><strong>${formatHours(stats.roleHours.support)}</strong><span>Support</span></div>
+        <div><strong>${formatHours(stats.roleHours.mentor)}</strong><span>Mentor</span></div>
+      </section>
+      <div class="section-header profile-section-header">
+        <div>
+          <div class="section-eyebrow">Live allocation</div>
+          <h3>${projectCount} project${projectCount === 1 ? '' : 's'} · ${liveAllocations.length} role assignment${liveAllocations.length === 1 ? '' : 's'}</h3>
+        </div>
+      </div>
+      ${liveAllocations.length ? `
+        <div class="table-wrap">
+          <table class="data-table profile-allocation-table">
+            <thead><tr><th>Project</th><th>Role</th><th>Allocation</th><th>Hours / week</th><th>Status</th></tr></thead>
+            <tbody>
+              ${liveAllocations.map((item) => `
+                <tr>
+                  <td><div class="cell-title">${escapeHtml(item.project.brand)}</div><div class="cell-subtitle">${escapeHtml(item.project.pond)} · ${escapeHtml(item.project.type)}</div></td>
+                  <td>${escapeHtml(roleLabel(item.role))}</td>
+                  <td class="num">${formatPercent(item.percent / 100)}</td>
+                  <td class="num"><strong>${formatHours(item.hours)}</strong></td>
+                  <td><span class="status-pill ${slug(item.project.status)}">${escapeHtml(item.project.status)}</span></td>
+                </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>` : renderMiniEmpty('No live allocation', 'This person has no capacity-consuming projects in the selected financial year.')}
+    `,
+    footer: `<button class="button button-secondary" type="button" data-modal-action="cancel">Close</button>`
+  });
+}
+
+function getMemberLiveAllocations(memberId) {
+  const member = memberById(memberId);
+  const capacity = Math.max(1, Number(member?.weeklyCapacity || DEFAULT_WEEKLY_CAPACITY));
+  const rows = [];
+  getProjectsForSelectedFY().filter(isLiveCapacityProject).forEach((project) => {
+    ROLE_KEYS.forEach((role) => {
+      if (project[role] !== memberId) return;
+      const percent = projectAllocationPercent(project, role);
+      rows.push({ project, role, percent, hours: roundNumber(capacity * percent / 100, 2) });
+    });
+  });
+  return rows.sort((a, b) => b.hours - a.hours || a.project.brand.localeCompare(b.project.brand));
+}
+
 function openMemberModal({ member = null, group = null } = {}) {
   const isEdit = Boolean(member);
   const draft = member ? deepClone(member) : { id: '', name: '', group: group || 'POND 1', type: 'Employee', active: true, weeklyCapacity: DEFAULT_WEEKLY_CAPACITY };
@@ -2269,6 +2338,15 @@ function formatTimestamp(value) {
 
 function formatScore(value) {
   return Number(value || 0).toFixed(2).replace(/\.00$/, '.00');
+}
+
+function formatHours(value) {
+  const number = roundNumber(Number(value || 0), 1);
+  return `${Number.isInteger(number) ? number.toFixed(0) : number.toFixed(1)}h`;
+}
+
+function formatPercent(value) {
+  return `${Math.round(Number(value || 0) * 100)}%`;
 }
 
 function roundNumber(value, decimals = 2) {
