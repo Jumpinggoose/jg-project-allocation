@@ -47,7 +47,51 @@ button, input { font: inherit; border-radius: 0; }
 h1 { margin: 16px 0 14px; max-width: 520px; font-size: clamp(42px, 5vw, 76px); line-height: 0.95; letter-spacing: -0.055em; }
 .login-copy p { margin: 0; max-width: 440px; color: var(--muted); font-size: 16px; line-height: 1.55; }
 
-.login-form { width: min(100%, 520px); display: grid; gap: 20px; }
+.login-actions { width: min(100%, 520px); }
+.login-form { width: 100%; display: grid; gap: 20px; }
+.google-sign-in-button {
+  width: 100%;
+  height: 56px;
+  border: 1px solid var(--ink);
+  background: var(--paper);
+  color: var(--ink);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  font-weight: 900;
+  cursor: pointer;
+  transition: transform 160ms ease, background 160ms ease;
+}
+.google-sign-in-button:hover { transform: translateY(-2px); background: white; }
+.google-sign-in-button:disabled { cursor: wait; opacity: 0.65; transform: none; }
+.google-mark {
+  width: 24px;
+  height: 24px;
+  display: grid;
+  place-items: center;
+  border: 1px solid var(--line);
+  font-weight: 900;
+  background: white;
+}
+.login-divider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin: 18px 0;
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 850;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+}
+.login-divider::before,
+.login-divider::after {
+  content: "";
+  height: 1px;
+  background: var(--line);
+  flex: 1;
+}
 .field { display: grid; gap: 8px; }
 .field span { font-size: 12px; font-weight: 850; letter-spacing: 0.03em; }
 .field input {
