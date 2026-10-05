@@ -28,7 +28,11 @@ googleButton.addEventListener('click', async () => {
   const { error } = await supabaseClient.auth.signInWithOAuth({
     provider: 'google',
     options: {
-      redirectTo: window.location.origin + '/'
+      redirectTo: window.location.origin + '/',
+      queryParams: {
+        hd: 'jumpinggoose.com',
+        prompt: 'select_account'
+      }
     }
   });
 
