@@ -978,19 +978,20 @@ function renderTeamSetup() {
 
       <section class="settings-grid">
         <article class="settings-card">
-          <h3>Role weights</h3>
-          <p>Equivalent to the percentages used in the spreadsheet. Mentors remain advisory at zero load.</p>
+          <h3>Default role allocation</h3>
+          <p>These percentages prefill new project assignments. Each project can override them independently.</p>
           ${[
             ['leadSpoc','Lead SPOC'],['primary1','Primary 1'],['primary2','Primary 2'],['support1','Support 1'],['support2','Support 2'],['support3','Support 3'],['support4','Support 4'],['mentor1','Mentors']
-          ].map(([key,label]) => settingRow(label, state.settings.roleWeights[key], 'roleWeight', key, 0.01)).join('')}
+          ].map(([key,label]) => settingRow(label, roundNumber((state.settings.roleWeights[key] || 0) * 100, 1), 'roleWeightPercent', key, 1, '%')).join('')}
         </article>
 
         <article class="settings-card">
-          <h3>Load bands</h3>
-          <p>Available is always zero. Scores above the high limit are marked overloaded.</p>
-          ${settingRow('Balanced maximum', state.settings.loadBands.balancedMax, 'loadBand', 'balancedMax', 0.05)}
-          ${settingRow('High maximum', state.settings.loadBands.highMax, 'loadBand', 'highMax', 0.05)}
-          <div class="notice" style="margin-top:12px">Current logic: 0 = Available, up to ${state.settings.loadBands.balancedMax} = Balanced, up to ${state.settings.loadBands.highMax} = High.</div>
+          <h3>Capacity bands</h3>
+          <p>Capacity status is based on live allocated hours divided by each person's weekly capacity.</p>
+          ${settingRow('Available maximum', roundNumber(state.settings.capacityBands.availableMax * 100, 0), 'capacityBandPercent', 'availableMax', 1, '%')}
+          ${settingRow('Balanced maximum', roundNumber(state.settings.capacityBands.balancedMax * 100, 0), 'capacityBandPercent', 'balancedMax', 1, '%')}
+          ${settingRow('High maximum', roundNumber(state.settings.capacityBands.highMax * 100, 0), 'capacityBandPercent', 'highMax', 1, '%')}
+          <div class="notice" style="margin-top:12px">Default: under 50% = Available, 50-85% = Balanced, above 85-100% = High, above 100% = Overloaded.</div>
         </article>
 
         <article class="settings-card">
@@ -1204,6 +1205,7 @@ function openProjectModal({ pond = null, type = null, project = null } = {}) {
     support4: '',
     mentor1: '',
     mentor2: '',
+    allocations: defaultProjectAllocations(),
     notes: ''
   };
   const fixedPond = pond && !isEdit;
@@ -1213,7 +1215,7 @@ function openProjectModal({ pond = null, type = null, project = null } = {}) {
   openModal({
     eyebrow: isEdit ? 'Update allocation' : 'New project entry',
     title: isEdit ? `Edit ${project.brand}` : 'Add project',
-    description: 'One person may hold multiple roles on the same project. Each selected role contributes its configured workload weight, and all dashboards update automatically after saving.',
+    description: 'Assign people to project roles and set the actual weekly allocation percentage for each role. The defaults are only starting points and can be changed per project.',
     body: `
       <div class="form-grid">
         <div class="field">
@@ -1270,15 +1272,15 @@ function openProjectModal({ pond = null, type = null, project = null } = {}) {
       </div>
 
       <div class="form-grid">
-        ${assignmentField('projectLeadSpoc','Lead SPOC',draft.leadSpoc,selectedPond)}
-        ${assignmentField('projectPrimary1','Primary 1',draft.primary1,selectedPond)}
-        ${assignmentField('projectPrimary2','Primary 2',draft.primary2,selectedPond)}
-        ${assignmentField('projectSupport1','Support talent 1',draft.support1,selectedPond)}
-        ${assignmentField('projectSupport2','Support talent 2',draft.support2,selectedPond)}
-        ${assignmentField('projectSupport3','Support talent 3',draft.support3,selectedPond)}
-        ${assignmentField('projectSupport4','Support talent 4',draft.support4,selectedPond)}
-        ${assignmentField('projectMentor1','Mentor / Escalation 1',draft.mentor1,selectedPond)}
-        ${assignmentField('projectMentor2','Mentor / Escalation 2',draft.mentor2,selectedPond)}
+        ${assignmentField('projectLeadSpoc','Lead SPOC',draft.leadSpoc,selectedPond,draft.allocations?.leadSpoc)}
+        ${assignmentField('projectPrimary1','Primary 1',draft.primary1,selectedPond,draft.allocations?.primary1)}
+        ${assignmentField('projectPrimary2','Primary 2',draft.primary2,selectedPond,draft.allocations?.primary2)}
+        ${assignmentField('projectSupport1','Support talent 1',draft.support1,selectedPond,draft.allocations?.support1)}
+        ${assignmentField('projectSupport2','Support talent 2',draft.support2,selectedPond,draft.allocations?.support2)}
+        ${assignmentField('projectSupport3','Support talent 3',draft.support3,selectedPond,draft.allocations?.support3)}
+        ${assignmentField('projectSupport4','Support talent 4',draft.support4,selectedPond,draft.allocations?.support4)}
+        ${assignmentField('projectMentor1','Mentor / Escalation 1',draft.mentor1,selectedPond,draft.allocations?.mentor1)}
+        ${assignmentField('projectMentor2','Mentor / Escalation 2',draft.mentor2,selectedPond,draft.allocations?.mentor2)}
         <div class="field span-2">
           <label for="projectNotes">Notes</label>
           <textarea id="projectNotes" maxlength="1000" placeholder="Dependencies, next steps or additional allocation notes">${escapeHtml(draft.notes)}</textarea>
@@ -1331,6 +1333,12 @@ function saveProjectFromModal(projectId, fixedPond) {
     mentor1: document.getElementById('projectMentor1').value,
     mentor2: document.getElementById('projectMentor2').value
   };
+  const allocations = Object.fromEntries(ROLE_KEYS.map((key) => {
+    const input = document.getElementById(`project${roleKeySuffix(key)}Pct`);
+    const fallback = defaultAllocationPercent(key);
+    const raw = Number(input?.value ?? fallback);
+    return [key, Math.max(0, Math.min(100, Number.isFinite(raw) ? raw : fallback))];
+  }));
   const now = new Date().toISOString();
   const existingIndex = projectId ? state.projects.findIndex((item) => item.id === projectId) : -1;
   const existing = existingIndex >= 0 ? state.projects[existingIndex] : null;
@@ -1347,6 +1355,7 @@ function saveProjectFromModal(projectId, fixedPond) {
     status: document.getElementById('projectStatus').value,
     priority: document.getElementById('projectPriority').value,
     ...assignments,
+    allocations,
     notes: document.getElementById('projectNotes').value.trim(),
     createdAt: existing?.createdAt || now,
     updatedAt: now
