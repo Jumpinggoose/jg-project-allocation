@@ -547,7 +547,12 @@ function renderDashboard() {
                 <div class="metric-row">
                   <span class="metric-name">${escapeHtml(type)}</span>
                   <span class="progress-track"><span class="progress-fill ${['forest','','teal','yellow'][index]}" style="width:${(typeCounts[type] / maxType) * 100}%"></span></span>
-                  <span class="metric-value">${typeCounts[type]} · Ongoing ${typeStatusCounts[type].ongoing} · Hold/Paused ${typeStatusCounts[type].holdPaused} · Completed ${typeStatusCounts[type].completed}</span>
+                  <span class="metric-status-summary" aria-label="${typeCounts[type]} total projects">
+                    <strong class="metric-total">${typeCounts[type]}</strong>
+                    <span><b>${typeStatusCounts[type].ongoing}</b> Ongoing</span>
+                    <span><b>${typeStatusCounts[type].holdPaused}</b> Hold/Paused</span>
+                    <span><b>${typeStatusCounts[type].completed}</b> Completed</span>
+                  </span>
                 </div>`).join('')}
             </div>
           </div>
