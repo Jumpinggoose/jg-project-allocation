@@ -2622,3 +2622,61 @@ summary:focus-visible {
     width: 100%;
   }
 }
+
+
+/* Hours-first project allocation -------------------------------------------- */
+.allocation-hours {
+  display: flex;
+  align-items: stretch;
+  border: 1px solid var(--line-strong);
+  background: var(--surface);
+}
+
+.allocation-hours input {
+  width: 100%;
+  min-width: 0;
+  border: 0 !important;
+  text-align: right;
+}
+
+.allocation-hours span {
+  display: grid;
+  place-items: center;
+  min-width: 48px;
+  padding: 0 8px;
+  border-left: 1px solid var(--line);
+  color: var(--muted);
+  font-size: 9px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.allocation-presets {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 7px;
+}
+
+.allocation-presets button {
+  min-width: 36px;
+  min-height: 26px;
+  padding: 0 8px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-size: 9px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.allocation-presets button:hover {
+  border-color: var(--ink);
+  background: var(--surface-soft);
+}
+
+.allocation-field .field-help {
+  margin-top: 7px;
+  line-height: 1.45;
+}
