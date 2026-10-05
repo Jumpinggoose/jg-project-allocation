@@ -525,7 +525,7 @@ function renderDashboard() {
     .map((member) => ({ member, stats: computeMemberStats(member.id) }))
     .sort((a, b) => b.stats.loadScore - a.stats.loadScore || a.member.name.localeCompare(b.member.name))
     .slice(0, 8);
-  const maxLoad = Math.max(state.settings.loadBands.highMax, ...teamLoads.map((item) => item.stats.loadScore), 1);
+  const maxLoad = Math.max(state.settings.capacityBands.highMax, ...teamLoads.map((item) => item.stats.utilization), 1);
 
   return `
     <div class="stack-lg">
@@ -645,8 +645,8 @@ function renderDashboard() {
             ${teamLoads.length ? `<div class="metric-list">${teamLoads.map(({member, stats}) => `
               <div class="metric-row">
                 <span class="metric-name">${escapeHtml(member.name)} <small style="color:var(--muted);font-weight:500">${escapeHtml(shortGroup(member.group))}</small></span>
-                <span class="progress-track"><span class="progress-fill ${loadColorClass(stats.loadStatus)}" style="width:${Math.min(100, (stats.loadScore / maxLoad) * 100)}%"></span></span>
-                <span class="metric-value">${formatScore(stats.loadScore)}</span>
+                <span class="progress-track"><span class="progress-fill ${loadColorClass(stats.loadStatus)}" style="width:${Math.min(100, (stats.utilization / maxLoad) * 100)}%"></span></span>
+                <span class="metric-value">${formatPercent(stats.utilization)}</span>
               </div>`).join('')}</div>` : renderMiniEmpty('No active team members', 'Add or reactivate team members in Team Setup.')}
           </div>
         </article>
