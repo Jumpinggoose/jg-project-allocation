@@ -6,13 +6,17 @@ const passwordInput = document.getElementById('password');
 const message = document.getElementById('formMessage');
 const button = document.getElementById('signInButton');
 
+const config = window.JG_SUPABASE;
+if (!config?.url || !config?.publishableKey || !window.supabase) {
+  showMessage('Supabase configuration is missing.');
+  throw new Error('Supabase configuration is missing.');
+}
+
+const supabaseClient = window.supabase.createClient(config.url, config.publishableKey);
+
 async function checkExistingSession() {
-  try {
-    const response = await fetch('/api/session', { cache: 'no-store' });
-    if (response.ok) window.location.replace('/');
-  } catch (_error) {
-    // The form remains available and will show a useful error on submit.
-  }
+  const { data, error } = await supabaseClient.auth.getSession();
+  if (!error && data.session) window.location.replace('/');
 }
 
 form.addEventListener('submit', async (event) => {
@@ -29,20 +33,16 @@ form.addEventListener('submit', async (event) => {
   button.disabled = true;
   button.textContent = 'Signing in…';
 
-  try {
-    const response = await fetch('/api/login', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email, password })
-    });
-    const payload = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(payload.error || 'Sign-in failed.');
-    window.location.replace('/');
-  } catch (error) {
+  const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
+
+  if (error) {
     showMessage(error.message || 'Unable to sign in. Please try again.');
     button.disabled = false;
     button.textContent = 'Sign in';
+    return;
   }
+
+  window.location.replace('/');
 });
 
 function showMessage(text) {
