@@ -65,6 +65,17 @@ h1 { margin: 16px 0 14px; max-width: 520px; font-size: clamp(42px, 5vw, 76px); l
 }
 .google-sign-in-button:hover { transform: translateY(-2px); background: white; }
 .google-sign-in-button:disabled { cursor: wait; opacity: 0.65; transform: none; }
+.setup-password-button {
+  width: 100%;
+  height: 48px;
+  margin-top: 12px;
+  border: 1px solid var(--ink);
+  background: transparent;
+  color: var(--ink);
+  font-weight: 850;
+  cursor: pointer;
+}
+.setup-password-button:hover { background: rgba(15,15,15,0.04); }
 .google-mark {
   width: 24px;
   height: 24px;
