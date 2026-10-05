@@ -64,6 +64,15 @@ let modalCommitted = false;
 let isSaving = false;
 let sessionUser = null;
 
+const supabaseConfig = window.JG_SUPABASE;
+if (!supabaseConfig?.url || !supabaseConfig?.publishableKey || !window.supabase) {
+  throw new Error('Supabase configuration is missing.');
+}
+const supabaseClient = window.supabase.createClient(
+  supabaseConfig.url,
+  supabaseConfig.publishableKey
+);
+
 const ui = {
   view: 'dashboard',
   search: '',
@@ -159,30 +168,30 @@ function bindStaticEvents() {
 
 async function loadSession() {
   try {
-    const response = await fetch('/api/session', { cache: 'no-store' });
-    if (response.status === 401) {
+    const { data, error } = await supabaseClient.auth.getUser();
+    if (error || !data.user) {
       redirectToLogin();
       return false;
     }
-    if (!response.ok) throw new Error(`Session check failed with status ${response.status}`);
-    const payload = await response.json();
-    sessionUser = payload.user || null;
-    if (!sessionUser) {
-      redirectToLogin();
-      return false;
-    }
-    const roleLabel = String(sessionUser.role || 'viewer').replace(/^./, (char) => char.toUpperCase());
-    els.currentUserLabel.textContent = `${sessionUser.name || sessionUser.email} · ${roleLabel}`;
+
+    sessionUser = {
+      id: data.user.id,
+      email: data.user.email || '',
+      name: data.user.user_metadata?.name || data.user.email || 'JG user',
+      role: 'editor'
+    };
+
+    els.currentUserLabel.textContent = `${sessionUser.name} · Editor`;
     return true;
   } catch (error) {
     console.error(error);
-    window.location.replace('/login.html');
+    redirectToLogin();
     return false;
   }
 }
 
 function userCanEdit() {
-  return Boolean(sessionUser && ['admin', 'editor'].includes(sessionUser.role));
+  return Boolean(sessionUser);
 }
 
 function redirectToLogin() {
@@ -192,9 +201,9 @@ function redirectToLogin() {
 async function logout() {
   els.logoutButton.disabled = true;
   try {
-    await fetch('/api/logout', { method: 'POST' });
+    await supabaseClient.auth.signOut();
   } catch (error) {
-    console.info('Logout request could not be confirmed.', error);
+    console.info('Logout could not be confirmed.', error);
   } finally {
     window.location.replace('/login.html');
   }
@@ -204,19 +213,24 @@ async function loadState() {
   const localData = readLocalBackup();
 
   try {
-    const response = await fetch('./api/data', { cache: 'no-store' });
-    if (response.status === 401) {
-      redirectToLogin();
-      return deepClone(DEFAULT_DATA);
-    }
-    if (!response.ok) throw new Error(`Shared storage returned status ${response.status}`);
-    const payload = await response.json();
-    const serverData = payload.data || payload;
+    const { data: row, error } = await supabaseClient
+      .from('app_state')
+      .select('data, revision, updated_at')
+      .eq('id', 1)
+      .single();
+
+    if (error) throw error;
+
+    const serverData = row?.data || deepClone(DEFAULT_DATA);
+    serverData.revision = Number(row?.revision || 0);
+    serverData.meta = serverData.meta || {};
+    serverData.meta.lastUpdated = row?.updated_at || serverData.meta.lastUpdated || null;
+
     storageMode = 'server';
-    updateSyncUI('saved', 'Shared cloud storage');
+    updateSyncUI('saved', 'Supabase shared database');
     return serverData;
   } catch (error) {
-    console.error('Shared storage unavailable.', error);
+    console.error('Supabase storage unavailable.', error);
     storageMode = 'offline';
     updateSyncUI('error', 'Read-only browser backup');
     return localData || deepClone(DEFAULT_DATA);
@@ -245,13 +259,14 @@ function localBackup() {
 
 function scheduleSave(options = {}) {
   if (!userCanEdit()) {
-    showToast('Your account has view-only access.', 'warning');
+    showToast('Sign in to edit this workspace.', 'warning');
     return;
   }
   if (storageMode !== 'server') {
     showToast('Cloud storage is unavailable. This view is read-only until the connection returns.', 'error');
     return;
   }
+
   state.meta.lastUpdated = new Date().toISOString();
   localBackup();
   updateSyncUI('saving');
@@ -263,42 +278,58 @@ async function persistState(options = {}) {
   if (isSaving || storageMode !== 'server') return;
   isSaving = true;
 
-  try {
-    const response = await fetch('./api/data', {
-      method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(state)
-    });
+  const expectedRevision = Number(state.revision || 0);
+  const nextRevision = expectedRevision + 1;
+  const attemptedState = deepClone(state);
+  attemptedState.revision = nextRevision;
+  attemptedState.meta = attemptedState.meta || {};
+  attemptedState.meta.lastUpdated = new Date().toISOString();
+  attemptedState.meta.lastUpdatedBy = sessionUser?.email || sessionUser?.id || null;
 
-    if (response.status === 401) {
-      redirectToLogin();
-      return;
-    }
-    if (response.status === 403) {
-      showToast('Your account has view-only access.', 'warning');
-      return;
-    }
-    if (response.status === 409) {
-      const attemptedState = deepClone(state);
+  try {
+    const { data: rows, error } = await supabaseClient
+      .from('app_state')
+      .update({
+        data: attemptedState,
+        revision: nextRevision,
+        updated_at: attemptedState.meta.lastUpdated,
+        updated_by: sessionUser?.id || null
+      })
+      .eq('id', 1)
+      .eq('revision', expectedRevision)
+      .select('data, revision, updated_at');
+
+    if (error) throw error;
+
+    if (!rows || rows.length === 0) {
       try { localStorage.setItem(CONFLICT_STORAGE_KEY, JSON.stringify(attemptedState)); } catch (_error) {}
-      const payload = await response.json().catch(() => ({}));
-      if (payload.data) {
-        state = normalizeState(payload.data);
-        localBackup();
-        renderCurrentView();
-      }
+
+      const { data: latest, error: latestError } = await supabaseClient
+        .from('app_state')
+        .select('data, revision, updated_at')
+        .eq('id', 1)
+        .single();
+
+      if (latestError) throw latestError;
+      const latestState = normalizeState(latest.data || DEFAULT_DATA);
+      latestState.revision = Number(latest.revision || 0);
+      latestState.meta = latestState.meta || {};
+      latestState.meta.lastUpdated = latest.updated_at || latestState.meta.lastUpdated || null;
+      state = latestState;
+      localBackup();
+      renderCurrentView();
       updateSyncUI('error', 'Another person saved first');
       showToast('Another person saved first. The latest shared version is loaded; your attempted version is available in Data.', 'warning');
       return;
     }
-    if (!response.ok) throw new Error(`Save failed with status ${response.status}`);
 
-    const payload = await response.json();
-    if (typeof payload.revision === 'number') state.revision = payload.revision;
-    if (payload.lastUpdated) state.meta.lastUpdated = payload.lastUpdated;
-    if (payload.lastUpdatedBy) state.meta.lastUpdatedBy = payload.lastUpdatedBy;
+    const saved = rows[0];
+    state = normalizeState(saved.data || attemptedState);
+    state.revision = Number(saved.revision || nextRevision);
+    state.meta = state.meta || {};
+    state.meta.lastUpdated = saved.updated_at || attemptedState.meta.lastUpdated;
     localBackup();
-    updateSyncUI('saved', 'Shared cloud storage');
+    updateSyncUI('saved', 'Supabase shared database');
 
     if (!options.silent) showToast('Changes saved.');
   } catch (error) {
@@ -312,13 +343,23 @@ async function persistState(options = {}) {
 
 async function pollServer() {
   if (storageMode !== 'server' || document.hidden || isSaving) return;
+
   try {
-    const response = await fetch('./api/data', { cache: 'no-store' });
-    if (response.status === 401) { redirectToLogin(); return; }
-    if (!response.ok) return;
-    const payload = await response.json();
-    const remoteData = normalizeState(payload.data || payload);
-    if ((remoteData.revision || 0) > (state.revision || 0)) {
+    const { data: row, error } = await supabaseClient
+      .from('app_state')
+      .select('data, revision, updated_at')
+      .eq('id', 1)
+      .single();
+
+    if (error) throw error;
+
+    const remoteRevision = Number(row?.revision || 0);
+    if (remoteRevision > Number(state.revision || 0)) {
+      const remoteData = normalizeState(row.data || DEFAULT_DATA);
+      remoteData.revision = remoteRevision;
+      remoteData.meta = remoteData.meta || {};
+      remoteData.meta.lastUpdated = row.updated_at || remoteData.meta.lastUpdated || null;
+
       if (els.modal.open) {
         remotePending = remoteData;
         showToast('New shared changes are ready and will load after this form closes.', 'warning');
@@ -326,10 +367,11 @@ async function pollServer() {
         state = remoteData;
         localBackup();
         renderCurrentView();
-        updateSyncUI('saved', 'Updated from shared server');
+        updateSyncUI('saved', 'Updated from Supabase');
       }
     }
   } catch (error) {
+    console.error('Supabase poll failed.', error);
     updateSyncUI('error', 'Working from local backup');
   }
 }
