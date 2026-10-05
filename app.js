@@ -1484,10 +1484,15 @@ function openDataModal() {
         <button class="data-action" type="button" data-data-action="export-json"><strong>Export complete backup</strong><span>Downloads all projects, people and settings as a restorable JSON file.</span></button>
         ${canEdit ? `<button class="data-action" type="button" data-data-action="import-json"><strong>Import backup</strong><span>Restores a previously exported JSON file and replaces the current data.</span></button>` : ''}
         ${conflictAvailable ? `<button class="data-action" type="button" data-data-action="export-conflict"><strong>Export unsaved conflict copy</strong><span>Downloads the version preserved when another person saved first.</span></button>` : ''}
-        <button class="data-action" type="button" data-data-action="export-projects"><strong>Export projects CSV</strong><span>Downloads one consolidated project register for both Ponds.</span></button>
-        <button class="data-action" type="button" data-data-action="export-team"><strong>Export team CSV</strong><span>Downloads calculated project counts, role counts and load scores.</span></button>
+        <button class="data-action" type="button" data-data-action="export-fy-review"><strong>Export FY Review (.xlsx)</strong><span>Creates a multi-tab annual review workbook that opens directly in Excel or Google Sheets.</span></button>
+        <button class="data-action" type="button" data-data-action="export-projects"><strong>Export projects CSV</strong><span>Downloads the selected FY project register for both Ponds.</span></button>
+        <button class="data-action" type="button" data-data-action="export-team"><strong>Export team CSV</strong><span>Downloads calculated team allocation for the selected FY.</span></button>
         <button class="data-action" type="button" data-data-action="print"><strong>Print current view</strong><span>Uses the browser print dialog for a PDF or paper copy.</span></button>
         ${canEdit ? `<button class="data-action" type="button" data-data-action="reset"><strong>Reset all data</strong><span>Returns the app to the original 15-member setup with no projects.</span></button>` : ''}
+      </div>
+      <div class="field" style="margin-top:16px">
+        <label for="fyExportSelect">FY for review export</label>
+        <select id="fyExportSelect">${getFinancialYears().map((fy) => `<option value="${escapeAttr(fy)}" ${(ui.financialYear === fy || (ui.financialYear === 'ALL' && state.meta.currentFY === fy)) ? 'selected' : ''}>FY ${escapeHtml(fy)}</option>`).join('')}</select>
       </div>
       <input id="importFileInput" type="file" accept="application/json,.json" hidden>
       <div class="notice" style="margin-top:16px">Last updated: ${escapeHtml(formatTimestamp(state.meta.lastUpdated))}${state.meta.lastUpdatedBy?.name ? ` by ${escapeHtml(state.meta.lastUpdatedBy.name)}` : ''}. Current revision: ${Number(state.revision || 0)}.</div>`,
@@ -1513,6 +1518,7 @@ function handleDataAction(action) {
       showToast('Unsaved conflict copy exported.');
     }
   }
+  if (action === 'export-fy-review') exportFYReviewWorkbook(document.getElementById('fyExportSelect')?.value || state.meta.currentFY);
   if (action === 'export-projects') exportProjectsCsv();
   if (action === 'export-team') exportTeamCsv();
   if (action === 'print') {
@@ -1558,13 +1564,14 @@ function resetAllData() {
 }
 
 function exportProjectsCsv() {
-  const headers = ['Pond','Project Type','Brand','Agency/Team','Engagement','Start Date','End Date','Status','Priority','Lead SPOC','Primary 1','Primary 2','Support 1','Support 2','Support 3','Support 4','Mentor 1','Mentor 2','Notes'];
-  const rows = state.projects.map((project) => [
-    project.pond, project.type, project.brand, project.agencies, project.engagement, project.startDate, project.endDate, project.status, project.priority,
+  const headers = ['Financial Year','Pond','Project Type','Brand','Agency/Team','Engagement','Start Date','End Date','Status','Priority','Lead SPOC','Primary 1','Primary 2','Support 1','Support 2','Support 3','Support 4','Mentor 1','Mentor 2','Notes'];
+  const rows = getProjectsForSelectedFY().map((project) => [
+    project.financialYear, project.pond, project.type, project.brand, project.agencies, project.engagement, project.startDate, project.endDate, project.status, project.priority,
     memberName(project.leadSpoc), memberName(project.primary1), memberName(project.primary2), memberName(project.support1), memberName(project.support2),
     memberName(project.support3), memberName(project.support4), memberName(project.mentor1), memberName(project.mentor2), project.notes
   ]);
-  downloadCsv(`JG_Consolidated_Projects_${dateStamp()}.csv`, headers, rows);
+  const fyLabel = ui.financialYear === 'ALL' ? 'All_Years' : `FY_${ui.financialYear}`;
+  downloadCsv(`JG_Consolidated_Projects_${fyLabel}_${dateStamp()}.csv`, headers, rows);
   showToast('Projects CSV exported.');
 }
 
@@ -1576,6 +1583,64 @@ function exportTeamCsv() {
   });
   downloadCsv(`JG_Team_Capacity_${dateStamp()}.csv`, headers, rows);
   showToast('Team CSV exported.');
+}
+
+function exportFYReviewWorkbook(fy) {
+  if (!window.XLSX) {
+    showToast('Excel export library did not load. Refresh the page and try again.', 'error');
+    return;
+  }
+  const projects = state.projects.filter((project) => project.financialYear === fy);
+  const previousFY = ui.financialYear;
+  ui.financialYear = fy;
+  try {
+    const workbook = XLSX.utils.book_new();
+    const projectHeaders = ['Financial Year','Pond','Project Type','Brand','Agency/Team','Engagement','Start Date','End Date','Status','Priority','Lead SPOC','Primary 1','Primary 2','Support 1','Support 2','Support 3','Support 4','Mentor 1','Mentor 2','Notes'];
+    const projectRow = (project) => [project.financialYear,project.pond,project.type,project.brand,project.agencies,project.engagement,project.startDate,project.endDate,project.status,project.priority,memberName(project.leadSpoc),memberName(project.primary1),memberName(project.primary2),memberName(project.support1),memberName(project.support2),memberName(project.support3),memberName(project.support4),memberName(project.mentor1),memberName(project.mentor2),project.notes];
+    const addSheet = (name, headers, rows) => {
+      const sheet = XLSX.utils.aoa_to_sheet([headers, ...rows]);
+      sheet['!cols'] = headers.map((header, index) => ({ wch: Math.min(40, Math.max(String(header).length + 2, ...rows.slice(0, 100).map((row) => String(row[index] ?? '').length + 2))) }));
+      XLSX.utils.book_append_sheet(workbook, sheet, name.slice(0, 31));
+    };
+
+    const completed = projects.filter((project) => project.status === 'Completed').length;
+    const holdPaused = projects.filter((project) => ['On Hold','Paused'].includes(project.status)).length;
+    const ongoing = projects.length - completed - holdPaused;
+    const summaryRows = [
+      ['Financial Year', `FY ${fy}`],
+      ['Total Projects', projects.length],
+      ['Ongoing', ongoing],
+      ['On Hold / Paused', holdPaused],
+      ['Completed', completed],
+      ['Pond 1 Projects', projects.filter((project) => project.pond === 'POND 1').length],
+      ['Pond 2 Projects', projects.filter((project) => project.pond === 'POND 2').length],
+      ['Retainers', projects.filter((project) => project.type === 'Retainer').length],
+      ['One-Time', projects.filter((project) => project.type === 'One-Time').length],
+      ['Pitches', projects.filter((project) => project.type === 'Pitch').length],
+      ['Internal', projects.filter((project) => project.type === 'Internal').length]
+    ];
+    addSheet('FY Summary', ['Metric','Value'], summaryRows);
+    addSheet('All Projects', projectHeaders, projects.map(projectRow));
+    addSheet('Pond 1', projectHeaders, projects.filter((project) => project.pond === 'POND 1').map(projectRow));
+    addSheet('Pond 2', projectHeaders, projects.filter((project) => project.pond === 'POND 2').map(projectRow));
+    addSheet('Retainers', projectHeaders, projects.filter((project) => project.type === 'Retainer').map(projectRow));
+    addSheet('One-Time', projectHeaders, projects.filter((project) => project.type === 'One-Time').map(projectRow));
+    addSheet('Pitches', projectHeaders, projects.filter((project) => project.type === 'Pitch').map(projectRow));
+    addSheet('Internal', projectHeaders, projects.filter((project) => project.type === 'Internal').map(projectRow));
+    const statusRows = STATUSES.map((status) => [status, projects.filter((project) => project.status === status).length]);
+    addSheet('Status Summary', ['Status','Project Count'], statusRows);
+    const teamHeaders = ['Team Member','Group','Type','Active','Projects Worked','Active Load','Retainers','One-Time','Pitches','Internal','As Primary','As Support','As SPOC','Load Score','Load Status'];
+    const teamRows = state.members.map((member) => {
+      const stats = computeMemberStats(member.id);
+      const worked = projects.filter((project) => ROLE_KEYS.some((key) => project[key] === member.id)).length;
+      return [member.name,member.group,member.type,member.active ? 'Yes' : 'No',worked,stats.activeLoad,stats.Retainer,stats['One-Time'],stats.Pitch,stats.Internal,stats.asPrimary,stats.asSupport,stats.asSpoc,formatScore(stats.loadScore),stats.loadStatus];
+    });
+    addSheet('Team Review', teamHeaders, teamRows);
+    XLSX.writeFile(workbook, `JG_FY_${fy}_Review_${dateStamp()}.xlsx`);
+    showToast(`FY ${fy} review workbook exported.`);
+  } finally {
+    ui.financialYear = previousFY;
+  }
 }
 
 function openModal({ eyebrow = '', title = '', description = '', body = '', footer = '' }) {
