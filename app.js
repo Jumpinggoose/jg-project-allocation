@@ -441,8 +441,8 @@ function renderCurrentView() {
       action: 'Add team member'
     },
     setup: {
-      title: 'Team Setup',
-      subtitle: 'Manage employees, interns, freelancers, role weights and project limits.',
+      title: 'Admin Panel',
+      subtitle: 'Manage employees, interns, freelancers, role weights and project limits. Admin access only.',
       action: 'Add team member'
     }
   }[ui.view];
