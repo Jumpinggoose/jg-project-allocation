@@ -1,37 +1,28 @@
-# JUMPINGGOOSE Project Allocation — Cloud Build v1.4
+# JG Project Allocation
 
-This repository contains the browser-based JG project and team allocation application prepared for a managed Render deployment.
+Internal JUMPINGGOOSE project and team allocation app.
 
-## Production features
+## Current architecture
 
-- Individual email/password accounts configured outside GitHub
-- Admin, Editor and Viewer roles
-- Shared data stored on a persistent disk
-- Atomic file saves and rotating JSON backups
-- Revision-conflict protection for overlapping edits
-- Basic audit log with the saving user's identity
-- Automatic Render deployments after GitHub commits
-- No local Terminal or host computer required after deployment
+- Frontend: static HTML/CSS/JavaScript
+- Hosting target: Vercel
+- Authentication: Supabase Auth
+- Shared data: Supabase Postgres
+- Region: Mumbai (ap-south-1)
+- Repository: private
 
-## Important files
+## Deploy
 
-- `index.html`, `styles.css`, `app.js` — application interface
-- `login.html`, `login.css`, `login.js` — sign-in interface
-- `server.py` — authentication, API, shared persistence and backups
-- `initial-data.json` — clean 15-member starting setup
-- `render.yaml` — Render Blueprint configuration
-- `USER_ACCOUNTS_TEMPLATE.json` — local template for preparing account JSON
+See [VERCEL_DEPLOYMENT.md](VERCEL_DEPLOYMENT.md).
 
-`data.json` is intentionally excluded. Do not commit a live project backup to GitHub.
+## Data model
 
-## Account roles
+The shared application state is stored in `public.app_state` with Row Level Security enabled. Only authenticated users can read or update the workspace.
 
-- `admin`: can view and edit everything; intended for one or two application owners
-- `editor`: can view and edit projects, people and settings
-- `viewer`: can view dashboards and export data; server rejects edits
+## Security
 
-Accounts are supplied to Render through the `JG_USERS_JSON` environment variable. Start from `USER_ACCOUNTS_TEMPLATE.json`, replace every placeholder, and paste the completed JSON into Render. Do not upload the completed account file to GitHub.
+The repository contains only the Supabase publishable browser key. Never commit a Supabase service-role or secret key.
 
-## Deployment
+## Migrating the current local app data
 
-Follow `DEPLOYMENT_GUIDE.md` for the browser-only GitHub and Render setup.
+Export a complete JSON backup from the local app, sign into the Vercel version, then use **Data → Import backup**. This makes Supabase the shared master copy.
