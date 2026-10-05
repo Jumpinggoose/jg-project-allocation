@@ -6,6 +6,7 @@ const passwordInput = document.getElementById('password');
 const message = document.getElementById('formMessage');
 const button = document.getElementById('signInButton');
 const googleButton = document.getElementById('googleSignInButton');
+const setupPasswordButton = document.getElementById('setupPasswordButton');
 
 const config = window.JG_SUPABASE;
 if (!config?.url || !config?.publishableKey || !window.supabase) {
@@ -41,6 +42,10 @@ googleButton.addEventListener('click', async () => {
     googleButton.disabled = false;
     googleButton.querySelector('span:last-child').textContent = 'Continue with Google';
   }
+});
+
+setupPasswordButton.addEventListener('click', () => {
+  window.location.href = '/setup-password.html';
 });
 
 form.addEventListener('submit', async (event) => {
