@@ -2781,3 +2781,142 @@ summary:focus-visible {
     width: 100%;
   }
 }
+
+
+/* UI spacing fixes: topbar + admin settings -------------------------------- */
+.topbar {
+  align-items: flex-start;
+}
+
+.page-heading {
+  flex: 1 1 420px;
+  max-width: 720px;
+}
+
+.topbar-actions {
+  flex: 1 1 620px;
+  min-width: 0;
+  align-items: flex-end;
+  justify-content: flex-end;
+  column-gap: 12px;
+  row-gap: 10px;
+}
+
+.fy-switcher {
+  width: 280px;
+  min-width: 0;
+  flex: 0 1 280px;
+}
+
+.fy-switcher select {
+  width: 100%;
+  min-width: 0;
+  padding-left: 14px;
+  padding-right: 44px;
+  box-sizing: border-box;
+}
+
+.session-controls {
+  min-width: 0;
+  max-width: 330px;
+  flex: 0 1 330px;
+  padding-right: 0;
+}
+
+.session-user {
+  min-width: 0;
+  max-width: none;
+  flex: 1 1 auto;
+}
+
+.setting-row {
+  grid-template-columns: minmax(0, 1fr) 124px;
+  gap: 14px;
+}
+
+.setting-input-wrap {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 36px;
+  width: 100%;
+  min-width: 0;
+}
+
+.setting-input-wrap input {
+  width: 100%;
+  min-width: 0;
+}
+
+.setting-input-wrap small {
+  min-width: 0;
+  width: 36px;
+  box-sizing: border-box;
+}
+
+.setting-row > input {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.field select,
+.select-compact,
+.fy-switcher select {
+  padding-right: 44px;
+}
+
+@media (max-width: 1500px) {
+  .page-heading {
+    flex-basis: 360px;
+    max-width: 560px;
+  }
+
+  .topbar-actions {
+    flex-basis: 560px;
+  }
+
+  .fy-switcher {
+    width: 245px;
+    flex-basis: 245px;
+  }
+
+  .session-controls {
+    max-width: 290px;
+    flex-basis: 290px;
+  }
+}
+
+@media (max-width: 1180px) {
+  .topbar {
+    align-items: flex-start;
+  }
+
+  .page-heading {
+    max-width: none;
+  }
+
+  .topbar-actions {
+    width: 100%;
+    flex-basis: 100%;
+    justify-content: flex-start;
+  }
+
+  .session-controls {
+    order: initial;
+    width: auto;
+    justify-content: flex-start;
+  }
+}
+
+@media (max-width: 760px) {
+  .fy-switcher,
+  .session-controls {
+    width: 100%;
+    max-width: none;
+    flex-basis: 100%;
+  }
+
+  .setting-row {
+    grid-template-columns: minmax(0, 1fr) 112px;
+    gap: 10px;
+  }
+}
