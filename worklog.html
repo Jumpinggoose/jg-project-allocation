@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0F0F0F">
+  <title>JG Work Log</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="app-shell worklog-shell">
+    <aside class="sidebar">
+      <div class="brand-lockup">
+        <div class="brand-mark">JG</div>
+        <div><div class="brand-name">JUMPINGGOOSE</div><div class="brand-subtitle">Work Log</div></div>
+      </div>
+      <nav class="nav-list">
+        <a class="nav-item is-active" href="/worklog.html"><span class="nav-icon">◷</span><span>My Work Log</span></a>
+        <a class="nav-item" id="planningLink" href="/"><span class="nav-icon">▦</span><span>Planning App</span></a>
+        <a class="nav-item" id="profitLink" href="/profitability.html" hidden><span class="nav-icon">₹</span><span>Profitability</span></a>
+      </nav>
+      <div class="sidebar-spacer"></div>
+      <div class="sync-card"><span class="sync-dot is-online"></span><div><strong id="worklogUser">Loading…</strong><small>Daily actuals</small></div></div>
+    </aside>
+    <main class="main-area">
+      <header class="topbar">
+        <div class="page-heading">
+          <div class="eyebrow">JUMPINGGOOSE · ACTUAL TIME</div>
+          <h1>My Work Log</h1>
+          <p>Log the actual time spent on projects. There is no required daily total.</p>
+        </div>
+        <div class="topbar-actions"><button class="button button-secondary" id="logoutButton" type="button">Log out</button></div>
+      </header>
+      <section class="view-container" id="worklogRoot"></section>
+    </main>
+  </div>
+  <div class="toast-region" id="toastRegion" aria-live="polite"></div>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="supabase-config.js"></script>
+  <script src="worklog.js" defer></script>
+</body>
+</html>
