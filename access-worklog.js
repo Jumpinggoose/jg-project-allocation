@@ -233,4 +233,6 @@ function jgIsEmployeeOnly() {
 }
 
 function jgCanAccessView(view) {
-  if (view === 'workl
+  if (view === 'worklog') return Boolean(sessionUser);
+  return false;
+}
