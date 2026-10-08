@@ -484,6 +484,8 @@ function renderCurrentView() {
   els.primaryAction.hidden = globalSetupView ? (!userIsAdmin() || storageMode !== 'server') : !canEditSelectedFY();
   const setupNav = document.querySelector('[data-view="setup"]');
   if (setupNav) setupNav.hidden = !userIsAdmin();
+  const profitabilityNav = document.querySelector('[data-view="profitability"]');
+  if (profitabilityNav) profitabilityNav.hidden = !userIsAdmin();
   els.globalSearch.placeholder = ui.view === 'team' || ui.view === 'setup'
     ? 'Search team members'
     : 'Search projects or people';
