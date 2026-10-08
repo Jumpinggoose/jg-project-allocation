@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0F0F0F">
+  <title>JG Profitability</title>
+  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="worklog-extra.css">
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand-lockup"><div class="brand-mark">JG</div><div><div class="brand-name">JUMPINGGOOSE</div><div class="brand-subtitle">Management</div></div></div>
+      <nav class="nav-list">
+        <a class="nav-item" href="/"><span class="nav-icon">▦</span><span>Planning App</span></a>
+        <a class="nav-item" href="/worklog.html"><span class="nav-icon">◷</span><span>My Work Log</span></a>
+        <a class="nav-item is-active" href="/profitability.html"><span class="nav-icon">₹</span><span>Profitability</span></a>
+      </nav>
+      <div class="sidebar-spacer"></div>
+      <div class="sync-card"><span class="sync-dot is-online"></span><div><strong id="profitUser">Loading…</strong><small>Management access</small></div></div>
+    </aside>
+    <main class="main-area">
+      <header class="topbar"><div class="page-heading"><div class="eyebrow">JUMPINGGOOSE · PROFITABILITY</div><h1>Profitability</h1><p>Revenue ownership, delivery contribution and actual project cost.</p></div><div class="topbar-actions"><button class="button button-secondary" id="logoutButton" type="button">Log out</button></div></header>
+      <section class="view-container" id="profitRoot"></section>
+    </main>
+  </div>
+  <div class="toast-region" id="toastRegion" aria-live="polite"></div>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="supabase-config.js"></script>
+  <script src="profitability.js" defer></script>
+</body>
+</html>
