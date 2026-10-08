@@ -105,7 +105,12 @@ async function init() {
   if (!authenticated) return;
   state = normalizeState(await loadState());
   ui.financialYear = state.meta.currentFY || state.meta.period || '2026-27';
+  const initialView = new URLSearchParams(window.location.search).get('view');
+  if (initialView && ['dashboard','pond1','pond2','team','setup'].includes(initialView)) ui.view = initialView;
   renderCurrentView();
+  const initialUrl = new URL(window.location.href);
+  initialUrl.searchParams.set('view', ui.view);
+  window.history.replaceState({ view: ui.view }, '', initialUrl);
 
   if (storageMode === 'server') {
     remotePollTimer = window.setInterval(pollServer, 12000);
@@ -127,6 +132,8 @@ function cacheElements() {
   els.financialYearSelect = document.getElementById('financialYearSelect');
   els.appEyebrow = document.getElementById('appEyebrow');
   els.logoutButton = document.getElementById('logoutButton');
+  els.historyBack = document.getElementById('historyBack');
+  els.historyForward = document.getElementById('historyForward');
   els.syncDot = document.getElementById('syncDot');
   els.syncLabel = document.getElementById('syncLabel');
   els.syncDetail = document.getElementById('syncDetail');
@@ -161,6 +168,17 @@ function bindStaticEvents() {
   els.dataButton.addEventListener('click', openDataModal);
   els.primaryAction.addEventListener('click', handlePrimaryAction);
   els.logoutButton.addEventListener('click', logout);
+  if (els.historyBack) els.historyBack.addEventListener('click', () => window.history.back());
+  if (els.historyForward) els.historyForward.addEventListener('click', () => window.history.forward());
+  window.addEventListener('popstate', () => {
+    const params = new URLSearchParams(window.location.search);
+    const requestedView = params.get('view');
+    if (requestedView && ['dashboard','pond1','pond2','team','setup'].includes(requestedView)) {
+      ui.view = requestedView;
+      renderCurrentView();
+      document.querySelectorAll('.nav-item').forEach((button) => button.classList.toggle('is-active', button.dataset.view === ui.view));
+    }
+  });
   els.viewContainer.addEventListener('click', handleViewClick);
   els.viewContainer.addEventListener('change', handleViewChange);
   els.viewContainer.addEventListener('input', handleViewInput);
@@ -436,6 +454,9 @@ function setView(view, clearSearch = false) {
     return;
   }
   ui.view = view;
+  const viewUrl = new URL(window.location.href);
+  viewUrl.searchParams.set('view', view);
+  window.history.pushState({ view }, '', viewUrl);
   if (clearSearch) {
     ui.search = '';
     els.globalSearch.value = '';
