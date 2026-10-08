@@ -47,9 +47,13 @@ async function loadData(){
 function render(){
   const fy=appState.meta.currentFY||'2026-27';
   const rows=projectRows(fy,selectedMonth);
-  const company=aggregate(rows);
-  const p1=aggregate(rows.filter(r=>r.owner==='POND 1'));
-  const p2=aggregate(rows.filter(r=>r.owner==='POND 2'));
+  const commercialRows=rows.filter(r=>r.financialClass==='Revenue Generating');
+  const investmentRows=rows.filter(r=>r.financialClass!=='Revenue Generating');
+  const company=aggregate(commercialRows);
+  const p1=aggregate(commercialRows.filter(r=>r.owner==='POND 1'));
+  const p2=aggregate(commercialRows.filter(r=>r.owner==='POND 2'));
+  const unpaidPitch=aggregate(investmentRows.filter(r=>r.financialClass==='Non-Revenue External'));
+  const internal=aggregate(investmentRows.filter(r=>r.financialClass==='Internal'));
   const delivery=deliveryContribution(fy,selectedMonth);
   const missing=[...new Set(timeEntries.filter(e=>inPeriod(e.work_date,fy,selectedMonth)).filter(e=>!compFor(e.employee_id,e.work_date)).map(e=>memberName(e.employee_id)))].filter(Boolean);
   root.innerHTML=`
@@ -66,6 +70,10 @@ function render(){
         ${textKpi('Actual effort',formatDuration(company.minutes),'Logged project time')}
       </section>
       <section class="grid-2">${pondCard('POND 1',p1)}${pondCard('POND 2',p2)}</section>
+      <section class="grid-2">
+        ${investmentCard('Unpaid pitch / non-revenue external',unpaidPitch,'Cost invested in external opportunities without project revenue.')}
+        ${investmentCard('Internal / JG investment',internal,'Cost invested in JG internal work. Profit and margin do not apply.')}
+      </section>
       <section class="panel"><div class="panel-header"><div><div class="section-eyebrow">Two Pond metrics</div><h2 class="panel-title">Revenue ownership vs delivery contribution</h2><p class="panel-subtitle">Revenue follows the owning Pond. Delivery follows the Pond or Pool of the people who actually logged the work.</p></div></div><div class="panel-body"><div class="delivery-grid">${['POND 1','POND 2','POOL'].map(g=>deliveryCard(g,delivery[g])).join('')}</div></div></section>
       ${missing.length?`<div class="notice notice-warning"><strong>Compensation missing:</strong> ${esc(missing.join(', '))}. Labour cost is understated until a cost period is added.</div>`:''}
       <section class="panel"><div class="panel-header"><div><div class="section-eyebrow">Project profitability</div><h2 class="panel-title">Actual effort against revenue</h2></div></div><div class="panel-body flush">${projectTable(rows)}</div></section>
@@ -76,13 +84,14 @@ function projectRows(fy,month){
   return (appState.projects||[]).filter(p=>p.financialYear===fy).map(project=>{
     const times=timeEntries.filter(e=>e.project_id===project.id&&inPeriod(e.work_date,fy,month));
     const fin=financials.filter(e=>e.project_id===project.id&&inPeriod(e.entry_month,fy,month));
+    const financialClass=project.financialClass||defaultFinancialClass(project.type);
     const revenue=fin.reduce((s,e)=>s+Number(e.revenue||0),0);
     const external=fin.reduce((s,e)=>s+Number(e.external_cost||0),0);
     const labour=times.reduce((s,e)=>s+labourCost(e),0);
     const minutes=times.reduce((s,e)=>s+Number(e.minutes||0),0);
     const owner=fin[0]?.ownership_pond||project.pond;
     const totalCost=labour+external, profit=revenue-totalCost;
-    return {project,owner,revenue,external,labour,totalCost,profit,margin:revenue?profit/revenue:0,minutes};
+    return {project,financialClass,owner,revenue,external,labour,totalCost,profit,margin:financialClass==='Revenue Generating'&&revenue?profit/revenue:0,minutes};
   }).filter(r=>r.minutes||r.revenue||r.external);
 }
 function aggregate(rows){const a=rows.reduce((x,r)=>{x.revenue+=r.revenue;x.external+=r.external;x.labour+=r.labour;x.minutes+=r.minutes;return x;},{revenue:0,external:0,labour:0,minutes:0});a.totalCost=a.external+a.labour;a.profit=a.revenue-a.totalCost;a.margin=a.revenue?a.profit/a.revenue:0;a.roi=a.totalCost?a.profit/a.totalCost:0;return a;}
@@ -93,8 +102,27 @@ function member(id){return (appState.members||[]).find(m=>m.id===id);}
 function memberName(id){return member(id)?.name||id;}
 function inPeriod(date,fy,month){if(!date)return false;const d=new Date(String(date).slice(0,10)+'T00:00:00'),y=d.getMonth()>=3?d.getFullYear():d.getFullYear()-1;const key=y+'-'+String(y+1).slice(-2);return key===fy&&(month==='ALL'||String(date).slice(0,7)===month);}
 
-function projectTable(rows){if(!rows.length)return '<div class="empty-state"><h3>No project data for this period</h3><p>Logged time and financial entries will appear here.</p></div>';return `<div class="table-wrap"><table class="data-table profitability-table"><thead><tr><th>Project</th><th>Owned by</th><th>Hours</th><th>Revenue</th><th>Labour</th><th>External</th><th>Profit</th><th>Margin</th><th></th></tr></thead><tbody>${rows.sort((a,b)=>b.revenue-a.revenue||b.minutes-a.minutes).map(r=>`<tr><td><strong>${esc(r.project.brand)}</strong><div class="cell-subtitle">${esc(r.project.type)} · ${esc(r.project.status)}</div></td><td>${esc(r.owner)}</td><td>${formatDuration(r.minutes)}</td><td>${formatMoney(r.revenue)}</td><td>${formatMoney(r.labour)}</td><td>${formatMoney(r.external)}</td><td><strong>${formatMoney(r.profit)}</strong></td><td>${r.revenue?formatPct(r.margin):'—'}</td><td><button class="link-button" data-action="finance-project" data-id="${r.project.id}" type="button">Financials</button></td></tr>`).join('')}</tbody></table></div>`;}
+function projectTable(rows){
+  if(!rows.length)return '<div class="empty-state"><h3>No project data for this period</h3><p>Logged time and financial entries will appear here.</p></div>';
+  return `<div class="table-wrap"><table class="data-table profitability-table"><thead><tr><th>Project</th><th>Class</th><th>Owned by</th><th>Hours</th><th>Revenue</th><th>Labour</th><th>External</th><th>Profit / Investment</th><th>Margin</th><th></th></tr></thead><tbody>${rows.sort((a,b)=>b.revenue-a.revenue||b.minutes-a.minutes).map(r=>{
+    const commercial=r.financialClass==='Revenue Generating';
+    return `<tr><td><strong>${esc(r.project.brand)}</strong><div class="cell-subtitle">${esc(r.project.type)} · ${esc(r.project.status)}</div></td><td>${esc(financialClassLabel(r.financialClass))}</td><td>${esc(r.owner)}</td><td>${formatDuration(r.minutes)}</td><td>${commercial?formatMoney(r.revenue):'N/A'}</td><td>${formatMoney(r.labour)}</td><td>${formatMoney(r.external)}</td><td><strong>${commercial?formatMoney(r.profit):formatMoney(r.totalCost)}</strong><div class="cell-subtitle">${commercial?'Profit':'Investment cost'}</div></td><td>${commercial&&r.revenue?formatPct(r.margin):'N/A'}</td><td>${commercial?'<button class="link-button" data-action="finance-project" data-id="'+r.project.id+'" type="button">Financials</button>':'—'}</td></tr>`;
+  }).join('')}</tbody></table></div>`;
+}
 function pondCard(name,s){return `<article class="panel pond-profit-card"><div class="panel-header"><div><div class="section-eyebrow">${esc(name)}</div><h2 class="panel-title">Owned profitability</h2></div></div><div class="panel-body"><div class="profit-stat-grid"><div><span>Revenue owned</span><strong>${formatMoney(s.revenue)}</strong></div><div><span>Total delivery cost</span><strong>${formatMoney(s.totalCost)}</strong></div><div><span>Profit</span><strong>${formatMoney(s.profit)}</strong></div><div><span>Margin</span><strong>${s.revenue?formatPct(s.margin):'—'}</strong></div></div></div></article>`;}
+function investmentCard(label,stats,meta){
+  return `<article class="panel"><div class="panel-header"><div><div class="section-eyebrow">Non-commercial effort</div><h2 class="panel-title">${esc(label)}</h2><p class="panel-subtitle">${esc(meta)}</p></div></div><div class="panel-body"><div class="profit-stat-grid"><div><span>Hours invested</span><strong>${formatDuration(stats.minutes)}</strong></div><div><span>Labour cost</span><strong>${formatMoney(stats.labour)}</strong></div><div><span>External cost</span><strong>${formatMoney(stats.external)}</strong></div><div><span>Total investment</span><strong>${formatMoney(stats.totalCost)}</strong></div></div></div></article>`;
+}
+function defaultFinancialClass(type){
+  if(type==='Internal')return 'Internal';
+  if(type==='Pitch')return 'Non-Revenue External';
+  return 'Revenue Generating';
+}
+function financialClassLabel(value){
+  if(value==='Revenue Generating')return 'Commercial';
+  if(value==='Non-Revenue External')return 'Unpaid Pitch / Non-Revenue';
+  return 'Internal';
+}
 function deliveryCard(g,x){x=x||{minutes:0,cost:0};return `<div class="delivery-card"><span>${esc(g)}</span><strong>${formatDuration(x.minutes)}</strong><small>${formatMoney(x.cost)} labour supplied</small></div>`;}
 function moneyKpi(l,v,m,c=''){return `<article class="kpi-card ${c}"><div class="kpi-label">${esc(l)}</div><div class="kpi-value">${formatMoney(v)}</div><div class="kpi-meta">${esc(m)}</div></article>`;}
 function textKpi(l,v,m){return `<article class="kpi-card"><div class="kpi-label">${esc(l)}</div><div class="kpi-value">${esc(v)}</div><div class="kpi-meta">${esc(m)}</div></article>`;}
@@ -103,7 +131,7 @@ function onChange(e){if(e.target.dataset.control==='month'){selectedMonth=e.targ
 function onClick(e){const b=e.target.closest('[data-action]');if(!b)return;if(b.dataset.action==='finance')openFinance();if(b.dataset.action==='finance-project')openFinance(b.dataset.id);if(b.dataset.action==='comp')openComp();if(b.dataset.action==='save-finance')saveFinance();if(b.dataset.action==='save-comp')saveComp();if(b.dataset.action==='close-panel')render();}
 
 function openFinance(projectId=''){
-  const projects=(appState.projects||[]).filter(p=>p.financialYear===appState.meta.currentFY);const project=projects.find(p=>p.id===projectId)||projects[0];const month=selectedMonth==='ALL'?localDate().slice(0,7):selectedMonth;
+  const projects=(appState.projects||[]).filter(p=>p.financialYear===appState.meta.currentFY&&(p.financialClass||defaultFinancialClass(p.type))==='Revenue Generating');const project=projects.find(p=>p.id===projectId)||projects[0];const month=selectedMonth==='ALL'?localDate().slice(0,7):selectedMonth;
   root.innerHTML=`<div class="stack-lg"><section class="panel"><div class="panel-header"><div><div class="section-eyebrow">Management only</div><h2 class="panel-title">Project financial entry</h2><p class="panel-subtitle">Enter monthly revenue, external cost and the revenue-owning Pond.</p></div></div><div class="panel-body"><div class="form-grid"><div class="field span-2"><label>Project</label><select id="finProject">${projects.map(p=>`<option value="${p.id}" ${p.id===project?.id?'selected':''}>${esc(p.brand)} · ${esc(p.pond)}</option>`).join('')}</select></div><div class="field"><label>Month</label><input id="finMonth" type="month" value="${month}"></div><div class="field"><label>Revenue-owning Pond</label><select id="finPond"><option ${project?.pond==='POND 1'?'selected':''}>POND 1</option><option ${project?.pond==='POND 2'?'selected':''}>POND 2</option></select></div><div class="field"><label>Revenue (₹)</label><input id="finRevenue" type="number" min="0" step="1"></div><div class="field"><label>External cost (₹)</label><input id="finExternal" type="number" min="0" step="1"></div><div class="field span-2"><label>Notes</label><input id="finNotes" maxlength="220"></div></div><div class="worklog-edit-actions"><button class="button button-secondary" data-action="close-panel" type="button">Cancel</button><button class="button button-primary" data-action="save-finance" type="button">Save financial entry</button></div></div></section></div>`;
 }
 async function saveFinance(){const project=(appState.projects||[]).find(p=>p.id===document.getElementById('finProject').value);const month=document.getElementById('finMonth').value;if(!project||!month)return toast('Choose a project and month.','warning');const payload={project_id:project.id,project_name:project.brand,ownership_pond:document.getElementById('finPond').value,entry_month:month+'-01',revenue:Number(document.getElementById('finRevenue').value||0),external_cost:Number(document.getElementById('finExternal').value||0),notes:document.getElementById('finNotes').value.trim(),updated_at:new Date().toISOString()};const r=await sb.from('project_financial_entries').upsert(payload,{onConflict:'project_id,entry_month'});if(r.error)return toast('Could not save project financials.','error');toast('Project financials saved.');await loadData();}
