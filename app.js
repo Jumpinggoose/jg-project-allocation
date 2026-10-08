@@ -217,7 +217,7 @@ async function loadSession() {
 }
 
 function userCanEdit() {
-  return Boolean(sessionUser);
+  return Boolean(sessionUser && (sessionUser.role === 'admin' || sessionUser.role === 'editor'));
 }
 
 function userIsAdmin() {
