@@ -41,6 +41,10 @@
     </aside>
     <main class="main-area">
       <header class="topbar">
+        <div class="history-nav" aria-label="Page navigation">
+          <button class="icon-button history-button" id="historyBack" type="button" aria-label="Go back">←</button>
+          <button class="icon-button history-button" id="historyForward" type="button" aria-label="Go forward">→</button>
+        </div>
         <div class="page-heading">
           <div class="eyebrow">JUMPINGGOOSE · ACTUAL TIME</div>
           <h1>My Work Log</h1>
@@ -59,7 +63,7 @@
   const ACTIVITY_TYPES=['Design / Execution','Idea / Concept','Research','Planning / Strategy','Meeting / Review','Coordination / Management','Production / Shoot','Copy / Content','Other'];
   const cfg=window.JG_SUPABASE;
   const sb=window.supabase.createClient(cfg.url,cfg.publishableKey);
-  let user=null, access=null, appState=null, entries=[], selectedDate=localDate();
+  let user=null, access=null, appState=null, entries=[], selectedDate=new URLSearchParams(location.search).get('date')||localDate();
 
   document.addEventListener('DOMContentLoaded',init);
 
@@ -76,6 +80,10 @@
     document.getElementById('planningLink').hidden=access.access_level==='employee';
     document.getElementById('profitLink').hidden=access.access_level!=='management';
     document.getElementById('logoutButton').addEventListener('click',logout);
+    document.getElementById('historyBack').addEventListener('click',()=>history.back());
+    document.getElementById('historyForward').addEventListener('click',()=>history.forward());
+    window.addEventListener('popstate',()=>{selectedDate=new URLSearchParams(location.search).get('date')||localDate();render();});
+    const initialUrl=new URL(location.href);initialUrl.searchParams.set('date',selectedDate);history.replaceState({date:selectedDate},'',initialUrl);
     document.getElementById('worklogRoot').addEventListener('click',handleClick);
     document.getElementById('worklogRoot').addEventListener('change',handleChange);
     const sr=await sb.from('app_state').select('data').eq('id',1).single();
@@ -148,14 +156,14 @@
   async function handleClick(ev){
     const b=ev.target.closest('[data-action]');if(!b)return;
     const a=b.dataset.action;
-    if(a==='today'){selectedDate=localDate();render();return;}
+    if(a==='today'){selectedDate=localDate();pushWorklogDate();render();return;}
     if(a==='save'){await saveEntry();return;}
     if(a==='edit'){await editEntry(b.dataset.id);return;}
     if(a==='delete'){await deleteEntry(b.dataset.id);return;}
   }
 
   function handleChange(ev){
-    if(ev.target.dataset.control==='worklog-date'){selectedDate=ev.target.value||localDate();render();}
+    if(ev.target.dataset.control==='worklog-date'){selectedDate=ev.target.value||localDate();pushWorklogDate();render();}
   }
 
   async function saveEntry(){
@@ -192,6 +200,7 @@
     entries=entries.filter(x=>x.id!==id);render();toast('Entry deleted.');
   }
 
+  function pushWorklogDate(){const u=new URL(location.href);u.searchParams.set('date',selectedDate);history.pushState({date:selectedDate},'',u);}
   function parseDuration(v){const m=String(v).trim().match(/^(\d{1,2}):([0-5]\d)$/);if(!m)return 0;const t=Number(m[1])*60+Number(m[2]);return t>0&&t<=1440?t:0;}
   function durationInput(m){return Math.floor(m/60)+':'+String(m%60).padStart(2,'0');}
   function duration(m){m=Math.round(Number(m||0));const h=Math.floor(m/60),n=m%60;return h?(n?h+'h '+n+'m':h+'h'):n+'m';}
