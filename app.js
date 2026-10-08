@@ -203,7 +203,7 @@ async function loadSession() {
       id: data.user.id,
       email,
       name: data.user.user_metadata?.name || data.user.email || 'JG user',
-      role: email === 'theo@jumpinggoose.com' ? 'admin' : 'editor'
+      role: ['piyush@jumpinggoose.com','tuhin@jumpinggoose.com','supriya@jumpinggoose.com','theo@jumpinggoose.com','midhun@jumpinggoose.com'].includes(email) ? 'admin' : 'editor'
     };
 
     const roleLabel = sessionUser.role === 'admin' ? 'Admin' : 'Editor';
