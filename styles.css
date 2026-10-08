@@ -2920,3 +2920,9 @@ summary:focus-visible {
     gap: 10px;
   }
 }
+
+/* Browser-style page history controls */
+.history-nav{display:flex;gap:7px;align-items:center;align-self:flex-start;padding-top:2px;flex:0 0 auto}
+.history-button{width:34px;height:34px;min-width:34px;border:1px solid var(--line-strong);background:var(--surface);font-size:17px;line-height:1}
+.history-button:hover{border-color:var(--ink);background:var(--paper)}
+@media(max-width:760px){.history-nav{order:-1;padding-top:0}.topbar{gap:10px}.history-button{width:32px;height:32px;min-width:32px}}
