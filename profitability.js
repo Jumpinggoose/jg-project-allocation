@@ -59,8 +59,12 @@ function render(){
   const fy=appState.meta.currentFY||'2026-27';
   const rows=projectRows(fy,selectedMonth);
   const commercialRows=rows.filter(r=>r.financialClass==='Revenue Generating'&&r.profitabilityReady);
+  const retainerRows=commercialRows.filter(r=>r.project.type==='Retainer');
+  const oneTimeRows=commercialRows.filter(r=>r.project.type!=='Retainer');
   const investmentRows=rows.filter(r=>r.financialClass!=='Revenue Generating');
   const company=aggregate(commercialRows);
+  const retainerRevenue=aggregate(retainerRows);
+  const oneTimeRevenue=aggregate(oneTimeRows);
   const p1=aggregate(commercialRows.filter(r=>r.owner==='POND 1'));
   const p2=aggregate(commercialRows.filter(r=>r.owner==='POND 2'));
   const unpaidPitch=aggregate(investmentRows.filter(r=>r.financialClass==='Non-Revenue External'));
@@ -73,10 +77,12 @@ function render(){
       <section class="project-toolbar profitability-toolbar"><div class="toolbar-group">
         <label class="field profitability-month-field"><span class="field-label">Period</span><select data-control="month"><option value="ALL">FY ${esc(fy)} · All tracked months</option>${fyMonths(fy).map(m=>`<option value="${m}" ${selectedMonth===m?'selected':''}>${esc(monthLabel(m))}</option>`).join('')}</select></label>
         <button class="button button-secondary" type="button" data-action="section-salaries">Employees & Salary</button>
-        <button class="button button-primary" type="button" data-action="section-project-revenue">Project Revenue</button>
+        <button class="button button-primary" type="button" data-action="section-project-revenue">One-Time Revenue</button>
       </div><div class="notice compact-notice">Profitability is calculated only for periods where actual time has been logged. Revenue without time logs is shown as awaiting timesheets.</div></section>
       <section class="profitability-kpis">
-        ${moneyKpi('JG Revenue',company.revenue,'Revenue tied to logged work')}
+        ${moneyKpi('JG Revenue',company.revenue,'Total commercial revenue tied to logged work')}
+        ${moneyKpi('Retainer Revenue',retainerRevenue.revenue,'Recurring monthly retainer revenue')}
+        ${moneyKpi('One-Time Project Revenue',oneTimeRevenue.revenue,'One-time projects + paid pitches')}
         ${moneyKpi('JG Cost',company.totalCost,formatMoney(company.labour)+' labour · '+formatMoney(company.external)+' external')}
         ${moneyKpi('JG Profit',company.profit,company.revenue?formatPct(company.margin)+' margin':'Awaiting logged commercial work','is-accent')}
         ${textKpi('Actual effort',formatDuration(company.minutes),'Logged commercial project time')}
@@ -97,7 +103,7 @@ function managementTabs(){
     <button type="button" class="${selectedSection==='overview'?'is-active':''}" data-action="section-overview">Overview</button>
     <button type="button" class="${selectedSection==='salaries'?'is-active':''}" data-action="section-salaries">Employees & Salary</button>
     <button type="button" class="${selectedSection==='revenue'?'is-active':''}" data-action="section-revenue">Retainer Revenue</button>
-    <button type="button" class="${selectedSection==='project-revenue'?'is-active':''}" data-action="section-project-revenue">Project Revenue</button>
+    <button type="button" class="${selectedSection==='project-revenue'?'is-active':''}" data-action="section-project-revenue">One-Time Project Revenue</button>
   </div>`;
 }
 
@@ -172,8 +178,8 @@ function renderProjectRevenue(){
       ${managementTabs()}
       <section class="panel">
         <div class="panel-header project-detail-head">
-          <div><div class="section-eyebrow">Management only</div><h2 class="panel-title">Project Revenue</h2><p class="panel-subtitle">One-time projects and paid pitches are kept separate from recurring retainers. Enter revenue and external costs against the appropriate billing month.</p></div>
-          <button class="button button-primary" type="button" data-action="finance">Add / edit project revenue</button>
+          <div><div class="section-eyebrow">Management only</div><h2 class="panel-title">One-Time Project Revenue</h2><p class="panel-subtitle">One-time projects and paid pitches are kept separate from recurring retainers. Enter revenue and external costs against the appropriate billing month.</p></div>
+          <button class="button button-primary" type="button" data-action="finance">Add / edit one-time revenue</button>
         </div>
         <div class="panel-body flush">
           <div class="table-wrap"><table class="data-table">
