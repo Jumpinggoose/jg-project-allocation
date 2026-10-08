@@ -283,7 +283,7 @@ function openProjectPeople(projectId,push=true){
           </div>
           <div class="project-detail-actions">
             <button class="button button-secondary" data-action="close-panel" type="button">Back to profitability</button>
-            ${commercial?'<button class="button button-primary" data-action="finance-project" data-id="'+row.project.id+'" type="button">Financials</button>':''}
+            ${commercial?(row.project.type==='Retainer'?'<button class="button button-primary" data-action="revenue-rate-project" data-id="'+row.project.id+'" type="button">Retainer revenue</button>':'<button class="button button-primary" data-action="finance-project" data-id="'+row.project.id+'" type="button">Project revenue</button>'):''}
           </div>
         </div>
         <div class="panel-body">
