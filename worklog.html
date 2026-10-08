@@ -6,9 +6,26 @@
   <meta name="theme-color" content="#0F0F0F">
   <title>JG Work Log</title>
   <link rel="stylesheet" href="styles.css">
+  <style>
+    .worklog-summary{display:flex;justify-content:space-between;align-items:flex-end;gap:18px}
+    .worklog-summary-actions{display:flex;align-items:flex-end;gap:10px}
+    .worklog-entry-grid{display:grid;grid-template-columns:minmax(190px,1.5fr) minmax(160px,1fr) minmax(220px,1.7fr) 90px 90px auto;gap:12px;align-items:end}
+    .worklog-add-wrap{display:grid;gap:6px;min-width:105px}
+    .worklog-add-wrap small{font-size:10px;color:var(--muted);line-height:1.3}
+    .entry-list{display:grid}
+    .entry-card{display:grid;grid-template-columns:minmax(180px,1.25fr) minmax(160px,1fr) minmax(220px,1.7fr) 90px 120px;gap:14px;align-items:center;padding:14px 22px;border-top:1px solid var(--line);font-size:12px}
+    .entry-card:first-child{border-top:0}
+    .entry-card small{display:block;margin-top:3px;color:var(--muted)}
+    .entry-card p{margin:0;color:var(--ink)}
+    .entry-actions{display:flex;gap:10px;justify-content:flex-end}
+    .date-row{display:flex;gap:10px;align-items:flex-end}
+    .worklog-select-note{margin-top:7px;color:var(--muted);font-size:10px}
+    @media(max-width:1100px){.worklog-entry-grid{grid-template-columns:1fr 1fr}.worklog-project-field,.worklog-task-field,.worklog-add-wrap{grid-column:1/-1}.entry-card{grid-template-columns:1fr 1fr}.entry-card .entry-task,.entry-card .entry-actions{grid-column:1/-1}}
+    @media(max-width:760px){.app-shell{display:block}.sidebar{position:relative;width:100%;height:auto}.sidebar-note{display:none}.worklog-summary{align-items:stretch;flex-direction:column}.worklog-summary-actions{align-items:stretch}.worklog-entry-grid{grid-template-columns:1fr}.worklog-project-field,.worklog-task-field,.worklog-add-wrap{grid-column:auto}.entry-card{grid-template-columns:1fr}.entry-card .entry-task,.entry-card .entry-actions{grid-column:auto}.entry-actions{justify-content:flex-start}}
+  </style>
 </head>
 <body>
-  <div class="app-shell worklog-shell">
+  <div class="app-shell">
     <aside class="sidebar">
       <div class="brand-lockup">
         <div class="brand-mark">JG</div>
@@ -27,16 +44,164 @@
         <div class="page-heading">
           <div class="eyebrow">JUMPINGGOOSE · ACTUAL TIME</div>
           <h1>My Work Log</h1>
-          <p>Log the actual time spent on projects. There is no required daily total.</p>
+          <p>Log actual time spent on projects. There is no required daily total.</p>
         </div>
         <div class="topbar-actions"><button class="button button-secondary" id="logoutButton" type="button">Log out</button></div>
       </header>
-      <section class="view-container" id="worklogRoot"></section>
+      <section class="view-container" id="worklogRoot"><div class="notice">Loading your work log…</div></section>
     </main>
   </div>
   <div class="toast-region" id="toastRegion" aria-live="polite"></div>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="supabase-config.js"></script>
-  <script src="worklog.js" defer></script>
+  <script>
+  'use strict';
+  const ACTIVITY_TYPES=['Design / Execution','Idea / Concept','Research','Planning / Strategy','Meeting / Review','Coordination / Management','Production / Shoot','Copy / Content','Other'];
+  const cfg=window.JG_SUPABASE;
+  const sb=window.supabase.createClient(cfg.url,cfg.publishableKey);
+  let user=null, access=null, appState=null, entries=[], selectedDate=localDate();
+
+  document.addEventListener('DOMContentLoaded',init);
+
+  async function init(){
+    const auth=await sb.auth.getUser();
+    if(auth.error||!auth.data.user)return location.replace('/login.html');
+    user=auth.data.user;
+    const email=String(user.email||'').toLowerCase();
+    if(!email.endsWith('@jumpinggoose.com')){await sb.auth.signOut();return location.replace('/login.html');}
+    const ar=await sb.from('user_access').select('member_id,display_name,access_level,title,active').eq('email',email).maybeSingle();
+    if(ar.error||!ar.data?.active){await sb.auth.signOut();return location.replace('/login.html');}
+    access=ar.data;
+    document.getElementById('worklogUser').textContent=access.display_name+' · '+(access.title||'Work Log');
+    document.getElementById('planningLink').hidden=access.access_level==='employee';
+    document.getElementById('profitLink').hidden=access.access_level!=='management';
+    document.getElementById('logoutButton').addEventListener('click',logout);
+    document.getElementById('worklogRoot').addEventListener('click',handleClick);
+    document.getElementById('worklogRoot').addEventListener('change',handleChange);
+    const sr=await sb.from('app_state').select('data').eq('id',1).single();
+    if(sr.error)return message('Could not load project data.');
+    appState=sr.data.data;
+    await loadEntries();
+  }
+
+  async function logout(){await sb.auth.signOut();location.replace('/login.html');}
+
+  async function loadEntries(){
+    const fy=appState?.meta?.currentFY||'2026-27', y=Number(fy.slice(0,4));
+    const r=await sb.from('time_entries')
+      .select('id,user_id,employee_id,work_date,project_id,project_name,project_pond,activity_type,task_description,minutes,locked,created_at')
+      .eq('user_id',user.id).gte('work_date',y+'-04-01').lte('work_date',(y+1)+'-03-31')
+      .order('work_date',{ascending:false}).order('created_at',{ascending:false});
+    if(r.error)return message('Could not load your work log.');
+    entries=r.data||[];
+    render();
+  }
+
+  function render(){
+    const day=entries.filter(e=>e.work_date===selectedDate).sort((a,b)=>String(a.created_at).localeCompare(String(b.created_at)));
+    const month=selectedDate.slice(0,7);
+    const dayMin=day.reduce((s,e)=>s+Number(e.minutes||0),0);
+    const monthMin=entries.filter(e=>String(e.work_date).slice(0,7)===month).reduce((s,e)=>s+Number(e.minutes||0),0);
+    document.getElementById('worklogRoot').innerHTML=`
+      <div class="stack-lg">
+        <section class="worklog-summary">
+          <div><div class="section-eyebrow">Daily actuals</div><h2 style="margin:5px 0 4px">${esc(longDate(selectedDate))}</h2><p style="margin:0;color:var(--muted);font-size:12px">Record the time the work actually took. More or less on any day is fine.</p></div>
+          <div class="worklog-summary-actions"><label class="field"><span class="field-label">Work date</span><input type="date" data-control="worklog-date" value="${selectedDate}"></label><button class="button button-secondary" data-action="today" type="button">Today</button></div>
+        </section>
+        <section class="grid-2">
+          ${kpi('Logged today',duration(dayMin),day.length+' '+(day.length===1?'entry':'entries'),'is-accent')}
+          ${kpi('This month',duration(monthMin),'Actual time recorded','')}
+        </section>
+        <section class="panel">
+          <div class="panel-header"><div><div class="section-eyebrow">Add work</div><h2 class="panel-title">New time entry</h2><p class="panel-subtitle">Create separate entries when the same project includes design, meetings, research, planning or other activities.</p></div></div>
+          <div class="panel-body">
+            <div class="worklog-entry-grid">
+              <div class="field worklog-project-field"><label>Project</label><select id="wlProject">${projectOptions()}</select><div class="worklog-select-note">Assigned projects appear first. Other live JG projects remain available for unplanned support.</div></div>
+              <div class="field"><label>Activity</label><select id="wlActivity">${ACTIVITY_TYPES.map(x=>'<option>'+esc(x)+'</option>').join('')}</select></div>
+              <div class="field worklog-task-field"><label>Task / description</label><input id="wlTask" maxlength="220" placeholder="What did you work on?"></div>
+              <div class="field"><label>Hours</label><input id="wlHours" type="number" min="0" max="24" step="0.01" inputmode="decimal" placeholder="1"></div>
+              <div class="field"><label>Minutes</label><input id="wlMinutes" type="number" min="0" max="59" step="1" inputmode="numeric" placeholder="20"></div>
+              <div class="worklog-add-wrap"><button class="button button-primary" data-action="save" type="button">Add entry</button><small>Any whole minutes from 0–59. No seconds.</small></div>
+            </div>
+          </div>
+        </section>
+        <section class="panel">
+          <div class="panel-header"><div><div class="section-eyebrow">Entries</div><h2 class="panel-title">${esc(longDate(selectedDate))}</h2></div><span class="pill-count">${duration(dayMin)}</span></div>
+          <div class="panel-body flush">${day.length?'<div class="entry-list">'+day.map(entryRow).join('')+'</div>':'<div class="empty-state"><h3>No entries for this date</h3><p>Add each activity you worked on. There is no minimum or required daily total.</p></div>'}</div>
+        </section>
+      </div>`;
+  }
+
+  function projectOptions(selected=''){
+    const projects=(appState?.projects||[]).filter(p=>p.financialYear===appState.meta.currentFY&&p.status!=='Completed');
+    const keys=['leadSpoc','primary1','primary2','support1','support2','support3','support4','mentor1','mentor2'];
+    const assigned=projects.filter(p=>keys.some(k=>p[k]===access.member_id));
+    const other=projects.filter(p=>!assigned.includes(p));
+    const opts=list=>list.slice().sort((a,b)=>a.brand.localeCompare(b.brand)).map(p=>'<option value="'+attr(p.id)+'" '+(p.id===selected?'selected':'')+'>'+esc(p.brand)+' · '+esc(p.pond)+'</option>').join('');
+    return (assigned.length?'<optgroup label="Assigned to me">'+opts(assigned)+'</optgroup>':'')+(other.length?'<optgroup label="Other live JG projects">'+opts(other)+'</optgroup>':'');
+  }
+
+  function entryRow(e){
+    return '<div class="entry-card"><div><strong>'+esc(e.project_name)+'</strong><small>'+esc(e.project_pond||'')+'</small></div><div><strong>'+esc(e.activity_type)+'</strong></div><div class="entry-task"><p>'+esc(e.task_description||'—')+'</p></div><div><strong>'+duration(e.minutes)+'</strong>'+(e.locked?'<small>Locked</small>':'')+'</div><div class="entry-actions">'+(e.locked?'':'<button class="link-button" data-action="edit" data-id="'+attr(e.id)+'" type="button">Edit</button><button class="link-button" data-action="delete" data-id="'+attr(e.id)+'" type="button">Delete</button>')+'</div></div>';
+  }
+
+  async function handleClick(ev){
+    const b=ev.target.closest('[data-action]');if(!b)return;
+    const a=b.dataset.action;
+    if(a==='today'){selectedDate=localDate();render();return;}
+    if(a==='save'){await saveEntry();return;}
+    if(a==='edit'){await editEntry(b.dataset.id);return;}
+    if(a==='delete'){await deleteEntry(b.dataset.id);return;}
+  }
+
+  function handleChange(ev){
+    if(ev.target.dataset.control==='worklog-date'){selectedDate=ev.target.value||localDate();render();}
+  }
+
+  async function saveEntry(){
+    const projectId=document.getElementById('wlProject')?.value;
+    const project=(appState.projects||[]).find(p=>p.id===projectId);
+    const hours=Number(document.getElementById('wlHours')?.value||0);
+    const mins=Number(document.getElementById('wlMinutes')?.value||0);
+    if(!project)return toast('Choose a project.','warning');
+    if(!Number.isInteger(mins)||mins<0||mins>59)return toast('Minutes must be a whole number from 0 to 59.','warning');
+    const total=Math.round(hours*60)+mins;
+    if(!Number.isFinite(total)||total<=0)return toast('Enter the time spent in hours and/or minutes.','warning');
+    if(total>1440)return toast('A single entry cannot exceed 24 hours.','warning');
+    const payload={user_id:user.id,employee_id:access.member_id,work_date:selectedDate,project_id:project.id,project_name:project.brand,project_pond:project.pond,activity_type:document.getElementById('wlActivity').value,task_description:document.getElementById('wlTask').value.trim(),minutes:total,locked:false};
+    const r=await sb.from('time_entries').insert(payload).select().single();
+    if(r.error){console.error(r.error);return toast('Could not save this entry.','error');}
+    entries.unshift(r.data);render();toast('Time entry added.');
+  }
+
+  async function editEntry(id){
+    const e=entries.find(x=>x.id===id);if(!e||e.locked)return;
+    const task=prompt('Task / description:',e.task_description||'');if(task===null)return;
+    const d=prompt('Duration as H:MM, for example 1:20 or 0:45:',durationInput(e.minutes));if(d===null)return;
+    const mins=parseDuration(d);if(!mins)return toast('Use H:MM, for example 1:20.','warning');
+    const r=await sb.from('time_entries').update({task_description:task.trim(),minutes:mins,updated_at:new Date().toISOString()}).eq('id',id).select().single();
+    if(r.error){console.error(r.error);return toast('Could not update this entry.','error');}
+    entries=entries.map(x=>x.id===id?r.data:x);render();toast('Entry updated.');
+  }
+
+  async function deleteEntry(id){
+    const e=entries.find(x=>x.id===id);if(!e||e.locked)return;
+    if(!confirm('Delete '+duration(e.minutes)+' logged against '+e.project_name+'?'))return;
+    const r=await sb.from('time_entries').delete().eq('id',id);
+    if(r.error){console.error(r.error);return toast('Could not delete this entry.','error');}
+    entries=entries.filter(x=>x.id!==id);render();toast('Entry deleted.');
+  }
+
+  function parseDuration(v){const m=String(v).trim().match(/^(\d{1,2}):([0-5]\d)$/);if(!m)return 0;const t=Number(m[1])*60+Number(m[2]);return t>0&&t<=1440?t:0;}
+  function durationInput(m){return Math.floor(m/60)+':'+String(m%60).padStart(2,'0');}
+  function duration(m){m=Math.round(Number(m||0));const h=Math.floor(m/60),n=m%60;return h?(n?h+'h '+n+'m':h+'h'):n+'m';}
+  function localDate(){const d=new Date(),o=d.getTimezoneOffset();return new Date(d.getTime()-o*60000).toISOString().slice(0,10);}
+  function longDate(v){return new Date(v+'T00:00:00').toLocaleDateString('en-GB',{weekday:'long',day:'numeric',month:'long',year:'numeric'});}
+  function kpi(l,v,m,c){return '<article class="kpi-card '+c+'"><div class="kpi-label">'+esc(l)+'</div><div class="kpi-value">'+esc(v)+'</div><div class="kpi-meta">'+esc(m)+'</div></article>';}
+  function esc(v){return String(v??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');}
+  function attr(v){return esc(v);}
+  function message(m){document.getElementById('worklogRoot').innerHTML='<div class="notice">'+esc(m)+'</div>';}
+  function toast(m,type=''){const el=document.createElement('div');el.className='toast '+(type?'is-'+type:'');el.textContent=m;document.getElementById('toastRegion').appendChild(el);setTimeout(()=>el.remove(),3200);}
+  </script>
 </body>
 </html>
