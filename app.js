@@ -422,6 +422,14 @@ function updateSyncUI(status, detail = '') {
 }
 
 function setView(view, clearSearch = false) {
+  if (view === 'worklog') {
+    window.location.href = '/worklog.html';
+    return;
+  }
+  if (view === 'profitability') {
+    window.location.href = '/profitability.html';
+    return;
+  }
   ui.view = view;
   if (clearSearch) {
     ui.search = '';
