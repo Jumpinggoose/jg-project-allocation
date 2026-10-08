@@ -72,8 +72,8 @@ function render(){
       ${managementTabs()}
       <section class="project-toolbar profitability-toolbar"><div class="toolbar-group">
         <label class="field profitability-month-field"><span class="field-label">Period</span><select data-control="month"><option value="ALL">FY ${esc(fy)} · All tracked months</option>${fyMonths(fy).map(m=>`<option value="${m}" ${selectedMonth===m?'selected':''}>${esc(monthLabel(m))}</option>`).join('')}</select></label>
-        <button class="button button-secondary" type="button" data-action="comp">Add salary change</button>
-        <button class="button button-primary" type="button" data-action="finance">Add financial entry</button>
+        <button class="button button-secondary" type="button" data-action="section-salaries">Employees & Salary</button>
+        <button class="button button-primary" type="button" data-action="section-project-revenue">Project Revenue</button>
       </div><div class="notice compact-notice">Profitability is calculated only for periods where actual time has been logged. Revenue without time logs is shown as awaiting timesheets.</div></section>
       <section class="profitability-kpis">
         ${moneyKpi('JG Revenue',company.revenue,'Revenue tied to logged work')}
@@ -408,8 +408,12 @@ function onClick(e){
 }
 
 
-function openFinance(projectId=''){
-  const projects=(appState.projects||[]).filter(p=>p.financialYear===appState.meta.currentFY&&(p.financialClass||defaultFinancialClass(p.type))==='Revenue Generating');const project=projects.find(p=>p.id===projectId)||projects[0];const month=selectedMonth==='ALL'?localDate().slice(0,7):selectedMonth;
+function openFinance(projectId='',push=true){
+  if(push) pushProfitState('project-revenue','finance',projectId);
+  selectedSection='project-revenue';
+  const projects=(appState.projects||[]).filter(p=>p.financialYear===appState.meta.currentFY&&p.type!=='Retainer'&&(p.financialClass||defaultFinancialClass(p.type))==='Revenue Generating');
+  const project=projects.find(p=>p.id===projectId)||projects[0];
+  const month=selectedMonth==='ALL'?localDate().slice(0,7):selectedMonth;
   root.innerHTML=`<div class="stack-lg"><section class="panel"><div class="panel-header"><div><div class="section-eyebrow">Management only</div><h2 class="panel-title">Project revenue / cost entry</h2><p class="panel-subtitle">For one-time projects and paid pitches. Retainer revenue is managed separately in Retainer Revenue.</p></div></div><div class="panel-body"><div class="form-grid"><div class="field span-2"><label>Project</label><select id="finProject">${projects.map(p=>`<option value="${p.id}" ${p.id===project?.id?'selected':''}>${esc(p.brand)} · ${esc(p.pond)}</option>`).join('')}</select></div><div class="field"><label>Month</label><input id="finMonth" type="month" value="${month}"></div><div class="field"><label>Revenue-owning Pond</label><select id="finPond"><option ${project?.pond==='POND 1'?'selected':''}>POND 1</option><option ${project?.pond==='POND 2'?'selected':''}>POND 2</option></select></div><div class="field"><label>Revenue (₹)</label><input id="finRevenue" type="number" min="0" step="1"></div><div class="field"><label>External cost (₹)</label><input id="finExternal" type="number" min="0" step="1"></div><div class="field span-2"><label>Notes</label><input id="finNotes" maxlength="220"></div></div><div class="worklog-edit-actions"><button class="button button-secondary" data-action="close-panel" type="button">Back</button><button class="button button-primary" data-action="save-finance" type="button">Save project revenue</button></div></div></section></div>`;
 }
 async function saveFinance(){const project=(appState.projects||[]).find(p=>p.id===document.getElementById('finProject').value);const month=document.getElementById('finMonth').value;if(!project||!month)return toast('Choose a project and month.','warning');const payload={project_id:project.id,project_name:project.brand,ownership_pond:document.getElementById('finPond').value,entry_month:month+'-01',revenue:Number(document.getElementById('finRevenue').value||0),external_cost:Number(document.getElementById('finExternal').value||0),notes:document.getElementById('finNotes').value.trim(),updated_at:new Date().toISOString()};const r=await sb.from('project_financial_entries').upsert(payload,{onConflict:'project_id,entry_month'});if(r.error)return toast('Could not save project financials.','error');selectedSection='project-revenue';replaceProfitState('project-revenue');toast('Project revenue saved.');await loadData();}
