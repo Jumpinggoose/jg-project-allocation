@@ -3,6 +3,7 @@
 const STORAGE_KEY = 'jg-project-allocation-v1';
 const CONFLICT_STORAGE_KEY = 'jg-project-allocation-conflict-v1';
 const PROJECT_TYPES = ['Retainer', 'One-Time', 'Pitch', 'Internal'];
+const FINANCIAL_CLASSES = ['Revenue Generating', 'Non-Revenue External', 'Internal'];
 const STATUSES = ['Not Started', 'Active', 'In Progress', 'Ending Soon', 'Ending Urgent', 'On Hold', 'Paused', 'Completed'];
 const MEMBER_TYPES = ['Employee', 'Intern', 'Freelancer'];
 const GROUPS = ['POND 1', 'POND 2', 'POOL'];
@@ -1203,6 +1204,7 @@ function openProjectModal({ pond = null, type = null, project = null } = {}) {
     financialYear: ui.financialYear === 'ALL' ? state.meta.currentFY : ui.financialYear,
     pond: pond || 'POND 1',
     type: type || 'Retainer',
+    financialClass: defaultFinancialClass(type || 'Retainer'),
     brand: '',
     agencies: '',
     engagement: '',
@@ -1249,6 +1251,11 @@ function openProjectModal({ pond = null, type = null, project = null } = {}) {
         <div class="field">
           <label for="projectType">Project type</label>
           <select id="projectType">${PROJECT_TYPES.map((item) => `<option value="${escapeAttr(item)}" ${draft.type === item ? 'selected' : ''}>${escapeHtml(item)}</option>`).join('')}</select>
+        </div>
+        <div class="field">
+          <label for="projectFinancialClass">Financial classification</label>
+          <select id="projectFinancialClass">${FINANCIAL_CLASSES.map((item) => `<option value="${escapeAttr(item)}" ${(draft.financialClass || defaultFinancialClass(draft.type)) === item ? 'selected' : ''}>${escapeHtml(financialClassLabel(item))}</option>`).join('')}</select>
+          <span class="field-help">Commercial work earns revenue. Non-revenue external covers unpaid pitches/spec work. Internal covers JG initiatives.</span>
         </div>
         <div class="field span-2">
           <label for="projectBrand">Brand / Project name *</label>
@@ -1311,6 +1318,17 @@ function openProjectModal({ pond = null, type = null, project = null } = {}) {
   if (!fixedPond && pondSelect) {
     pondSelect.addEventListener('change', () => refreshAssignmentOptions(pondSelect.value));
   }
+  const typeSelect = document.getElementById('projectType');
+  const financialClassSelect = document.getElementById('projectFinancialClass');
+  if (typeSelect && financialClassSelect && !isEdit) {
+    let previousDefault = defaultFinancialClass(typeSelect.value);
+    typeSelect.addEventListener('change', () => {
+      if (financialClassSelect.value === previousDefault) {
+        financialClassSelect.value = defaultFinancialClass(typeSelect.value);
+      }
+      previousDefault = defaultFinancialClass(typeSelect.value);
+    });
+  }
   bindAllocationFieldEvents();
   const saveProjectButton = document.getElementById('saveProjectButton');
   if (project?.id) saveProjectButton.dataset.projectId = project.id;
@@ -1370,6 +1388,7 @@ function saveProjectFromModal(projectId, fixedPond) {
     financialYear: existing?.financialYear || document.getElementById('projectFinancialYear').value || state.meta.currentFY,
     pond,
     type: document.getElementById('projectType').value,
+    financialClass: document.getElementById('projectFinancialClass').value,
     brand,
     agencies: document.getElementById('projectAgency').value.trim(),
     engagement: document.getElementById('projectEngagement').value.trim(),
@@ -2365,6 +2384,7 @@ function normalizeProject(project) {
     financialYear: String(project.financialYear || state.meta?.currentFY || state.meta?.period || financialYearForDate(project.startDate)),
     pond: project.pond === 'POND 2' ? 'POND 2' : 'POND 1',
     type: PROJECT_TYPES.includes(project.type) ? project.type : 'Retainer',
+    financialClass: FINANCIAL_CLASSES.includes(project.financialClass) ? project.financialClass : defaultFinancialClass(project.type),
     brand: String(project.brand || '').trim(),
     agencies: String(project.agencies || ''),
     engagement: String(project.engagement || ''),
@@ -2386,6 +2406,18 @@ function normalizeProject(project) {
     normalized.legacyMentor3 = legacyMentor3;
   }
   return normalized;
+}
+
+function defaultFinancialClass(type) {
+  if (type === 'Internal') return 'Internal';
+  if (type === 'Pitch') return 'Non-Revenue External';
+  return 'Revenue Generating';
+}
+
+function financialClassLabel(value) {
+  if (value === 'Revenue Generating') return 'Commercial / Revenue Generating';
+  if (value === 'Non-Revenue External') return 'Non-Revenue External / Unpaid Pitch';
+  return 'Internal / JG Investment';
 }
 
 function openMobileNav() {
