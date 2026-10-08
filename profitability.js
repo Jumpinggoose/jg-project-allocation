@@ -106,8 +106,123 @@ function projectTable(rows){
   if(!rows.length)return '<div class="empty-state"><h3>No project data for this period</h3><p>Logged time and financial entries will appear here.</p></div>';
   return `<div class="table-wrap"><table class="data-table profitability-table"><thead><tr><th>Project</th><th>Class</th><th>Owned by</th><th>Hours</th><th>Revenue</th><th>Labour</th><th>External</th><th>Profit / Investment</th><th>Margin</th><th></th></tr></thead><tbody>${rows.sort((a,b)=>b.revenue-a.revenue||b.minutes-a.minutes).map(r=>{
     const commercial=r.financialClass==='Revenue Generating';
-    return `<tr><td><strong>${esc(r.project.brand)}</strong><div class="cell-subtitle">${esc(r.project.type)} · ${esc(r.project.status)}</div></td><td>${esc(financialClassLabel(r.financialClass))}</td><td>${esc(r.owner)}</td><td>${formatDuration(r.minutes)}</td><td>${commercial?formatMoney(r.revenue):'N/A'}</td><td>${formatMoney(r.labour)}</td><td>${formatMoney(r.external)}</td><td><strong>${commercial?formatMoney(r.profit):formatMoney(r.totalCost)}</strong><div class="cell-subtitle">${commercial?'Profit':'Investment cost'}</div></td><td>${commercial&&r.revenue?formatPct(r.margin):'N/A'}</td><td>${commercial?'<button class="link-button" data-action="finance-project" data-id="'+r.project.id+'" type="button">Financials</button>':'—'}</td></tr>`;
+    return `<tr>
+      <td><strong>${esc(r.project.brand)}</strong><div class="cell-subtitle">${esc(r.project.type)} · ${esc(r.project.status)}</div></td>
+      <td>${esc(financialClassLabel(r.financialClass))}</td>
+      <td>${esc(r.owner)}</td>
+      <td>${formatDuration(r.minutes)}</td>
+      <td>${commercial?formatMoney(r.revenue):'N/A'}</td>
+      <td>${formatMoney(r.labour)}</td>
+      <td>${formatMoney(r.external)}</td>
+      <td><strong>${commercial?formatMoney(r.profit):formatMoney(r.totalCost)}</strong><div class="cell-subtitle">${commercial?'Profit':'Investment cost'}</div></td>
+      <td>${commercial&&r.revenue?formatPct(r.margin):'N/A'}</td>
+      <td><div class="project-detail-actions"><button class="link-button" data-action="project-people" data-id="${r.project.id}" type="button">People & cost</button>${commercial?'<button class="link-button" data-action="finance-project" data-id="'+r.project.id+'" type="button">Financials</button>':''}</div></td>
+    </tr>`;
   }).join('')}</tbody></table></div>`;
+}
+
+function openProjectPeople(projectId){
+  const fy=appState.meta.currentFY||'2026-27';
+  const row=projectRows(fy,selectedMonth).find(r=>r.project.id===projectId);
+  if(!row)return toast('No data is available for this project in the selected period.','warning');
+  const people=projectPeopleRows(row.project,fy,selectedMonth);
+  const commercial=row.financialClass==='Revenue Generating';
+  const labourShareTotal=Math.max(0,row.labour);
+
+  root.innerHTML=`
+    <div class="stack-lg">
+      <section class="panel">
+        <div class="panel-header project-detail-head">
+          <div>
+            <div class="section-eyebrow">Project people & cost</div>
+            <h2 class="panel-title">${esc(row.project.brand)}</h2>
+            <p class="panel-subtitle">${esc(financialClassLabel(row.financialClass))} · ${esc(row.owner)} · ${selectedMonth==='ALL'?'FY '+esc(fy):esc(monthLabel(selectedMonth))}</p>
+          </div>
+          <div class="project-detail-actions">
+            <button class="button button-secondary" data-action="close-panel" type="button">Back to profitability</button>
+            ${commercial?'<button class="button button-primary" data-action="finance-project" data-id="'+row.project.id+'" type="button">Financials</button>':''}
+          </div>
+        </div>
+        <div class="panel-body">
+          <div class="project-person-summary">
+            ${summaryStat('People involved',String(people.length),'Contributors who logged time')}
+            ${summaryStat('Actual time',formatDuration(row.minutes),'Total logged time')}
+            ${summaryStat('Labour cost',formatMoney(row.labour),'Actual people cost')}
+            ${summaryStat('External cost',formatMoney(row.external),'Vendors / production / other')}
+            ${summaryStat(commercial?'Total project cost':'Total investment',formatMoney(row.totalCost),commercial?(row.revenue?formatPct(row.totalCost/row.revenue)+' of revenue':'Revenue not entered'):'Non-commercial cost')}
+          </div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-header">
+          <div>
+            <div class="section-eyebrow">Individual contribution</div>
+            <h2 class="panel-title">Time and cost by person</h2>
+            <p class="panel-subtitle">Cost uses the compensation rate effective on the date of each time entry, so historical cost remains accurate when salaries change.</p>
+          </div>
+        </div>
+        <div class="panel-body flush">
+          ${people.length?`<div class="table-wrap"><table class="data-table project-person-table">
+            <thead><tr><th>Person</th><th>Home group</th><th>Project role</th><th>Planned</th><th>Actual time</th><th>Avg cost / hr</th><th>Labour cost</th><th>Share of labour</th><th>Activity mix</th></tr></thead>
+            <tbody>${people.map(p=>`<tr>
+              <td><strong>${esc(p.name)}</strong></td>
+              <td>${esc(p.group)}</td>
+              <td>${esc(p.roles.join(', ')||'Unplanned contribution')}</td>
+              <td>${p.plannedHours>0?formatHoursDecimal(p.plannedHours)+'/wk':'—'}</td>
+              <td><strong>${formatDuration(p.minutes)}</strong><div class="cell-subtitle">${p.entries} ${p.entries===1?'entry':'entries'}</div></td>
+              <td>${p.minutes&&p.cost>0?formatMoney(p.cost/(p.minutes/60)):'Not set'}</td>
+              <td><strong>${formatMoney(p.cost)}</strong></td>
+              <td>${labourShareTotal>0?formatPct(p.cost/labourShareTotal):'—'}</td>
+              <td><div class="activity-breakdown">${esc(p.activityText||'—')}</div></td>
+            </tr>`).join('')}</tbody>
+          </table></div>`:'<div class="empty-state"><h3>No time logged yet</h3><p>Individual contribution will appear once team members start logging time against this project.</p></div>'}
+        </div>
+      </section>
+    </div>`;
+}
+
+function projectPeopleRows(project,fy,month){
+  const projectEntries=timeEntries.filter(e=>e.project_id===project.id&&inPeriod(e.work_date,fy,month));
+  const byPerson=new Map();
+  projectEntries.forEach(entry=>{
+    if(!byPerson.has(entry.employee_id)){
+      const m=member(entry.employee_id);
+      byPerson.set(entry.employee_id,{employeeId:entry.employee_id,name:m?.name||entry.employee_id,group:m?.group||'POOL',minutes:0,cost:0,entries:0,activities:new Map()});
+    }
+    const item=byPerson.get(entry.employee_id);
+    item.minutes+=Number(entry.minutes||0);
+    item.cost+=labourCost(entry);
+    item.entries+=1;
+    item.activities.set(entry.activity_type,(item.activities.get(entry.activity_type)||0)+Number(entry.minutes||0));
+  });
+  return [...byPerson.values()].map(item=>{
+    const roleData=projectRolesForMember(project,item.employeeId);
+    const activities=[...item.activities.entries()].sort((a,b)=>b[1]-a[1]);
+    return {...item,roles:roleData.roles,plannedHours:roleData.plannedHours,activityText:activities.map(([name,mins])=>name+' '+formatDuration(mins)).join(' · ')};
+  }).sort((a,b)=>b.minutes-a.minutes);
+}
+
+function projectRolesForMember(project,memberId){
+  const labels={leadSpoc:'Lead SPOC',primary1:'Primary 1',primary2:'Primary 2',support1:'Support 1',support2:'Support 2',support3:'Support 3',support4:'Support 4',mentor1:'Mentor 1',mentor2:'Mentor 2'};
+  const roles=[];
+  let plannedHours=0;
+  Object.keys(labels).forEach(key=>{
+    if(project[key]===memberId){
+      roles.push(labels[key]);
+      plannedHours+=Number(project.allocationHours?.[key]||0);
+    }
+  });
+  return {roles,plannedHours};
+}
+
+function summaryStat(label,value,meta){
+  return `<div class="kpi-card"><div class="kpi-label">${esc(label)}</div><div class="kpi-value">${esc(value)}</div><div class="kpi-meta">${esc(meta)}</div></div>`;
+}
+
+function formatHoursDecimal(value){
+  const n=Number(value||0);
+  return (Number.isInteger(n)?String(n):n.toFixed(1).replace(/\.0$/,''))+'h';
 }
 function pondCard(name,s){return `<article class="panel pond-profit-card"><div class="panel-header"><div><div class="section-eyebrow">${esc(name)}</div><h2 class="panel-title">Owned profitability</h2></div></div><div class="panel-body"><div class="profit-stat-grid"><div><span>Revenue owned</span><strong>${formatMoney(s.revenue)}</strong></div><div><span>Total delivery cost</span><strong>${formatMoney(s.totalCost)}</strong></div><div><span>Profit</span><strong>${formatMoney(s.profit)}</strong></div><div><span>Margin</span><strong>${s.revenue?formatPct(s.margin):'—'}</strong></div></div></div></article>`;}
 function investmentCard(label,stats,meta){
@@ -128,7 +243,7 @@ function moneyKpi(l,v,m,c=''){return `<article class="kpi-card ${c}"><div class=
 function textKpi(l,v,m){return `<article class="kpi-card"><div class="kpi-label">${esc(l)}</div><div class="kpi-value">${esc(v)}</div><div class="kpi-meta">${esc(m)}</div></article>`;}
 
 function onChange(e){if(e.target.dataset.control==='month'){selectedMonth=e.target.value;render();}}
-function onClick(e){const b=e.target.closest('[data-action]');if(!b)return;if(b.dataset.action==='finance')openFinance();if(b.dataset.action==='finance-project')openFinance(b.dataset.id);if(b.dataset.action==='comp')openComp();if(b.dataset.action==='save-finance')saveFinance();if(b.dataset.action==='save-comp')saveComp();if(b.dataset.action==='close-panel')render();}
+function onClick(e){const b=e.target.closest('[data-action]');if(!b)return;if(b.dataset.action==='finance')openFinance();if(b.dataset.action==='finance-project')openFinance(b.dataset.id);if(b.dataset.action==='project-people')openProjectPeople(b.dataset.id);if(b.dataset.action==='comp')openComp();if(b.dataset.action==='save-finance')saveFinance();if(b.dataset.action==='save-comp')saveComp();if(b.dataset.action==='close-panel')render();}
 
 function openFinance(projectId=''){
   const projects=(appState.projects||[]).filter(p=>p.financialYear===appState.meta.currentFY&&(p.financialClass||defaultFinancialClass(p.type))==='Revenue Generating');const project=projects.find(p=>p.id===projectId)||projects[0];const month=selectedMonth==='ALL'?localDate().slice(0,7):selectedMonth;
