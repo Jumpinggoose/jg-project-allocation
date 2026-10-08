@@ -236,3 +236,5 @@ function jgCanAccessView(view) {
   if (view === 'worklog') return Boolean(sessionUser);
   return false;
 }
+
+// Work log helpers continue below.
