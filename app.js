@@ -208,6 +208,10 @@ async function loadSession() {
 
     const roleLabel = sessionUser.role === 'admin' ? 'Management' : (sessionUser.role === 'editor' ? 'Project Manager' : 'Work Log');
     els.currentUserLabel.textContent = `${sessionUser.name} · ${roleLabel}`;
+    if (sessionUser.role === 'employee') {
+      window.location.replace('/worklog.html');
+      return false;
+    }
     return true;
   } catch (error) {
     console.error(error);
@@ -468,7 +472,7 @@ function renderCurrentView() {
     },
     setup: {
       title: 'Admin Panel',
-      subtitle: 'Manage employees, interns, freelancers, role weights and project limits. Admin access only.',
+      subtitle: 'Manage employees, interns, freelancers, role weights and project limits. Management access only.',
       action: 'Add team member'
     }
   }[ui.view];
@@ -477,7 +481,7 @@ function renderCurrentView() {
   els.pageSubtitle.textContent = viewMeta.subtitle;
   els.primaryAction.textContent = viewMeta.action;
   const globalSetupView = ui.view === 'team' || ui.view === 'setup';
-  els.primaryAction.hidden = globalSetupView ? (!userCanEdit() || storageMode !== 'server') : !canEditSelectedFY();
+  els.primaryAction.hidden = globalSetupView ? (!userIsAdmin() || storageMode !== 'server') : !canEditSelectedFY();
   const setupNav = document.querySelector('[data-view="setup"]');
   if (setupNav) setupNav.hidden = !userIsAdmin();
   els.globalSearch.placeholder = ui.view === 'team' || ui.view === 'setup'
@@ -492,7 +496,7 @@ function renderCurrentView() {
     if (!userIsAdmin()) {
       ui.view = 'dashboard';
       els.viewContainer.innerHTML = renderDashboard();
-      showToast('Admin Panel access is limited to theo@jumpinggoose.com.', 'warning');
+      showToast('Admin Panel access is limited to JG management.', 'warning');
     } else {
       els.viewContainer.innerHTML = renderTeamSetup();
     }
@@ -1073,7 +1077,7 @@ function renderMemberSetupRow(member) {
 
 function handlePrimaryAction() {
   if (ui.view === 'team' || ui.view === 'setup') {
-    if (!userCanEdit() || storageMode !== 'server') return showToast('Editing is not available for this account or connection.', 'warning');
+    if (!userIsAdmin() || storageMode !== 'server') return showToast('Team setup is limited to JG management.', 'warning');
     return openMemberModal();
   }
   if (!canEditSelectedFY()) {
@@ -1095,7 +1099,7 @@ function handleViewClick(event) {
     showToast('Historical financial years are read-only. Select the current FY to edit.', 'warning');
     return;
   }
-  if (memberEditActions.has(action) && (!userCanEdit() || storageMode !== 'server')) {
+  if (memberEditActions.has(action) && (!userIsAdmin() || storageMode !== 'server')) {
     showToast('Editing is not available for this account or connection.', 'warning');
     return;
   }
@@ -1153,7 +1157,7 @@ function handleViewChange(event) {
   }
 
   if (control === 'member-active') {
-    if (!userCanEdit() || storageMode !== 'server') {
+    if (!userIsAdmin() || storageMode !== 'server') {
       event.target.checked = !event.target.checked;
       showToast('Editing is not available for this account or connection.', 'warning');
       return;
@@ -1168,7 +1172,7 @@ function handleViewChange(event) {
 
 function handleViewInput(event) {
   const setting = event.target.dataset.setting;
-  if (setting && (!userCanEdit() || storageMode !== 'server')) {
+  if (setting && (!userIsAdmin() || storageMode !== 'server')) {
     showToast('Editing is not available for this account or connection.', 'warning');
     renderCurrentView();
     return;
@@ -1645,7 +1649,7 @@ function deleteMember(id) {
 }
 
 function openDataModal() {
-  const canEdit = userCanEdit() && storageMode === 'server';
+  const canEdit = userIsAdmin() && storageMode === 'server';
   const conflictAvailable = Boolean(localStorage.getItem(CONFLICT_STORAGE_KEY));
   const storageText = storageMode === 'server'
     ? 'This copy is connected to shared cloud storage. A browser backup is also maintained.'
