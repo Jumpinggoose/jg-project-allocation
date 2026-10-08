@@ -3,8 +3,9 @@
 const cfg = window.JG_SUPABASE;
 const sb = window.supabase.createClient(cfg.url, cfg.publishableKey);
 const MANAGEMENT_EMAILS = new Set(['piyush@jumpinggoose.com','tuhin@jumpinggoose.com','supriya@jumpinggoose.com','theo@jumpinggoose.com','midhun@jumpinggoose.com']);
-let user=null, access=null, appState=null, timeEntries=[], financials=[], compensation=[];
+let user=null, access=null, appState=null, timeEntries=[], financials=[], compensation=[], revenueHistory=[];
 let selectedMonth='ALL';
+let selectedSection='overview';
 
 const root=document.getElementById('profitRoot');
 const toastRegion=document.getElementById('toastRegion');
@@ -35,19 +36,23 @@ async function loadData(){
   const fy=appState?.meta?.currentFY||'2026-27';
   const y=Number(fy.slice(0,4));
   const start=y+'-04-01', end=(y+1)+'-03-31';
-  const [tr,fr,cr]=await Promise.all([
+  const [tr,fr,cr,rr]=await Promise.all([
     sb.from('time_entries').select('*').gte('work_date',start).lte('work_date',end),
     sb.from('project_financial_entries').select('*').gte('entry_month',start).lte('entry_month',end),
-    sb.from('compensation_history').select('*').order('effective_from',{ascending:false})
+    sb.from('compensation_history').select('*').order('effective_from',{ascending:false}),
+    sb.from('project_revenue_history').select('*').order('effective_from',{ascending:false})
   ]);
-  if(tr.error||fr.error||cr.error)return toast('Could not load profitability data.','error');
-  timeEntries=tr.data||[];financials=fr.data||[];compensation=cr.data||[];render();
+  if(tr.error||fr.error||cr.error||rr.error)return toast('Could not load profitability data.','error');
+  timeEntries=tr.data||[];financials=fr.data||[];compensation=cr.data||[];revenueHistory=rr.data||[];render();
 }
 
 function render(){
+  if(selectedSection==='salaries') return renderSalaryDirectory();
+  if(selectedSection==='revenue') return renderRevenueSchedule();
+
   const fy=appState.meta.currentFY||'2026-27';
   const rows=projectRows(fy,selectedMonth);
-  const commercialRows=rows.filter(r=>r.financialClass==='Revenue Generating');
+  const commercialRows=rows.filter(r=>r.financialClass==='Revenue Generating'&&r.profitabilityReady);
   const investmentRows=rows.filter(r=>r.financialClass!=='Revenue Generating');
   const company=aggregate(commercialRows);
   const p1=aggregate(commercialRows.filter(r=>r.owner==='POND 1'));
@@ -58,16 +63,17 @@ function render(){
   const missing=[...new Set(timeEntries.filter(e=>inPeriod(e.work_date,fy,selectedMonth)).filter(e=>!compFor(e.employee_id,e.work_date)).map(e=>memberName(e.employee_id)))].filter(Boolean);
   root.innerHTML=`
     <div class="stack-lg">
+      ${managementTabs()}
       <section class="project-toolbar profitability-toolbar"><div class="toolbar-group">
         <label class="field profitability-month-field"><span class="field-label">Period</span><select data-control="month"><option value="ALL">FY ${esc(fy)} · All tracked months</option>${fyMonths(fy).map(m=>`<option value="${m}" ${selectedMonth===m?'selected':''}>${esc(monthLabel(m))}</option>`).join('')}</select></label>
-        <button class="button button-secondary" type="button" data-action="comp">Compensation</button>
+        <button class="button button-secondary" type="button" data-action="comp">Add salary change</button>
         <button class="button button-primary" type="button" data-action="finance">Add financial entry</button>
-      </div><div class="notice compact-notice">Time tracking is intended to start from October 2026. Earlier months remain blank unless backfilled.</div></section>
+      </div><div class="notice compact-notice">Profitability is calculated only for periods where actual time has been logged. Revenue without time logs is shown as awaiting timesheets.</div></section>
       <section class="profitability-kpis">
-        ${moneyKpi('JG Revenue',company.revenue,'Revenue recorded')}
+        ${moneyKpi('JG Revenue',company.revenue,'Revenue tied to logged work')}
         ${moneyKpi('JG Cost',company.totalCost,formatMoney(company.labour)+' labour · '+formatMoney(company.external)+' external')}
-        ${moneyKpi('JG Profit',company.profit,company.revenue?formatPct(company.margin)+' margin':'Add revenue to calculate margin','is-accent')}
-        ${textKpi('Actual effort',formatDuration(company.minutes),'Logged project time')}
+        ${moneyKpi('JG Profit',company.profit,company.revenue?formatPct(company.margin)+' margin':'Awaiting logged commercial work','is-accent')}
+        ${textKpi('Actual effort',formatDuration(company.minutes),'Logged commercial project time')}
       </section>
       <section class="grid-2">${pondCard('POND 1',p1)}${pondCard('POND 2',p2)}</section>
       <section class="grid-2">
@@ -75,9 +81,91 @@ function render(){
         ${investmentCard('Internal / JG investment',internal,'Cost invested in JG internal work. Profit and margin do not apply.')}
       </section>
       <section class="panel"><div class="panel-header"><div><div class="section-eyebrow">Two Pond metrics</div><h2 class="panel-title">Revenue ownership vs delivery contribution</h2><p class="panel-subtitle">Revenue follows the owning Pond. Delivery follows the Pond or Pool of the people who actually logged the work.</p></div></div><div class="panel-body"><div class="delivery-grid">${['POND 1','POND 2','POOL'].map(g=>deliveryCard(g,delivery[g])).join('')}</div></div></section>
-      ${missing.length?`<div class="notice notice-warning"><strong>Compensation missing:</strong> ${esc(missing.join(', '))}. Labour cost is understated until a cost period is added.</div>`:''}
+      ${missing.length?`<div class="notice notice-warning"><strong>Salary / cost missing:</strong> ${esc(missing.join(', '))}. Labour cost is understated until an effective salary period is added.</div>`:''}
       <section class="panel"><div class="panel-header"><div><div class="section-eyebrow">Project profitability</div><h2 class="panel-title">Actual effort against revenue</h2></div></div><div class="panel-body flush">${projectTable(rows)}</div></section>
     </div>`;
+}
+
+function managementTabs(){
+  return `<div class="segmented management-tabs">
+    <button type="button" class="${selectedSection==='overview'?'is-active':''}" data-action="section-overview">Overview</button>
+    <button type="button" class="${selectedSection==='salaries'?'is-active':''}" data-action="section-salaries">Employees & Salary</button>
+    <button type="button" class="${selectedSection==='revenue'?'is-active':''}" data-action="section-revenue">Retainer Revenue Schedule</button>
+  </div>`;
+}
+
+function renderSalaryDirectory(){
+  const members=(appState.members||[]).filter(m=>m.active).slice().sort((a,b)=>a.name.localeCompare(b.name));
+  root.innerHTML=`
+    <div class="stack-lg">
+      ${managementTabs()}
+      <section class="panel">
+        <div class="panel-header project-detail-head">
+          <div><div class="section-eyebrow">Management only</div><h2 class="panel-title">Employees & Salary</h2><p class="panel-subtitle">Current salary/cost is shown with its effective date. Add a new period whenever an increment takes effect; older periods remain preserved.</p></div>
+          <button class="button button-primary" type="button" data-action="comp">Add salary change</button>
+        </div>
+        <div class="panel-body flush">
+          <div class="table-wrap"><table class="data-table salary-table">
+            <thead><tr><th>Employee</th><th>Group</th><th>Current monthly salary / cost</th><th>Effective from</th><th>Hourly cost</th><th>History</th><th></th></tr></thead>
+            <tbody>${members.map(m=>{
+              const current=currentComp(m.id);
+              const history=compensation.filter(c=>c.employee_id===m.id).sort((a,b)=>String(b.effective_from).localeCompare(String(a.effective_from)));
+              const hourly=current?Number(current.monthly_cost||0)/(Math.max(1,Number(m.weeklyCapacity||45))*52/12):0;
+              return `<tr>
+                <td><strong>${esc(m.name)}</strong><div class="cell-subtitle">${esc(m.type||'Employee')}</div></td>
+                <td>${esc(m.group)}</td>
+                <td><strong>${current?formatMoney(current.monthly_cost):'Not set'}</strong></td>
+                <td>${current?esc(current.effective_from):'—'}</td>
+                <td>${current?formatMoney(hourly):'—'}</td>
+                <td><div class="history-stack">${history.length?history.map(h=>`<div>${formatMoney(h.monthly_cost)} · ${esc(h.effective_from)} ${h.effective_to?'→ '+esc(h.effective_to):'→ Current'}</div>`).join(''):'—'}</div></td>
+                <td><button class="link-button" type="button" data-action="comp-person" data-id="${esc(m.id)}">Add increment</button></td>
+              </tr>`;
+            }).join('')}</tbody>
+          </table></div>
+        </div>
+      </section>
+    </div>`;
+}
+
+function renderRevenueSchedule(){
+  const projects=(appState.projects||[]).filter(p=>p.financialYear===appState.meta.currentFY&&p.type==='Retainer'&&(p.financialClass||defaultFinancialClass(p.type))==='Revenue Generating').slice().sort((a,b)=>a.brand.localeCompare(b.brand));
+  root.innerHTML=`
+    <div class="stack-lg">
+      ${managementTabs()}
+      <section class="panel">
+        <div class="panel-header project-detail-head">
+          <div><div class="section-eyebrow">Management only</div><h2 class="panel-title">Retainer Revenue Schedule</h2><p class="panel-subtitle">Keep old monthly retainer amounts and add a new effective rate whenever the commercial changes. Profitability uses the rate applicable to each logged month.</p></div>
+          <button class="button button-primary" type="button" data-action="revenue-rate">Add revenue change</button>
+        </div>
+        <div class="panel-body flush">
+          <div class="table-wrap"><table class="data-table revenue-history-table">
+            <thead><tr><th>Retainer</th><th>Owner</th><th>Current monthly amount</th><th>Effective from</th><th>History</th><th></th></tr></thead>
+            <tbody>${projects.map(p=>{
+              const current=currentRevenueRate(p.id);
+              const history=revenueHistory.filter(r=>r.project_id===p.id).sort((a,b)=>String(b.effective_from).localeCompare(String(a.effective_from)));
+              return `<tr>
+                <td><strong>${esc(p.brand)}</strong></td>
+                <td>${esc(p.pond)}</td>
+                <td><strong>${current?formatMoney(current.monthly_revenue):'Not set'}</strong></td>
+                <td>${current?esc(current.effective_from):'—'}</td>
+                <td><div class="history-stack">${history.length?history.map(h=>`<div>${formatMoney(h.monthly_revenue)} · ${esc(h.effective_from)} ${h.effective_to?'→ '+esc(h.effective_to):'→ Current'}</div>`).join(''):'—'}</div></td>
+                <td><button class="link-button" type="button" data-action="revenue-rate-project" data-id="${esc(p.id)}">Change amount</button></td>
+              </tr>`;
+            }).join('')}</tbody>
+          </table></div>
+        </div>
+      </section>
+    </div>`;
+}
+
+function currentComp(employeeId){
+  const today=localDate();
+  return compensation.filter(c=>c.employee_id===employeeId&&c.effective_from<=today&&(!c.effective_to||c.effective_to>=today)).sort((a,b)=>String(b.effective_from).localeCompare(String(a.effective_from)))[0]||null;
+}
+
+function currentRevenueRate(projectId){
+  const today=localDate();
+  return revenueHistory.filter(r=>r.project_id===projectId&&r.effective_from<=today&&(!r.effective_to||r.effective_to>=today)).sort((a,b)=>String(b.effective_from).localeCompare(String(a.effective_from)))[0]||null;
 }
 
 function projectRows(fy,month){
@@ -85,15 +173,37 @@ function projectRows(fy,month){
     const times=timeEntries.filter(e=>e.project_id===project.id&&inPeriod(e.work_date,fy,month));
     const fin=financials.filter(e=>e.project_id===project.id&&inPeriod(e.entry_month,fy,month));
     const financialClass=project.financialClass||defaultFinancialClass(project.type);
-    const revenue=fin.reduce((s,e)=>s+Number(e.revenue||0),0);
-    const external=fin.reduce((s,e)=>s+Number(e.external_cost||0),0);
-    const labour=times.reduce((s,e)=>s+labourCost(e),0);
-    const minutes=times.reduce((s,e)=>s+Number(e.minutes||0),0);
+    const minutes=times.reduce((sum,e)=>sum+Number(e.minutes||0),0);
+    const profitabilityReady=minutes>0;
+    const revenue=projectRevenue(project,fy,month,times,fin);
+    const external=fin.reduce((sum,e)=>sum+Number(e.external_cost||0),0);
+    const labour=times.reduce((sum,e)=>sum+labourCost(e),0);
     const owner=fin[0]?.ownership_pond||project.pond;
-    const totalCost=labour+external, profit=revenue-totalCost;
-    return {project,financialClass,owner,revenue,external,labour,totalCost,profit,margin:financialClass==='Revenue Generating'&&revenue?profit/revenue:0,minutes};
+    const totalCost=labour+external;
+    const profit=profitabilityReady&&financialClass==='Revenue Generating'?revenue-totalCost:0;
+    return {project,financialClass,owner,revenue,external,labour,totalCost,profit,margin:profitabilityReady&&financialClass==='Revenue Generating'&&revenue?profit/revenue:0,minutes,profitabilityReady};
   }).filter(r=>r.minutes||r.revenue||r.external);
 }
+
+function projectRevenue(project,fy,month,times,fin){
+  if((project.financialClass||defaultFinancialClass(project.type))!=='Revenue Generating')return 0;
+  if(!times.length)return fin.reduce((sum,e)=>sum+Number(e.revenue||0),0);
+  if(project.type!=='Retainer')return fin.reduce((sum,e)=>sum+Number(e.revenue||0),0);
+  const months=[...new Set(times.map(e=>String(e.work_date).slice(0,7)))];
+  return months.reduce((sum,m)=>{
+    const rate=revenueRateForMonth(project.id,m);
+    if(rate)return sum+Number(rate.monthly_revenue||0);
+    const fallback=fin.filter(e=>String(e.entry_month).slice(0,7)===m).reduce((x,e)=>x+Number(e.revenue||0),0);
+    return sum+fallback;
+  },0);
+}
+
+function revenueRateForMonth(projectId,month){
+  const monthStart=month+'-01';
+  const monthEnd=month+'-31';
+  return revenueHistory.filter(r=>r.project_id===projectId&&r.effective_from<=monthEnd&&(!r.effective_to||r.effective_to>=monthStart)).sort((a,b)=>String(b.effective_from).localeCompare(String(a.effective_from)))[0]||null;
+}
+
 function aggregate(rows){const a=rows.reduce((x,r)=>{x.revenue+=r.revenue;x.external+=r.external;x.labour+=r.labour;x.minutes+=r.minutes;return x;},{revenue:0,external:0,labour:0,minutes:0});a.totalCost=a.external+a.labour;a.profit=a.revenue-a.totalCost;a.margin=a.revenue?a.profit/a.revenue:0;a.roi=a.totalCost?a.profit/a.totalCost:0;return a;}
 function deliveryContribution(fy,month){const out={'POND 1':{minutes:0,cost:0},'POND 2':{minutes:0,cost:0},'POOL':{minutes:0,cost:0}};timeEntries.filter(e=>inPeriod(e.work_date,fy,month)).forEach(e=>{const g=member(e.employee_id)?.group||'POOL';if(!out[g])out[g]={minutes:0,cost:0};out[g].minutes+=Number(e.minutes||0);out[g].cost+=labourCost(e);});return out;}
 function compFor(id,date){return compensation.filter(c=>c.employee_id===id&&c.effective_from<=date&&(!c.effective_to||c.effective_to>=date)).sort((a,b)=>String(b.effective_from).localeCompare(String(a.effective_from)))[0]||null;}
@@ -111,11 +221,11 @@ function projectTable(rows){
       <td>${esc(financialClassLabel(r.financialClass))}</td>
       <td>${esc(r.owner)}</td>
       <td>${formatDuration(r.minutes)}</td>
-      <td>${commercial?formatMoney(r.revenue):'N/A'}</td>
+      <td>${commercial?(r.profitabilityReady?formatMoney(r.revenue):'<span class="cell-subtitle">Awaiting time logs</span>'):'N/A'}</td>
       <td>${formatMoney(r.labour)}</td>
       <td>${formatMoney(r.external)}</td>
-      <td><strong>${commercial?formatMoney(r.profit):formatMoney(r.totalCost)}</strong><div class="cell-subtitle">${commercial?'Profit':'Investment cost'}</div></td>
-      <td>${commercial&&r.revenue?formatPct(r.margin):'N/A'}</td>
+      <td><strong>${commercial?(r.profitabilityReady?formatMoney(r.profit):'—'):formatMoney(r.totalCost)}</strong><div class="cell-subtitle">${commercial?(r.profitabilityReady?'Profit':'Awaiting timesheets'):'Investment cost'}</div></td>
+      <td>${commercial?(r.profitabilityReady&&r.revenue?formatPct(r.margin):'—'):'N/A'}</td>
       <td><div class="project-detail-actions"><button class="link-button" data-action="project-people" data-id="${r.project.id}" type="button">People & cost</button>${commercial?'<button class="link-button" data-action="finance-project" data-id="'+r.project.id+'" type="button">Financials</button>':''}</div></td>
     </tr>`;
   }).join('')}</tbody></table></div>`;
@@ -243,7 +353,7 @@ function moneyKpi(l,v,m,c=''){return `<article class="kpi-card ${c}"><div class=
 function textKpi(l,v,m){return `<article class="kpi-card"><div class="kpi-label">${esc(l)}</div><div class="kpi-value">${esc(v)}</div><div class="kpi-meta">${esc(m)}</div></article>`;}
 
 function onChange(e){if(e.target.dataset.control==='month'){selectedMonth=e.target.value;render();}}
-function onClick(e){const b=e.target.closest('[data-action]');if(!b)return;if(b.dataset.action==='finance')openFinance();if(b.dataset.action==='finance-project')openFinance(b.dataset.id);if(b.dataset.action==='project-people')openProjectPeople(b.dataset.id);if(b.dataset.action==='comp')openComp();if(b.dataset.action==='save-finance')saveFinance();if(b.dataset.action==='save-comp')saveComp();if(b.dataset.action==='close-panel')render();}
+function onClick(e){const b=e.target.closest('[data-action]');if(!b)return;const a=b.dataset.action;if(a==='section-overview'){selectedSection='overview';return render();}if(a==='section-salaries'){selectedSection='salaries';return render();}if(a==='section-revenue'){selectedSection='revenue';return render();}if(a==='finance')openFinance();if(a==='finance-project')openFinance(b.dataset.id);if(a==='project-people')openProjectPeople(b.dataset.id);if(a==='comp')openComp();if(a==='comp-person')openComp(b.dataset.id);if(a==='revenue-rate')openRevenueRate();if(a==='revenue-rate-project')openRevenueRate(b.dataset.id);if(a==='save-finance')saveFinance();if(a==='save-comp')saveComp();if(a==='save-revenue-rate')saveRevenueRate();if(a==='close-panel')render();}
 
 function openFinance(projectId=''){
   const projects=(appState.projects||[]).filter(p=>p.financialYear===appState.meta.currentFY&&(p.financialClass||defaultFinancialClass(p.type))==='Revenue Generating');const project=projects.find(p=>p.id===projectId)||projects[0];const month=selectedMonth==='ALL'?localDate().slice(0,7):selectedMonth;
@@ -251,8 +361,57 @@ function openFinance(projectId=''){
 }
 async function saveFinance(){const project=(appState.projects||[]).find(p=>p.id===document.getElementById('finProject').value);const month=document.getElementById('finMonth').value;if(!project||!month)return toast('Choose a project and month.','warning');const payload={project_id:project.id,project_name:project.brand,ownership_pond:document.getElementById('finPond').value,entry_month:month+'-01',revenue:Number(document.getElementById('finRevenue').value||0),external_cost:Number(document.getElementById('finExternal').value||0),notes:document.getElementById('finNotes').value.trim(),updated_at:new Date().toISOString()};const r=await sb.from('project_financial_entries').upsert(payload,{onConflict:'project_id,entry_month'});if(r.error)return toast('Could not save project financials.','error');toast('Project financials saved.');await loadData();}
 
-function openComp(){root.innerHTML=`<div class="stack-lg"><section class="panel"><div class="panel-header"><div><div class="section-eyebrow">Management only</div><h2 class="panel-title">Compensation history</h2><p class="panel-subtitle">Use monthly company cost with effective dates so historical project costs stay stable.</p></div></div><div class="panel-body"><div class="form-grid"><div class="field"><label>Employee</label><select id="compEmployee">${(appState.members||[]).filter(m=>m.active).map(m=>`<option value="${m.id}">${esc(m.name)} · ${esc(m.group)}</option>`).join('')}</select></div><div class="field"><label>Effective from</label><input id="compFrom" type="date" value="${localDate().slice(0,8)+'01'}"></div><div class="field"><label>Effective to</label><input id="compTo" type="date"></div><div class="field"><label>Monthly company cost (₹)</label><input id="compCost" type="number" min="0" step="1"></div><div class="field span-2"><label>Notes</label><input id="compNotes" maxlength="220"></div></div><div class="worklog-edit-actions"><button class="button button-secondary" data-action="close-panel" type="button">Cancel</button><button class="button button-primary" data-action="save-comp" type="button">Add cost period</button></div></div></section></div>`;}
-async function saveComp(){const id=document.getElementById('compEmployee').value,from=document.getElementById('compFrom').value,to=document.getElementById('compTo').value||null,cost=Number(document.getElementById('compCost').value||0);if(!id||!from||cost<0)return toast('Enter employee, effective date and a valid cost.','warning');if(to&&to<from)return toast('Effective-to cannot be before effective-from.','warning');const r=await sb.from('compensation_history').insert({employee_id:id,effective_from:from,effective_to:to,monthly_cost:cost,notes:document.getElementById('compNotes').value.trim()});if(r.error)return toast('Could not save compensation history.','error');toast('Compensation period added.');await loadData();}
+function openComp(employeeId=''){
+  const members=(appState.members||[]).filter(m=>m.active);
+  root.innerHTML=`<div class="stack-lg">${managementTabs()}<section class="panel"><div class="panel-header"><div><div class="section-eyebrow">Management only</div><h2 class="panel-title">Add salary / cost change</h2><p class="panel-subtitle">Enter the new monthly salary or company cost and the date it becomes effective. The previous open period will be closed automatically so historical project costs remain unchanged.</p></div></div><div class="panel-body"><div class="form-grid"><div class="field"><label>Employee</label><select id="compEmployee">${members.map(m=>`<option value="${m.id}" ${m.id===employeeId?'selected':''}>${esc(m.name)} · ${esc(m.group)}</option>`).join('')}</select></div><div class="field"><label>Effective from</label><input id="compFrom" type="date" value="${localDate().slice(0,8)+'01'}"></div><div class="field"><label>Monthly salary / company cost (₹)</label><input id="compCost" type="number" min="0" step="1"></div><div class="field span-2"><label>Notes</label><input id="compNotes" maxlength="220" placeholder="Increment, promotion, revised company cost, etc."></div></div><div class="worklog-edit-actions"><button class="button button-secondary" data-action="section-salaries" type="button">Cancel</button><button class="button button-primary" data-action="save-comp" type="button">Save new salary period</button></div></div></section></div>`;
+}
+
+async function saveComp(){
+  const id=document.getElementById('compEmployee').value,from=document.getElementById('compFrom').value,cost=Number(document.getElementById('compCost').value||0);
+  if(!id||!from||cost<0)return toast('Enter employee, effective date and a valid monthly salary / cost.','warning');
+  const previous=compensation.filter(c=>c.employee_id===id&&c.effective_from<from&&(!c.effective_to||c.effective_to>=from)).sort((a,b)=>String(b.effective_from).localeCompare(String(a.effective_from)))[0];
+  if(previous){
+    const closeDate=dayBefore(from);
+    const upd=await sb.from('compensation_history').update({effective_to:closeDate,updated_at:new Date().toISOString()}).eq('id',previous.id);
+    if(upd.error)return toast('Could not close the previous salary period.','error');
+  }
+  const existingSame=compensation.find(c=>c.employee_id===id&&c.effective_from===from);
+  const payload={employee_id:id,effective_from:from,effective_to:null,monthly_cost:cost,notes:document.getElementById('compNotes').value.trim(),updated_at:new Date().toISOString()};
+  const r=existingSame
+    ? await sb.from('compensation_history').update(payload).eq('id',existingSame.id)
+    : await sb.from('compensation_history').insert(payload);
+  if(r.error)return toast('Could not save salary history.','error');
+  selectedSection='salaries';toast('Salary / cost history updated.');await loadData();
+}
+
+function openRevenueRate(projectId=''){
+  const projects=(appState.projects||[]).filter(p=>p.financialYear===appState.meta.currentFY&&p.type==='Retainer'&&(p.financialClass||defaultFinancialClass(p.type))==='Revenue Generating');
+  const project=projects.find(p=>p.id===projectId)||projects[0];
+  root.innerHTML=`<div class="stack-lg">${managementTabs()}<section class="panel"><div class="panel-header"><div><div class="section-eyebrow">Management only</div><h2 class="panel-title">Add retainer revenue change</h2><p class="panel-subtitle">Enter the revised monthly amount and the date it becomes effective. The previous amount is automatically closed the day before.</p></div></div><div class="panel-body"><div class="form-grid"><div class="field span-2"><label>Retainer</label><select id="revProject">${projects.map(p=>`<option value="${p.id}" ${p.id===project?.id?'selected':''}>${esc(p.brand)} · ${esc(p.pond)}</option>`).join('')}</select></div><div class="field"><label>Effective from</label><input id="revFrom" type="date" value="${localDate().slice(0,8)+'01'}"></div><div class="field"><label>Monthly amount (₹)</label><input id="revAmount" type="number" min="0" step="1"></div><div class="field span-2"><label>Notes</label><input id="revNotes" maxlength="220" placeholder="Retainer revision, renewed scope, commercial change, etc."></div></div><div class="worklog-edit-actions"><button class="button button-secondary" data-action="section-revenue" type="button">Cancel</button><button class="button button-primary" data-action="save-revenue-rate" type="button">Save new revenue period</button></div></div></section></div>`;
+}
+
+async function saveRevenueRate(){
+  const project=(appState.projects||[]).find(p=>p.id===document.getElementById('revProject').value);
+  const from=document.getElementById('revFrom').value,amount=Number(document.getElementById('revAmount').value||0);
+  if(!project||!from||amount<0)return toast('Choose a retainer, effective date and valid monthly amount.','warning');
+  const previous=revenueHistory.filter(r=>r.project_id===project.id&&r.effective_from<from&&(!r.effective_to||r.effective_to>=from)).sort((a,b)=>String(b.effective_from).localeCompare(String(a.effective_from)))[0];
+  if(previous){
+    const closeDate=dayBefore(from);
+    const upd=await sb.from('project_revenue_history').update({effective_to:closeDate,updated_at:new Date().toISOString()}).eq('id',previous.id);
+    if(upd.error)return toast('Could not close the previous revenue period.','error');
+  }
+  const same=revenueHistory.find(r=>r.project_id===project.id&&r.effective_from===from);
+  const payload={project_id:project.id,project_name:project.brand,effective_from:from,effective_to:null,monthly_revenue:amount,notes:document.getElementById('revNotes').value.trim(),updated_at:new Date().toISOString()};
+  const r=same
+    ? await sb.from('project_revenue_history').update(payload).eq('id',same.id)
+    : await sb.from('project_revenue_history').insert(payload);
+  if(r.error)return toast('Could not save retainer revenue history.','error');
+  selectedSection='revenue';toast('Retainer revenue history updated.');await loadData();
+}
+
+function dayBefore(date){
+  const d=new Date(date+'T00:00:00');d.setDate(d.getDate()-1);return d.toISOString().slice(0,10);
+}
 
 function fyMonths(fy){const y=Number(fy.slice(0,4)),a=[];for(let i=0;i<12;i++){const d=new Date(y,3+i,1);a.push(d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0'));}return a;}
 function monthLabel(m){const [y,n]=m.split('-').map(Number);return new Date(y,n-1,1).toLocaleDateString('en-GB',{month:'long',year:'numeric'});}
