@@ -203,10 +203,10 @@ async function loadSession() {
       id: data.user.id,
       email,
       name: data.user.user_metadata?.name || data.user.email || 'JG user',
-      role: ['piyush@jumpinggoose.com','tuhin@jumpinggoose.com','supriya@jumpinggoose.com','theo@jumpinggoose.com','midhun@jumpinggoose.com'].includes(email) ? 'admin' : 'editor'
+      role: ['piyush@jumpinggoose.com','tuhin@jumpinggoose.com','supriya@jumpinggoose.com','theo@jumpinggoose.com','midhun@jumpinggoose.com'].includes(email) ? 'admin' : (email === 'apeksha@jumpinggoose.com' ? 'editor' : 'employee')
     };
 
-    const roleLabel = sessionUser.role === 'admin' ? 'Admin' : 'Editor';
+    const roleLabel = sessionUser.role === 'admin' ? 'Management' : (sessionUser.role === 'editor' ? 'Project Manager' : 'Work Log');
     els.currentUserLabel.textContent = `${sessionUser.name} · ${roleLabel}`;
     return true;
   } catch (error) {
