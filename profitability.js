@@ -25,6 +25,9 @@ async function init(){
   document.getElementById('logoutButton').addEventListener('click',logout);
   root.addEventListener('click',onClick);
   root.addEventListener('change',onChange);
+  document.getElementById('historyBack').addEventListener('click',()=>history.back());
+  document.getElementById('historyForward').addEventListener('click',()=>history.forward());
+  window.addEventListener('popstate',restoreProfitState);
   const sr=await sb.from('app_state').select('data').eq('id',1).single();
   if(sr.error)return toast('Could not load project data.','error');
   appState=sr.data.data;
@@ -43,12 +46,15 @@ async function loadData(){
     sb.from('project_revenue_history').select('*').order('effective_from',{ascending:false})
   ]);
   if(tr.error||fr.error||cr.error||rr.error)return toast('Could not load profitability data.','error');
-  timeEntries=tr.data||[];financials=fr.data||[];compensation=cr.data||[];revenueHistory=rr.data||[];render();
+  timeEntries=tr.data||[];financials=fr.data||[];compensation=cr.data||[];revenueHistory=rr.data||[];
+  if(!history.state) replaceProfitState(new URLSearchParams(location.search).get('section')||selectedSection);
+  restoreProfitState();
 }
 
 function render(){
   if(selectedSection==='salaries') return renderSalaryDirectory();
   if(selectedSection==='revenue') return renderRevenueSchedule();
+  if(selectedSection==='project-revenue') return renderProjectRevenue();
 
   const fy=appState.meta.currentFY||'2026-27';
   const rows=projectRows(fy,selectedMonth);
@@ -90,7 +96,8 @@ function managementTabs(){
   return `<div class="segmented management-tabs">
     <button type="button" class="${selectedSection==='overview'?'is-active':''}" data-action="section-overview">Overview</button>
     <button type="button" class="${selectedSection==='salaries'?'is-active':''}" data-action="section-salaries">Employees & Salary</button>
-    <button type="button" class="${selectedSection==='revenue'?'is-active':''}" data-action="section-revenue">Retainer Revenue Schedule</button>
+    <button type="button" class="${selectedSection==='revenue'?'is-active':''}" data-action="section-revenue">Retainer Revenue</button>
+    <button type="button" class="${selectedSection==='project-revenue'?'is-active':''}" data-action="section-project-revenue">Project Revenue</button>
   </div>`;
 }
 
@@ -101,8 +108,8 @@ function renderSalaryDirectory(){
       ${managementTabs()}
       <section class="panel">
         <div class="panel-header project-detail-head">
-          <div><div class="section-eyebrow">Management only</div><h2 class="panel-title">Employees & Salary</h2><p class="panel-subtitle">Current salary/cost is shown with its effective date. Add a new period whenever an increment takes effect; older periods remain preserved.</p></div>
-          <button class="button button-primary" type="button" data-action="comp">Add salary change</button>
+          <div><div class="section-eyebrow">Management only</div><h2 class="panel-title">Employees & Salary</h2><p class="panel-subtitle">Set or edit salary/cost with an effective date. When it changes later, the earlier period is preserved automatically.</p></div>
+          <button class="button button-primary" type="button" data-action="comp">Edit salary</button>
         </div>
         <div class="panel-body flush">
           <div class="table-wrap"><table class="data-table salary-table">
@@ -118,7 +125,7 @@ function renderSalaryDirectory(){
                 <td>${current?esc(current.effective_from):'—'}</td>
                 <td>${current?formatMoney(hourly):'—'}</td>
                 <td><div class="history-stack">${history.length?history.map(h=>`<div>${formatMoney(h.monthly_cost)} · ${esc(h.effective_from)} ${h.effective_to?'→ '+esc(h.effective_to):'→ Current'}</div>`).join(''):'—'}</div></td>
-                <td><button class="link-button" type="button" data-action="comp-person" data-id="${esc(m.id)}">Add increment</button></td>
+                <td><div class="project-detail-actions"><button class="link-button" type="button" data-action="comp-person" data-id="${esc(m.id)}">${current?'Edit salary':'Set salary'}</button>${history.length?'<button class="link-button link-danger" type="button" data-action="reset-salary" data-id="'+esc(m.id)+'">Reset salary</button>':''}</div></td>
               </tr>`;
             }).join('')}</tbody>
           </table></div>
@@ -134,8 +141,8 @@ function renderRevenueSchedule(){
       ${managementTabs()}
       <section class="panel">
         <div class="panel-header project-detail-head">
-          <div><div class="section-eyebrow">Management only</div><h2 class="panel-title">Retainer Revenue Schedule</h2><p class="panel-subtitle">Keep old monthly retainer amounts and add a new effective rate whenever the commercial changes. Profitability uses the rate applicable to each logged month.</p></div>
-          <button class="button button-primary" type="button" data-action="revenue-rate">Add revenue change</button>
+          <div><div class="section-eyebrow">Management only</div><h2 class="panel-title">Retainer Revenue Schedule</h2><p class="panel-subtitle">Retainer revenue is recurring monthly. Edit the amount with an effective date whenever the commercial changes; older rates stay preserved and continue to apply to earlier months.</p></div>
+          <button class="button button-primary" type="button" data-action="revenue-rate">Edit retainer revenue</button>
         </div>
         <div class="panel-body flush">
           <div class="table-wrap"><table class="data-table revenue-history-table">
@@ -149,8 +156,33 @@ function renderRevenueSchedule(){
                 <td><strong>${current?formatMoney(current.monthly_revenue):'Not set'}</strong></td>
                 <td>${current?esc(current.effective_from):'—'}</td>
                 <td><div class="history-stack">${history.length?history.map(h=>`<div>${formatMoney(h.monthly_revenue)} · ${esc(h.effective_from)} ${h.effective_to?'→ '+esc(h.effective_to):'→ Current'}</div>`).join(''):'—'}</div></td>
-                <td><button class="link-button" type="button" data-action="revenue-rate-project" data-id="${esc(p.id)}">Change amount</button></td>
+                <td><button class="link-button" type="button" data-action="revenue-rate-project" data-id="${esc(p.id)}">${current?'Edit amount':'Set amount'}</button></td>
               </tr>`;
+            }).join('')}</tbody>
+          </table></div>
+        </div>
+      </section>
+    </div>`;
+}
+
+function renderProjectRevenue(){
+  const projects=(appState.projects||[]).filter(p=>p.financialYear===appState.meta.currentFY&&p.type!=='Retainer'&&(p.financialClass||defaultFinancialClass(p.type))==='Revenue Generating').slice().sort((a,b)=>a.brand.localeCompare(b.brand));
+  root.innerHTML=`
+    <div class="stack-lg">
+      ${managementTabs()}
+      <section class="panel">
+        <div class="panel-header project-detail-head">
+          <div><div class="section-eyebrow">Management only</div><h2 class="panel-title">Project Revenue</h2><p class="panel-subtitle">One-time projects and paid pitches are kept separate from recurring retainers. Enter revenue and external costs against the appropriate billing month.</p></div>
+          <button class="button button-primary" type="button" data-action="finance">Add / edit project revenue</button>
+        </div>
+        <div class="panel-body flush">
+          <div class="table-wrap"><table class="data-table">
+            <thead><tr><th>Project</th><th>Type</th><th>Owner</th><th>Revenue entered</th><th>External cost</th><th>Latest billing month</th><th></th></tr></thead>
+            <tbody>${projects.map(p=>{
+              const rows=financials.filter(x=>x.project_id===p.id).sort((a,b)=>String(b.entry_month).localeCompare(String(a.entry_month)));
+              const revenue=rows.reduce((sum,x)=>sum+Number(x.revenue||0),0);
+              const external=rows.reduce((sum,x)=>sum+Number(x.external_cost||0),0);
+              return `<tr><td><strong>${esc(p.brand)}</strong></td><td>${esc(p.type)}</td><td>${esc(p.pond)}</td><td><strong>${rows.length?formatMoney(revenue):'Not set'}</strong></td><td>${formatMoney(external)}</td><td>${rows[0]?esc(monthLabel(String(rows[0].entry_month).slice(0,7))):'—'}</td><td><button class="link-button" data-action="finance-project" data-id="${esc(p.id)}" type="button">${rows.length?'Edit revenue':'Set revenue'}</button></td></tr>`;
             }).join('')}</tbody>
           </table></div>
         </div>
@@ -231,7 +263,8 @@ function projectTable(rows){
   }).join('')}</tbody></table></div>`;
 }
 
-function openProjectPeople(projectId){
+function openProjectPeople(projectId,push=true){
+  if(push) pushProfitState(selectedSection||'overview','people',projectId);
   const fy=appState.meta.currentFY||'2026-27';
   const row=projectRows(fy,selectedMonth).find(r=>r.project.id===projectId);
   if(!row)return toast('No data is available for this project in the selected period.','warning');
@@ -352,18 +385,40 @@ function deliveryCard(g,x){x=x||{minutes:0,cost:0};return `<div class="delivery-
 function moneyKpi(l,v,m,c=''){return `<article class="kpi-card ${c}"><div class="kpi-label">${esc(l)}</div><div class="kpi-value">${formatMoney(v)}</div><div class="kpi-meta">${esc(m)}</div></article>`;}
 function textKpi(l,v,m){return `<article class="kpi-card"><div class="kpi-label">${esc(l)}</div><div class="kpi-value">${esc(v)}</div><div class="kpi-meta">${esc(m)}</div></article>`;}
 
-function onChange(e){if(e.target.dataset.control==='month'){selectedMonth=e.target.value;render();}}
-function onClick(e){const b=e.target.closest('[data-action]');if(!b)return;const a=b.dataset.action;if(a==='section-overview'){selectedSection='overview';return render();}if(a==='section-salaries'){selectedSection='salaries';return render();}if(a==='section-revenue'){selectedSection='revenue';return render();}if(a==='finance')openFinance();if(a==='finance-project')openFinance(b.dataset.id);if(a==='project-people')openProjectPeople(b.dataset.id);if(a==='comp')openComp();if(a==='comp-person')openComp(b.dataset.id);if(a==='revenue-rate')openRevenueRate();if(a==='revenue-rate-project')openRevenueRate(b.dataset.id);if(a==='save-finance')saveFinance();if(a==='save-comp')saveComp();if(a==='save-revenue-rate')saveRevenueRate();if(a==='close-panel')render();}
+function onChange(e){if(e.target.dataset.control==='month'){selectedMonth=e.target.value;replaceProfitState(selectedSection);render();}}
+function onClick(e){
+  const b=e.target.closest('[data-action]');if(!b)return;
+  const a=b.dataset.action;
+  if(a==='section-overview') return navigateProfit('overview');
+  if(a==='section-salaries') return navigateProfit('salaries');
+  if(a==='section-revenue') return navigateProfit('revenue');
+  if(a==='section-project-revenue') return navigateProfit('project-revenue');
+  if(a==='finance') return openFinance('',true);
+  if(a==='finance-project') return openFinance(b.dataset.id,true);
+  if(a==='project-people') return openProjectPeople(b.dataset.id,true);
+  if(a==='comp') return openComp('',true);
+  if(a==='comp-person') return openComp(b.dataset.id,true);
+  if(a==='reset-salary') return resetSalary(b.dataset.id);
+  if(a==='revenue-rate') return openRevenueRate('',true);
+  if(a==='revenue-rate-project') return openRevenueRate(b.dataset.id,true);
+  if(a==='save-finance') return saveFinance();
+  if(a==='save-comp') return saveComp();
+  if(a==='save-revenue-rate') return saveRevenueRate();
+  if(a==='close-panel') return history.back();
+}
+
 
 function openFinance(projectId=''){
   const projects=(appState.projects||[]).filter(p=>p.financialYear===appState.meta.currentFY&&(p.financialClass||defaultFinancialClass(p.type))==='Revenue Generating');const project=projects.find(p=>p.id===projectId)||projects[0];const month=selectedMonth==='ALL'?localDate().slice(0,7):selectedMonth;
-  root.innerHTML=`<div class="stack-lg"><section class="panel"><div class="panel-header"><div><div class="section-eyebrow">Management only</div><h2 class="panel-title">Project financial entry</h2><p class="panel-subtitle">Enter monthly revenue, external cost and the revenue-owning Pond.</p></div></div><div class="panel-body"><div class="form-grid"><div class="field span-2"><label>Project</label><select id="finProject">${projects.map(p=>`<option value="${p.id}" ${p.id===project?.id?'selected':''}>${esc(p.brand)} · ${esc(p.pond)}</option>`).join('')}</select></div><div class="field"><label>Month</label><input id="finMonth" type="month" value="${month}"></div><div class="field"><label>Revenue-owning Pond</label><select id="finPond"><option ${project?.pond==='POND 1'?'selected':''}>POND 1</option><option ${project?.pond==='POND 2'?'selected':''}>POND 2</option></select></div><div class="field"><label>Revenue (₹)</label><input id="finRevenue" type="number" min="0" step="1"></div><div class="field"><label>External cost (₹)</label><input id="finExternal" type="number" min="0" step="1"></div><div class="field span-2"><label>Notes</label><input id="finNotes" maxlength="220"></div></div><div class="worklog-edit-actions"><button class="button button-secondary" data-action="close-panel" type="button">Cancel</button><button class="button button-primary" data-action="save-finance" type="button">Save financial entry</button></div></div></section></div>`;
+  root.innerHTML=`<div class="stack-lg"><section class="panel"><div class="panel-header"><div><div class="section-eyebrow">Management only</div><h2 class="panel-title">Project revenue / cost entry</h2><p class="panel-subtitle">For one-time projects and paid pitches. Retainer revenue is managed separately in Retainer Revenue.</p></div></div><div class="panel-body"><div class="form-grid"><div class="field span-2"><label>Project</label><select id="finProject">${projects.map(p=>`<option value="${p.id}" ${p.id===project?.id?'selected':''}>${esc(p.brand)} · ${esc(p.pond)}</option>`).join('')}</select></div><div class="field"><label>Month</label><input id="finMonth" type="month" value="${month}"></div><div class="field"><label>Revenue-owning Pond</label><select id="finPond"><option ${project?.pond==='POND 1'?'selected':''}>POND 1</option><option ${project?.pond==='POND 2'?'selected':''}>POND 2</option></select></div><div class="field"><label>Revenue (₹)</label><input id="finRevenue" type="number" min="0" step="1"></div><div class="field"><label>External cost (₹)</label><input id="finExternal" type="number" min="0" step="1"></div><div class="field span-2"><label>Notes</label><input id="finNotes" maxlength="220"></div></div><div class="worklog-edit-actions"><button class="button button-secondary" data-action="close-panel" type="button">Back</button><button class="button button-primary" data-action="save-finance" type="button">Save project revenue</button></div></div></section></div>`;
 }
-async function saveFinance(){const project=(appState.projects||[]).find(p=>p.id===document.getElementById('finProject').value);const month=document.getElementById('finMonth').value;if(!project||!month)return toast('Choose a project and month.','warning');const payload={project_id:project.id,project_name:project.brand,ownership_pond:document.getElementById('finPond').value,entry_month:month+'-01',revenue:Number(document.getElementById('finRevenue').value||0),external_cost:Number(document.getElementById('finExternal').value||0),notes:document.getElementById('finNotes').value.trim(),updated_at:new Date().toISOString()};const r=await sb.from('project_financial_entries').upsert(payload,{onConflict:'project_id,entry_month'});if(r.error)return toast('Could not save project financials.','error');toast('Project financials saved.');await loadData();}
+async function saveFinance(){const project=(appState.projects||[]).find(p=>p.id===document.getElementById('finProject').value);const month=document.getElementById('finMonth').value;if(!project||!month)return toast('Choose a project and month.','warning');const payload={project_id:project.id,project_name:project.brand,ownership_pond:document.getElementById('finPond').value,entry_month:month+'-01',revenue:Number(document.getElementById('finRevenue').value||0),external_cost:Number(document.getElementById('finExternal').value||0),notes:document.getElementById('finNotes').value.trim(),updated_at:new Date().toISOString()};const r=await sb.from('project_financial_entries').upsert(payload,{onConflict:'project_id,entry_month'});if(r.error)return toast('Could not save project financials.','error');selectedSection='project-revenue';replaceProfitState('project-revenue');toast('Project revenue saved.');await loadData();}
 
-function openComp(employeeId=''){
+function openComp(employeeId='',push=true){
+  if(push) pushProfitState('salaries','salary',employeeId);
+  selectedSection='salaries';
   const members=(appState.members||[]).filter(m=>m.active);
-  root.innerHTML=`<div class="stack-lg">${managementTabs()}<section class="panel"><div class="panel-header"><div><div class="section-eyebrow">Management only</div><h2 class="panel-title">Add salary / cost change</h2><p class="panel-subtitle">Enter the new monthly salary or company cost and the date it becomes effective. The previous open period will be closed automatically so historical project costs remain unchanged.</p></div></div><div class="panel-body"><div class="form-grid"><div class="field"><label>Employee</label><select id="compEmployee">${members.map(m=>`<option value="${m.id}" ${m.id===employeeId?'selected':''}>${esc(m.name)} · ${esc(m.group)}</option>`).join('')}</select></div><div class="field"><label>Effective from</label><input id="compFrom" type="date" value="${localDate().slice(0,8)+'01'}"></div><div class="field"><label>Monthly salary / company cost (₹)</label><input id="compCost" type="number" min="0" step="1"></div><div class="field span-2"><label>Notes</label><input id="compNotes" maxlength="220" placeholder="Increment, promotion, revised company cost, etc."></div></div><div class="worklog-edit-actions"><button class="button button-secondary" data-action="section-salaries" type="button">Cancel</button><button class="button button-primary" data-action="save-comp" type="button">Save new salary period</button></div></div></section></div>`;
+  root.innerHTML=`<div class="stack-lg">${managementTabs()}<section class="panel"><div class="panel-header"><div><div class="section-eyebrow">Management only</div><h2 class="panel-title">Edit salary / cost</h2><p class="panel-subtitle">Set the first salary, edit the current amount, or enter a later effective date for a future increment. Older periods remain preserved automatically.</p></div></div><div class="panel-body"><div class="form-grid"><div class="field"><label>Employee</label><select id="compEmployee">${members.map(m=>`<option value="${m.id}" ${m.id===employeeId?'selected':''}>${esc(m.name)} · ${esc(m.group)}</option>`).join('')}</select></div><div class="field"><label>Effective from</label><input id="compFrom" type="date" value="${localDate().slice(0,8)+'01'}"></div><div class="field"><label>Monthly salary / company cost (₹)</label><input id="compCost" type="number" min="0" step="1"></div><div class="field span-2"><label>Notes</label><input id="compNotes" maxlength="220" placeholder="Increment, promotion, revised company cost, etc."></div></div><div class="worklog-edit-actions"><button class="button button-secondary" data-action="close-panel" type="button">Back</button><button class="button button-primary" data-action="save-comp" type="button">Save salary</button></div></div></section></div>`;
 }
 
 async function saveComp(){
@@ -381,13 +436,15 @@ async function saveComp(){
     ? await sb.from('compensation_history').update(payload).eq('id',existingSame.id)
     : await sb.from('compensation_history').insert(payload);
   if(r.error)return toast('Could not save salary history.','error');
-  selectedSection='salaries';toast('Salary / cost history updated.');await loadData();
+  selectedSection='salaries';replaceProfitState('salaries');toast('Salary / cost history updated.');await loadData();
 }
 
-function openRevenueRate(projectId=''){
+function openRevenueRate(projectId='',push=true){
+  if(push) pushProfitState('revenue','retainer-rate',projectId);
+  selectedSection='revenue';
   const projects=(appState.projects||[]).filter(p=>p.financialYear===appState.meta.currentFY&&p.type==='Retainer'&&(p.financialClass||defaultFinancialClass(p.type))==='Revenue Generating');
   const project=projects.find(p=>p.id===projectId)||projects[0];
-  root.innerHTML=`<div class="stack-lg">${managementTabs()}<section class="panel"><div class="panel-header"><div><div class="section-eyebrow">Management only</div><h2 class="panel-title">Add retainer revenue change</h2><p class="panel-subtitle">Enter the revised monthly amount and the date it becomes effective. The previous amount is automatically closed the day before.</p></div></div><div class="panel-body"><div class="form-grid"><div class="field span-2"><label>Retainer</label><select id="revProject">${projects.map(p=>`<option value="${p.id}" ${p.id===project?.id?'selected':''}>${esc(p.brand)} · ${esc(p.pond)}</option>`).join('')}</select></div><div class="field"><label>Effective from</label><input id="revFrom" type="date" value="${localDate().slice(0,8)+'01'}"></div><div class="field"><label>Monthly amount (₹)</label><input id="revAmount" type="number" min="0" step="1"></div><div class="field span-2"><label>Notes</label><input id="revNotes" maxlength="220" placeholder="Retainer revision, renewed scope, commercial change, etc."></div></div><div class="worklog-edit-actions"><button class="button button-secondary" data-action="section-revenue" type="button">Cancel</button><button class="button button-primary" data-action="save-revenue-rate" type="button">Save new revenue period</button></div></div></section></div>`;
+  root.innerHTML=`<div class="stack-lg">${managementTabs()}<section class="panel"><div class="panel-header"><div><div class="section-eyebrow">Management only</div><h2 class="panel-title">Edit retainer revenue</h2><p class="panel-subtitle">Set the monthly retainer amount or enter a later effective date when the commercial changes. The previous amount is preserved for earlier months.</p></div></div><div class="panel-body"><div class="form-grid"><div class="field span-2"><label>Retainer</label><select id="revProject">${projects.map(p=>`<option value="${p.id}" ${p.id===project?.id?'selected':''}>${esc(p.brand)} · ${esc(p.pond)}</option>`).join('')}</select></div><div class="field"><label>Effective from</label><input id="revFrom" type="date" value="${localDate().slice(0,8)+'01'}"></div><div class="field"><label>Monthly amount (₹)</label><input id="revAmount" type="number" min="0" step="1"></div><div class="field span-2"><label>Notes</label><input id="revNotes" maxlength="220" placeholder="Retainer revision, renewed scope, commercial change, etc."></div></div><div class="worklog-edit-actions"><button class="button button-secondary" data-action="close-panel" type="button">Back</button><button class="button button-primary" data-action="save-revenue-rate" type="button">Save retainer revenue</button></div></div></section></div>`;
 }
 
 async function saveRevenueRate(){
@@ -406,7 +463,56 @@ async function saveRevenueRate(){
     ? await sb.from('project_revenue_history').update(payload).eq('id',same.id)
     : await sb.from('project_revenue_history').insert(payload);
   if(r.error)return toast('Could not save retainer revenue history.','error');
-  selectedSection='revenue';toast('Retainer revenue history updated.');await loadData();
+  selectedSection='revenue';replaceProfitState('revenue');toast('Retainer revenue history updated.');await loadData();
+}
+
+async function resetSalary(employeeId){
+  const m=member(employeeId);
+  if(!m)return;
+  if(!confirm('Reset salary for '+m.name+'? This removes all saved salary/cost history for this employee.'))return;
+  const r=await sb.from('compensation_history').delete().eq('employee_id',employeeId);
+  if(r.error)return toast('Could not reset salary history.','error');
+  toast('Salary history reset for '+m.name+'.');
+  selectedSection='salaries';
+  replaceProfitState('salaries');
+  await loadData();
+}
+
+function navigateProfit(section){
+  selectedSection=section;
+  pushProfitState(section);
+  render();
+}
+
+function pushProfitState(section,view='',id=''){
+  const u=new URL(location.href);
+  u.searchParams.set('section',section);
+  u.searchParams.set('month',selectedMonth);
+  if(view)u.searchParams.set('detail',view);else u.searchParams.delete('detail');
+  if(id)u.searchParams.set('id',id);else u.searchParams.delete('id');
+  history.pushState({section,month:selectedMonth,detail:view,id},'',u);
+}
+
+function replaceProfitState(section,view='',id=''){
+  const u=new URL(location.href);
+  u.searchParams.set('section',section);
+  u.searchParams.set('month',selectedMonth);
+  if(view)u.searchParams.set('detail',view);else u.searchParams.delete('detail');
+  if(id)u.searchParams.set('id',id);else u.searchParams.delete('id');
+  history.replaceState({section,month:selectedMonth,detail:view,id},'',u);
+}
+
+function restoreProfitState(){
+  const q=new URLSearchParams(location.search);
+  selectedSection=q.get('section')||'overview';
+  selectedMonth=q.get('month')||'ALL';
+  const detail=q.get('detail')||'';
+  const id=q.get('id')||'';
+  if(detail==='salary')return openComp(id,false);
+  if(detail==='retainer-rate')return openRevenueRate(id,false);
+  if(detail==='finance')return openFinance(id,false);
+  if(detail==='people')return openProjectPeople(id,false);
+  render();
 }
 
 function dayBefore(date){
