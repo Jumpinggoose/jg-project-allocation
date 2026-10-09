@@ -73,8 +73,11 @@
     user=auth.data.user;
     const email=String(user.email||'').toLowerCase();
     if(!email.endsWith('@jumpinggoose.com')){await sb.auth.signOut();return location.replace('/login.html');}
-    const ar=await sb.from('user_access').select('member_id,display_name,access_level,title,active').eq('email',email).maybeSingle();
-    if(ar.error||!ar.data?.active){await sb.auth.signOut();return location.replace('/login.html');}
+    const aliasMember=email==='saurabh@jumpinggoose.com'?'sourabh':(email==='accounts@jumpinggoose.com'?'bhagya':'');
+    let q=sb.from('user_access').select('member_id,display_name,access_level,title,active,employment_status,last_working_date');
+    q=aliasMember?q.eq('member_id',aliasMember):q.eq('email',email);
+    const ar=await q.maybeSingle();
+    if(ar.error||!ar.data?.active||ar.data.employment_status==='Exited'){await sb.auth.signOut();return location.replace('/login.html');}
     access=ar.data;
     document.getElementById('worklogUser').textContent=access.display_name+' · '+(access.title||'Work Log');
     document.getElementById('planningLink').hidden=access.access_level==='employee';
