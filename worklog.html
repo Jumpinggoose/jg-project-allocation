@@ -81,7 +81,9 @@
     access=ar.data;
     if(email==='accounts@jumpinggoose.com')access={...access,access_level:'management',title:'Accounts / Management'};
     document.getElementById('worklogUser').textContent=access.display_name+' · '+(access.title||'Work Log');
-    document.getElementById('planningLink').hidden=access.access_level==='employee';
+    document.getElementById('planningLink').hidden=false;
+    document.getElementById('planningLink').textContent='';
+    document.getElementById('planningLink').innerHTML='<span class="nav-icon">▦</span><span>Projects View</span>';
     document.getElementById('profitLink').hidden=access.access_level!=='management';
     document.getElementById('logoutButton').addEventListener('click',logout);
     document.getElementById('historyBack').addEventListener('click',()=>history.back());
