@@ -945,7 +945,7 @@ function renderTeamCard(member, stats) {
           <div class="avatar ${slug(member.group)} ${member.active ? '' : 'inactive'}">${escapeHtml(initials(member.name))}</div>
           <div>
             <h3 class="person-name">${escapeHtml(member.name)}</h3>
-            <div class="person-meta">${escapeHtml(member.group)} · ${escapeHtml(member.type)} · ${formatHours(stats.weeklyCapacity)}/week</div>
+            <div class="person-meta">${escapeHtml(member.group)} · ${escapeHtml(member.type)} · ${formatHours(stats.weeklyCapacity)}/week${member.employmentStatus === 'Notice Period' ? ` · Notice Period${member.lastWorkingDate ? ` · LWD ${formatDate(member.lastWorkingDate)}` : ''}` : ''}</div>
           </div>
         </div>
         <div class="load-score">
@@ -974,7 +974,7 @@ function renderTeamCard(member, stats) {
 function renderTeamTableRow(member, stats) {
   return `
     <tr>
-      <td><button class="link-button" type="button" data-action="view-member-profile" data-id="${escapeAttr(member.id)}">${escapeHtml(member.name)}</button><div class="cell-subtitle">${escapeHtml(member.group)} · ${escapeHtml(member.type)}</div></td>
+      <td><button class="link-button" type="button" data-action="view-member-profile" data-id="${escapeAttr(member.id)}">${escapeHtml(member.name)}</button><div class="cell-subtitle">${escapeHtml(member.group)} · ${escapeHtml(member.type)}${member.employmentStatus === 'Notice Period' ? ` · Notice Period${member.lastWorkingDate ? ` · LWD ${formatDate(member.lastWorkingDate)}` : ''}` : ''}</div></td>
       <td class="num">${formatHours(stats.weeklyCapacity)}</td>
       <td class="num"><strong>${formatHours(stats.allocatedHours)}</strong></td>
       <td class="num">${formatHours(stats.availableHours)}</td>
@@ -995,7 +995,7 @@ function renderTeamSetup() {
         <div>
           <div class="section-eyebrow">Ponds & shared talent</div>
           <h2>People setup</h2>
-          <p>Add future employees, interns or freelancers and place them in the correct working group.</p>
+          <p>Add team members, manage Notice Period / Exit status, and keep historical employee records intact.</p>
         </div>
         <button class="button button-primary" type="button" data-action="add-member">Add team member</button>
       </section>
@@ -1081,19 +1081,16 @@ function renderSetupGroup(group) {
 }
 
 function renderMemberSetupRow(member) {
+  const lifecycle = member.employmentStatus || (member.active ? 'Active' : 'Exited');
   return `
     <div class="member-row ${member.active ? '' : 'is-inactive'}">
       <div>
         <div class="cell-title">${escapeHtml(member.name)}</div>
-        <div class="cell-subtitle">${escapeHtml(member.type)} · ${assignedProjectCount(member.id)} assigned project${assignedProjectCount(member.id) === 1 ? '' : 's'}</div>
+        <div class="cell-subtitle">${escapeHtml(member.type)} · ${assignedProjectCount(member.id)} assigned project${assignedProjectCount(member.id) === 1 ? '' : 's'}${member.lastWorkingDate ? ` · LWD ${formatDate(member.lastWorkingDate)}` : ''}</div>
       </div>
-      <span class="type-pill ${slug(member.type)}">${escapeHtml(member.type)}</span>
+      <span class="status-pill ${slug(lifecycle)}">${escapeHtml(lifecycle)}</span>
       <div class="member-actions">
-        <label class="toggle" title="${member.active ? 'Deactivate' : 'Activate'} ${escapeAttr(member.name)}">
-          <input type="checkbox" data-control="member-active" data-id="${escapeAttr(member.id)}" ${member.active ? 'checked' : ''}>
-          <span class="toggle-track"></span>
-        </label>
-        <button class="icon-button" type="button" title="Edit" data-action="edit-member" data-id="${escapeAttr(member.id)}">✎</button>
+        <button class="icon-button" type="button" title="Edit employee lifecycle" data-action="edit-member" data-id="${escapeAttr(member.id)}">✎</button>
         <button class="icon-button" type="button" title="Delete" data-action="delete-member" data-id="${escapeAttr(member.id)}">×</button>
       </div>
     </div>`;
@@ -1538,7 +1535,7 @@ function openMemberProfile(memberId) {
   openModal({
     eyebrow: `${member.group} · ${member.type}`,
     title: member.name,
-    description: `FY ${ui.financialYear === 'ALL' ? state.meta.currentFY : ui.financialYear} live weekly allocation. On Hold, Paused and Completed projects are excluded from capacity.`,
+    description: `${member.employmentStatus || (member.active ? 'Active' : 'Exited')}${member.lastWorkingDate ? ` · Last working date ${formatDate(member.lastWorkingDate)}` : ''}. FY ${ui.financialYear === 'ALL' ? state.meta.currentFY : ui.financialYear} live weekly allocation. On Hold, Paused and Completed projects are excluded from capacity.`,
     body: `
       <section class="profile-capacity-hero">
         <div><span>Weekly capacity</span><strong>${formatHours(stats.weeklyCapacity)}</strong></div>
@@ -1600,11 +1597,22 @@ function getMemberLiveAllocations(memberId) {
 
 function openMemberModal({ member = null, group = null } = {}) {
   const isEdit = Boolean(member);
-  const draft = member ? deepClone(member) : { id: '', name: '', group: group || 'POND 1', type: 'Employee', active: true, weeklyCapacity: DEFAULT_WEEKLY_CAPACITY };
+  const draft = member ? deepClone(member) : {
+    id: '',
+    name: '',
+    group: group || 'POND 1',
+    type: 'Employee',
+    active: true,
+    weeklyCapacity: DEFAULT_WEEKLY_CAPACITY,
+    employmentStatus: 'Active',
+    lastWorkingDate: ''
+  };
+  const lifecycle = draft.employmentStatus || (draft.active ? 'Active' : 'Exited');
+
   openModal({
-    eyebrow: isEdit ? 'Update team setup' : 'New team member',
+    eyebrow: isEdit ? 'Update employee lifecycle' : 'New team member',
     title: isEdit ? `Edit ${member.name}` : 'Add team member',
-    description: 'Members marked active become available in project allocation dropdowns.',
+    description: 'Use Notice Period and Last Working Date for resignations. Exited employees are removed from future allocation and app access, while historical projects, work logs and cost data remain preserved.',
     body: `
       <div class="form-grid">
         <div class="field span-2">
@@ -1624,12 +1632,20 @@ function openMemberModal({ member = null, group = null } = {}) {
           <input id="memberWeeklyCapacity" type="number" min="1" max="168" step="0.5" value="${escapeAttr(String(draft.weeklyCapacity ?? DEFAULT_WEEKLY_CAPACITY))}">
           <div class="field-help">Default employee capacity is 45 hrs/week. Adjust for freelancers, interns or part-time availability.</div>
         </div>
-        <div class="field span-2">
-          <label class="toggle" style="width:auto;height:auto;gap:10px;align-items:center">
-            <input id="memberActive" type="checkbox" ${draft.active ? 'checked' : ''}>
-            <span class="toggle-track" style="width:39px;height:22px;position:relative;display:inline-block"></span>
-            <span style="font-size:12px;font-weight:750">Active and available for assignment</span>
-          </label>
+        <div class="field">
+          <label for="memberEmploymentStatus">Employment status</label>
+          <select id="memberEmploymentStatus">
+            ${['Active','Notice Period','Exited'].map((status) => `<option value="${status}" ${lifecycle === status ? 'selected' : ''}>${status}</option>`).join('')}
+          </select>
+          <div class="field-help">Notice Period keeps normal access until exit. Exited removes the person from future allocation and disables app access.</div>
+        </div>
+        <div class="field span-2" id="memberLastWorkingDateField">
+          <label for="memberLastWorkingDate">Last working date</label>
+          <input id="memberLastWorkingDate" type="date" value="${escapeAttr(draft.lastWorkingDate || '')}">
+          <div class="field-help">Required for Notice Period and Exited. Historical time, project contribution and profitability remain unchanged.</div>
+        </div>
+        <div class="notice span-2" id="memberLifecycleNotice">
+          Active employees are available for project allocation and Work Log access.
         </div>
         <div class="field span-2"><p class="form-error" id="memberFormError" hidden></p></div>
       </div>`,
@@ -1637,34 +1653,112 @@ function openMemberModal({ member = null, group = null } = {}) {
       <button class="button button-secondary" type="button" data-modal-action="cancel">Cancel</button>
       <button class="button button-primary" type="button" id="saveMemberButton">${isEdit ? 'Save changes' : 'Add member'}</button>`
   });
+
+  const statusSelect = document.getElementById('memberEmploymentStatus');
+  const updateLifecycleNotice = () => {
+    const status = statusSelect.value;
+    const notice = document.getElementById('memberLifecycleNotice');
+    if (status === 'Notice Period') notice.textContent = 'Notice Period: the employee can continue logging time and remains available for current/new allocations until management marks them Exited.';
+    else if (status === 'Exited') notice.textContent = 'Exited: future allocation and app access are disabled. Existing assignments, work logs, salary history and project-cost history are preserved.';
+    else notice.textContent = 'Active employees are available for project allocation and Work Log access.';
+  };
+  statusSelect.addEventListener('change', updateLifecycleNotice);
+  updateLifecycleNotice();
+
   document.getElementById('saveMemberButton').addEventListener('click', () => saveMemberFromModal(member?.id || null));
 }
 
-function saveMemberFromModal(memberId) {
+async function saveMemberFromModal(memberId) {
   const errorEl = document.getElementById('memberFormError');
+  const saveButton = document.getElementById('saveMemberButton');
   const name = document.getElementById('memberName').value.trim();
   if (!name) return showModalError(errorEl, 'Name is required.');
 
   const duplicate = state.members.find((item) => item.name.toLowerCase() === name.toLowerCase() && item.id !== memberId);
   if (duplicate) return showModalError(errorEl, 'A team member with this name already exists.');
 
+  const employmentStatus = document.getElementById('memberEmploymentStatus').value;
+  const lastWorkingDate = document.getElementById('memberLastWorkingDate').value || '';
+  if (employmentStatus !== 'Active' && !lastWorkingDate) {
+    return showModalError(errorEl, 'Last working date is required for Notice Period or Exited employees.');
+  }
+
   const existingIndex = memberId ? state.members.findIndex((item) => item.id === memberId) : -1;
+  const previous = existingIndex >= 0 ? state.members[existingIndex] : null;
   const member = {
-    id: existingIndex >= 0 ? state.members[existingIndex].id : uniqueMemberId(name),
+    id: existingIndex >= 0 ? previous.id : uniqueMemberId(name),
     name,
     group: document.getElementById('memberGroup').value,
     type: document.getElementById('memberType').value,
     weeklyCapacity: Math.max(1, Number(document.getElementById('memberWeeklyCapacity').value) || DEFAULT_WEEKLY_CAPACITY),
-    active: document.getElementById('memberActive').checked
+    employmentStatus,
+    lastWorkingDate: employmentStatus === 'Active' ? '' : lastWorkingDate,
+    active: employmentStatus !== 'Exited'
   };
 
-  if (existingIndex >= 0) state.members.splice(existingIndex, 1, member);
-  else state.members.push(member);
+  saveButton.disabled = true;
+  saveButton.textContent = 'Saving…';
 
-  scheduleSave();
-  modalCommitted = true;
-  els.modal.close();
-  renderCurrentView();
+  try {
+    if (existingIndex >= 0) state.members.splice(existingIndex, 1, member);
+    else state.members.push(member);
+
+    if (existingIndex >= 0 && storageMode === 'server') {
+      await syncEmployeeLifecycle(member);
+    }
+
+    scheduleSave();
+    modalCommitted = true;
+    els.modal.close();
+    renderCurrentView();
+
+    if (employmentStatus === 'Exited') {
+      showToast(`${member.name} marked Exited. App access and future allocation are disabled; historical records are preserved.`);
+    } else if (employmentStatus === 'Notice Period') {
+      showToast(`${member.name} is on Notice Period until ${formatDate(lastWorkingDate)}.`);
+    } else {
+      showToast(`${member.name} is Active.`);
+    }
+  } catch (error) {
+    console.error(error);
+    if (previous && existingIndex >= 0) state.members.splice(existingIndex, 1, previous);
+    else if (existingIndex < 0) state.members = state.members.filter((item) => item.id !== member.id);
+    showModalError(errorEl, error?.message || 'Could not update employee lifecycle.');
+    saveButton.disabled = false;
+    saveButton.textContent = existingIndex >= 0 ? 'Save changes' : 'Add member';
+  }
+}
+
+async function syncEmployeeLifecycle(member) {
+  const activeAccess = member.employmentStatus !== 'Exited';
+  const { data: accessRows, error: accessError } = await supabaseClient
+    .from('user_access')
+    .update({
+      display_name: member.name,
+      active: activeAccess,
+      employment_status: member.employmentStatus,
+      last_working_date: member.lastWorkingDate || null,
+      updated_at: new Date().toISOString()
+    })
+    .eq('member_id', member.id)
+    .select('email,member_id');
+
+  if (accessError) throw accessError;
+
+  if (member.employmentStatus === 'Exited' && member.lastWorkingDate) {
+    const { error: compError } = await supabaseClient
+      .from('compensation_history')
+      .update({
+        effective_to: member.lastWorkingDate,
+        updated_at: new Date().toISOString()
+      })
+      .eq('employee_id', member.id)
+      .is('effective_to', null)
+      .lte('effective_from', member.lastWorkingDate);
+    if (compError) throw compError;
+  }
+
+  return accessRows || [];
 }
 
 function deleteProject(id) {
@@ -1681,7 +1775,7 @@ function deleteMember(id) {
   if (!member) return;
   const assigned = assignedProjectCount(id);
   if (assigned > 0) {
-    showToast(`${member.name} is assigned to ${assigned} project${assigned === 1 ? '' : 's'}. Deactivate them instead of deleting.`, 'warning');
+    showToast(`${member.name} is assigned to ${assigned} project${assigned === 1 ? '' : 's'}. Mark them Exited instead of deleting so historical records remain intact.`, 'warning');
     return;
   }
   if (!window.confirm(`Delete ${member.name} from Team Setup?`)) return;
@@ -2379,7 +2473,13 @@ function normalizeState(input) {
     group: GROUPS.includes(member.group) ? member.group : 'POOL',
     type: MEMBER_TYPES.includes(member.type) ? member.type : 'Employee',
     weeklyCapacity: Math.max(1, Number(member.weeklyCapacity || DEFAULT_WEEKLY_CAPACITY)),
-    active: member.active !== false
+    employmentStatus: ['Active','Notice Period','Exited'].includes(member.employmentStatus)
+      ? member.employmentStatus
+      : (member.active === false ? 'Exited' : 'Active'),
+    lastWorkingDate: String(member.lastWorkingDate || ''),
+    active: (['Active','Notice Period','Exited'].includes(member.employmentStatus)
+      ? member.employmentStatus
+      : (member.active === false ? 'Exited' : 'Active')) !== 'Exited'
   })).filter((member) => member.name) : deepClone(DEFAULT_DATA.members);
   source.projects = Array.isArray(source.projects) ? source.projects.map((project) => normalizeProject({
     ...project,
