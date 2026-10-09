@@ -2,7 +2,7 @@
 
 const cfg = window.JG_SUPABASE;
 const sb = window.supabase.createClient(cfg.url, cfg.publishableKey);
-const MANAGEMENT_EMAILS = new Set(['piyush@jumpinggoose.com','tuhin@jumpinggoose.com','supriya@jumpinggoose.com','theo@jumpinggoose.com','midhun@jumpinggoose.com']);
+const MANAGEMENT_EMAILS = new Set(['piyush@jumpinggoose.com','tuhin@jumpinggoose.com','supriya@jumpinggoose.com','theo@jumpinggoose.com','midhun@jumpinggoose.com','accounts@jumpinggoose.com']);
 let user=null, access=null, appState=null, timeEntries=[], financials=[], compensation=[], revenueHistory=[];
 let selectedMonth='ALL';
 let selectedSection='overview';
