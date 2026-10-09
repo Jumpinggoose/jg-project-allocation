@@ -61,6 +61,7 @@
   <script>
   'use strict';
   const ACTIVITY_TYPES=['Design / Execution','Idea / Concept','Research','Planning / Strategy','Meeting / Review','Coordination / Management','Production / Shoot','Copy / Content','Other'];
+  const INTERNAL_ACTIVITY_TYPES=['Internal Meeting','Team / Pond Meeting','All Hands','Management / Coordination','Training / Learning','Recruitment / Interviews','Internal Planning / Operations','JG Admin','Other Internal'];
   const cfg=window.JG_SUPABASE;
   const sb=window.supabase.createClient(cfg.url,cfg.publishableKey);
   let user=null, access=null, appState=null, entries=[], selectedDate=new URLSearchParams(location.search).get('date')||localDate();
@@ -84,6 +85,7 @@
     document.getElementById('planningLink').hidden=false;
     document.getElementById('planningLink').textContent='';
     document.getElementById('planningLink').innerHTML='<span class="nav-icon">▦</span><span>Projects View</span>';
+    document.getElementById('employeeLogsLink').hidden=access.access_level==='employee';
     document.getElementById('profitLink').hidden=access.access_level!=='management';
     document.getElementById('logoutButton').addEventListener('click',logout);
     document.getElementById('historyBack').addEventListener('click',()=>history.back());
