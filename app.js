@@ -496,6 +496,10 @@ function setView(view, clearSearch = false) {
     window.location.href = '/worklog.html';
     return;
   }
+  if (view === 'employee-logs') {
+    window.location.href = '/employee-logs.html';
+    return;
+  }
   if (view === 'profitability') {
     window.location.href = '/profitability.html';
     return;
@@ -553,6 +557,8 @@ function renderCurrentView() {
   els.primaryAction.hidden = globalSetupView ? (!userIsAdmin() || storageMode !== 'server') : !canEditSelectedFY();
   const setupNav = document.querySelector('[data-view="setup"]');
   if (setupNav) setupNav.hidden = !userIsAdmin();
+  const employeeLogsNav = document.querySelector('[data-view="employee-logs"]');
+  if (employeeLogsNav) employeeLogsNav.hidden = sessionUser?.role === 'employee';
   const profitabilityNav = document.querySelector('[data-view="profitability"]');
   if (profitabilityNav) profitabilityNav.hidden = !userIsAdmin();
   const teamNav = document.querySelector('[data-view="team"]');
