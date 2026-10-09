@@ -2926,3 +2926,155 @@ summary:focus-visible {
 .history-button{width:34px;height:34px;min-width:34px;border:1px solid var(--line-strong);background:var(--surface);font-size:17px;line-height:1}
 .history-button:hover{border-color:var(--ink);background:var(--paper)}
 @media(max-width:760px){.history-nav{order:-1;padding-top:0}.topbar{gap:10px}.history-button{width:32px;height:32px;min-width:32px}}
+
+
+/* Cross-app desktop density / single-line guardrails */
+@media (min-width: 761px) {
+  .topbar {
+    gap: 16px;
+    padding-left: 28px;
+    padding-right: 28px;
+  }
+
+  .topbar-actions {
+    flex-wrap: nowrap;
+    gap: 8px;
+    min-width: 0;
+  }
+
+  .topbar-actions .button,
+  .button,
+  .button-quiet,
+  .select-compact,
+  .capacity-pill,
+  .status-pill,
+  .group-pill,
+  .type-pill,
+  .priority-pill,
+  .pill-count {
+    white-space: nowrap;
+  }
+
+  .search-box {
+    min-width: 220px;
+  }
+
+  .view-container {
+    padding-left: 28px;
+    padding-right: 28px;
+  }
+
+  .panel-header {
+    gap: 12px;
+    padding: 17px 18px 12px;
+  }
+
+  .panel-body {
+    padding-left: 18px;
+    padding-right: 18px;
+  }
+
+  .section-header {
+    gap: 12px;
+  }
+
+  .project-toolbar {
+    gap: 8px;
+    padding: 11px 13px;
+  }
+
+  .toolbar-group {
+    flex-wrap: nowrap;
+    gap: 7px;
+    min-width: 0;
+  }
+
+  .toolbar-group > * {
+    min-width: 0;
+  }
+
+  .segmented {
+    flex: 0 0 auto;
+  }
+
+  .segmented button {
+    white-space: nowrap;
+    padding-left: 9px;
+    padding-right: 9px;
+  }
+
+  .select-compact {
+    min-width: 0;
+    max-width: 190px;
+  }
+
+  .project-section > summary {
+    gap: 10px;
+    padding: 14px 16px;
+  }
+
+  .project-summary-left {
+    min-width: 0;
+    gap: 10px;
+  }
+
+  .project-summary-left > div:last-child {
+    min-width: 0;
+  }
+
+  .project-summary-title,
+  .project-summary-meta {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .project-summary-actions {
+    flex: 0 0 auto;
+    flex-wrap: nowrap;
+    gap: 6px;
+  }
+
+  .member-row {
+    gap: 9px;
+    padding: 11px 14px;
+  }
+
+  .member-actions {
+    flex-wrap: nowrap;
+  }
+
+  .modal-footer,
+  .worklog-edit-actions {
+    flex-wrap: nowrap;
+  }
+}
+
+@media (min-width: 981px) and (max-width: 1280px) {
+  .search-box {
+    min-width: 180px;
+  }
+
+  .topbar {
+    padding-left: 22px;
+    padding-right: 22px;
+  }
+
+  .view-container {
+    padding-left: 22px;
+    padding-right: 22px;
+  }
+
+  .button {
+    padding-left: 12px;
+    padding-right: 12px;
+  }
+
+  .toolbar-group {
+    gap: 6px;
+  }
+
+  .select-compact {
+    max-width: 165px;
+  }
+}
