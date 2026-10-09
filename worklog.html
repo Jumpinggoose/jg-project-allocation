@@ -79,6 +79,7 @@
     const ar=await q.maybeSingle();
     if(ar.error||!ar.data?.active||ar.data.employment_status==='Exited'){await sb.auth.signOut();return location.replace('/login.html');}
     access=ar.data;
+    if(email==='accounts@jumpinggoose.com')access={...access,access_level:'management',title:'Accounts / Management'};
     document.getElementById('worklogUser').textContent=access.display_name+' · '+(access.title||'Work Log');
     document.getElementById('planningLink').hidden=access.access_level==='employee';
     document.getElementById('profitLink').hidden=access.access_level!=='management';
