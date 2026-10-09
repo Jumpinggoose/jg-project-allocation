@@ -108,6 +108,7 @@ async function init() {
   ui.financialYear = state.meta.currentFY || state.meta.period || '2026-27';
   const initialView = new URLSearchParams(window.location.search).get('view');
   if (initialView && ['dashboard','pond1','pond2','team','setup'].includes(initialView)) ui.view = initialView;
+  if (sessionUser?.role === 'employee' && !['dashboard','pond1','pond2'].includes(ui.view)) ui.view = 'dashboard';
   renderCurrentView();
   const initialUrl = new URL(window.location.href);
   initialUrl.searchParams.set('view', ui.view);
@@ -251,15 +252,11 @@ async function loadSession() {
       lastWorkingDate: access.last_working_date || ''
     };
 
-    const roleLabel = sessionUser.role === 'admin' ? 'Management' : (sessionUser.role === 'editor' ? 'Project Manager' : 'Work Log');
+    const roleLabel = sessionUser.role === 'admin' ? 'Management' : (sessionUser.role === 'editor' ? 'Project Manager' : 'Employee · View Only');
     const lifecycleLabel = sessionUser.employmentStatus === 'Notice Period'
       ? ` · Notice Period${sessionUser.lastWorkingDate ? ` · LWD ${formatDate(sessionUser.lastWorkingDate)}` : ''}`
       : '';
     els.currentUserLabel.textContent = `${sessionUser.name} · ${roleLabel}${lifecycleLabel}`;
-    if (sessionUser.role === 'employee') {
-      window.location.replace('/worklog.html');
-      return false;
-    }
     return true;
   } catch (error) {
     console.error(error);
@@ -491,6 +488,10 @@ function updateSyncUI(status, detail = '') {
 }
 
 function setView(view, clearSearch = false) {
+  if (sessionUser?.role === 'employee' && !['dashboard','pond1','pond2','worklog'].includes(view)) {
+    showToast('Your account has view-only access to JG projects.', 'warning');
+    view = 'dashboard';
+  }
   if (view === 'worklog') {
     window.location.href = '/worklog.html';
     return;
@@ -554,6 +555,9 @@ function renderCurrentView() {
   if (setupNav) setupNav.hidden = !userIsAdmin();
   const profitabilityNav = document.querySelector('[data-view="profitability"]');
   if (profitabilityNav) profitabilityNav.hidden = !userIsAdmin();
+  const teamNav = document.querySelector('[data-view="team"]');
+  if (teamNav) teamNav.hidden = sessionUser?.role === 'employee';
+  if (els.dataButton) els.dataButton.hidden = sessionUser?.role === 'employee';
   els.globalSearch.placeholder = ui.view === 'team' || ui.view === 'setup'
     ? 'Search team members'
     : 'Search projects or people';
@@ -561,7 +565,15 @@ function renderCurrentView() {
   if (ui.view === 'dashboard') els.viewContainer.innerHTML = renderDashboard();
   if (ui.view === 'pond1') els.viewContainer.innerHTML = renderPond('POND 1');
   if (ui.view === 'pond2') els.viewContainer.innerHTML = renderPond('POND 2');
-  if (ui.view === 'team') els.viewContainer.innerHTML = renderTeamOverview();
+  if (ui.view === 'team') {
+    if (sessionUser?.role === 'employee') {
+      ui.view = 'dashboard';
+      els.viewContainer.innerHTML = renderDashboard();
+      showToast('Your account has view-only access to JG projects.', 'warning');
+    } else {
+      els.viewContainer.innerHTML = renderTeamOverview();
+    }
+  }
   if (ui.view === 'setup') {
     if (!userIsAdmin()) {
       ui.view = 'dashboard';
