@@ -47,3 +47,40 @@
   .project-person-summary{grid-template-columns:1fr}
   .project-detail-head{display:grid}
 }
+
+/* Profitability compact desktop alignment */
+@media (min-width: 981px){
+  .profitability-toolbar{
+    grid-template-columns:minmax(0,1fr) minmax(320px,.8fr);
+    gap:14px;
+    padding:14px 16px;
+  }
+  .profitability-toolbar .toolbar-group{
+    grid-template-columns:minmax(210px,1fr) auto auto;
+    gap:8px;
+  }
+  .profitability-toolbar .toolbar-group .button{
+    min-height:42px;
+    padding-left:11px;
+    padding-right:11px;
+  }
+  .profitability-toolbar .compact-notice{
+    min-height:42px;
+  }
+  .profitability-kpis{gap:10px}
+  .profit-stat-grid>div{padding:12px}
+  .delivery-card{padding:14px}
+  .project-detail-actions{
+    flex-wrap:nowrap;
+    gap:8px;
+  }
+  .project-person-summary{gap:10px}
+}
+@media (min-width:981px) and (max-width:1180px){
+  .profitability-toolbar{
+    grid-template-columns:minmax(0,1fr) minmax(280px,.75fr);
+  }
+  .profitability-toolbar .toolbar-group{
+    grid-template-columns:minmax(180px,1fr) auto auto;
+  }
+}
