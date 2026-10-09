@@ -218,11 +218,12 @@ async function loadSession() {
       return false;
     }
 
-    const { data: access, error: accessError } = await supabaseClient
+    const accessMemberAlias = email === 'saurabh@jumpinggoose.com' ? 'sourabh' : (email === 'accounts@jumpinggoose.com' ? 'bhagya' : '');
+    let accessQuery = supabaseClient
       .from('user_access')
-      .select('display_name,access_level,title,active,employment_status,last_working_date')
-      .eq('email', email)
-      .maybeSingle();
+      .select('member_id,display_name,access_level,title,active,employment_status,last_working_date');
+    accessQuery = accessMemberAlias ? accessQuery.eq('member_id', accessMemberAlias) : accessQuery.eq('email', email);
+    const { data: access, error: accessError } = await accessQuery.maybeSingle();
 
     if (accessError) throw accessError;
     if (!access || !access.active || access.employment_status === 'Exited') {
@@ -232,11 +233,13 @@ async function loadSession() {
       return false;
     }
 
-    const role = access.access_level === 'management'
+    const role = email === 'accounts@jumpinggoose.com'
       ? 'admin'
-      : access.access_level === 'project_manager'
-        ? 'editor'
-        : 'employee';
+      : access.access_level === 'management'
+        ? 'admin'
+        : access.access_level === 'project_manager'
+          ? 'editor'
+          : 'employee';
 
     sessionUser = {
       id: data.user.id,
