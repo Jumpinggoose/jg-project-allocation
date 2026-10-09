@@ -18,9 +18,14 @@ async function init(){
   user=auth.data.user;
   const email=String(user.email||'').toLowerCase();
   if(!MANAGEMENT_EMAILS.has(email))return location.replace('/worklog.html');
-  const ar=await sb.from('user_access').select('member_id,display_name,access_level,title,active').eq('email',email).maybeSingle();
-  if(ar.error||!ar.data?.active||ar.data.access_level!=='management')return location.replace('/worklog.html');
+  const aliasMember=email==='accounts@jumpinggoose.com'?'bhagya':(email==='saurabh@jumpinggoose.com'?'sourabh':'');
+  let q=sb.from('user_access').select('member_id,display_name,access_level,title,active,employment_status,last_working_date');
+  q=aliasMember?q.eq('member_id',aliasMember):q.eq('email',email);
+  const ar=await q.maybeSingle();
+  if(ar.error||!ar.data?.active||ar.data.employment_status==='Exited')return location.replace('/worklog.html');
   access=ar.data;
+  if(email==='accounts@jumpinggoose.com')access={...access,access_level:'management',title:'Accounts / Management'};
+  if(access.access_level!=='management')return location.replace('/worklog.html');
   document.getElementById('profitUser').textContent=access.display_name+' · '+(access.title||'Management');
   document.getElementById('logoutButton').addEventListener('click',logout);
   root.addEventListener('click',onClick);
