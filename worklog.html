@@ -173,23 +173,44 @@
   }
 
   function handleChange(ev){
-    if(ev.target.dataset.control==='worklog-date'){selectedDate=ev.target.value||localDate();pushWorklogDate();render();}
+    if(ev.target.dataset.control==='worklog-date'){selectedDate=ev.target.value||localDate();pushWorklogDate();render();return;}
+    if(ev.target.dataset.control==='work-type'){
+      const internal=ev.target.value==='internal';
+      document.getElementById('wlProjectField').hidden=internal;
+      document.getElementById('wlActivityField').hidden=internal;
+      document.getElementById('wlInternalActivityField').hidden=!internal;
+      const task=document.getElementById('wlTask');
+      if(task)task.placeholder=internal?'What internal activity did you work on?':'What did you work on?';
+    }
   }
 
   async function saveEntry(){
+    const workType=document.getElementById('wlWorkType')?.value||'project';
     const projectId=document.getElementById('wlProject')?.value;
     const project=(appState.projects||[]).find(p=>p.id===projectId);
     const hours=Number(document.getElementById('wlHours')?.value||0);
     const mins=Number(document.getElementById('wlMinutes')?.value||0);
-    if(!project)return toast('Choose a project.','warning');
+    if(workType==='project'&&!project)return toast('Choose a project.','warning');
     if(!Number.isInteger(mins)||mins<0||mins>59)return toast('Minutes must be a whole number from 0 to 59.','warning');
     const total=Math.round(hours*60)+mins;
     if(!Number.isFinite(total)||total<=0)return toast('Enter the time spent in hours and/or minutes.','warning');
     if(total>1440)return toast('A single entry cannot exceed 24 hours.','warning');
-    const payload={user_id:user.id,employee_id:access.member_id,work_date:selectedDate,project_id:project.id,project_name:project.brand,project_pond:project.pond,activity_type:document.getElementById('wlActivity').value,task_description:document.getElementById('wlTask').value.trim(),minutes:total,locked:false};
+    const internal=workType==='internal';
+    const payload={
+      user_id:user.id,
+      employee_id:access.member_id,
+      work_date:selectedDate,
+      project_id:internal?'__internal__':project.id,
+      project_name:internal?'Company / Internal':project.brand,
+      project_pond:internal?null:project.pond,
+      activity_type:internal?document.getElementById('wlInternalActivity').value:document.getElementById('wlActivity').value,
+      task_description:document.getElementById('wlTask').value.trim(),
+      minutes:total,
+      locked:false
+    };
     const r=await sb.from('time_entries').insert(payload).select().single();
     if(r.error){console.error(r.error);return toast('Could not save this entry.','error');}
-    entries.unshift(r.data);render();toast('Time entry added.');
+    entries.unshift(r.data);render();toast(internal?'Internal time entry added.':'Time entry added.');
   }
 
   async function editEntry(id){
