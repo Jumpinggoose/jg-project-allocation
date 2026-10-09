@@ -29,6 +29,17 @@
     @media(max-width:1380px){.worklog-entry-grid{grid-template-columns:140px minmax(190px,1.1fr) minmax(175px,1fr) minmax(220px,1.35fr) 68px 76px 108px;gap:8px}}
     @media(max-width:1120px){.worklog-entry-grid{grid-template-columns:1fr 1fr 1fr}.worklog-project-field,.worklog-task-field,.worklog-internal-field{grid-column:auto}.worklog-add-wrap{grid-column:auto}.entry-card{grid-template-columns:1fr 1fr}.entry-card .entry-task,.entry-card .entry-actions{grid-column:1/-1}}
     @media(max-width:760px){.app-shell{display:block}.sidebar{position:relative;width:100%;height:auto}.sidebar-note{display:none}.worklog-summary{align-items:stretch;flex-direction:column}.worklog-summary-actions{align-items:stretch}.worklog-entry-grid{grid-template-columns:1fr}.worklog-project-field,.worklog-task-field,.worklog-internal-field,.worklog-add-wrap{grid-column:auto}.entry-card{grid-template-columns:1fr}.entry-card .entry-task,.entry-card .entry-actions{grid-column:auto}.entry-actions{justify-content:flex-start}}
+  
+    /* Work log compact desktop alignment */
+    @media (min-width: 1121px) {
+      .worklog-entry-grid{
+        grid-template-columns:136px minmax(180px,1.05fr) minmax(165px,.95fr) minmax(220px,1.35fr) 64px 72px 108px;
+        gap:8px;
+      }
+      .worklog-entry-grid .field label{margin-bottom:5px}
+      .worklog-entry-grid input,.worklog-entry-grid select{min-width:0}
+      .worklog-add-wrap .button{padding-left:10px;padding-right:10px}
+    }
   </style>
 </head>
 <body>
