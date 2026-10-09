@@ -104,6 +104,7 @@ async function init() {
   const authenticated = await loadSession();
   if (!authenticated) return;
   state = normalizeState(await loadState());
+  if (userIsAdmin() && storageMode === 'server') await hydrateMemberAccess();
   ui.financialYear = state.meta.currentFY || state.meta.period || '2026-27';
   const initialView = new URLSearchParams(window.location.search).get('view');
   if (initialView && ['dashboard','pond1','pond2','team','setup'].includes(initialView)) ui.view = initialView;
@@ -288,6 +289,23 @@ async function logout() {
   } finally {
     window.location.replace('/login.html');
   }
+}
+
+async function hydrateMemberAccess() {
+  const { data, error } = await supabaseClient
+    .from('user_access')
+    .select('email,member_id,access_level');
+  if (error) {
+    console.info('Could not load member access directory.', error);
+    return;
+  }
+  const byMember = new Map((data || []).map((row) => [row.member_id, row]));
+  state.members.forEach((member) => {
+    const row = byMember.get(member.id);
+    if (!row) return;
+    member.email = row.email || member.email || '';
+    member.accessLevel = row.access_level || member.accessLevel || 'employee';
+  });
 }
 
 async function loadState() {
@@ -1114,7 +1132,7 @@ function renderMemberSetupRow(member) {
     <div class="member-row ${member.active ? '' : 'is-inactive'}">
       <div>
         <div class="cell-title">${escapeHtml(member.name)}</div>
-        <div class="cell-subtitle">${escapeHtml(member.type)} · ${assignedProjectCount(member.id)} assigned project${assignedProjectCount(member.id) === 1 ? '' : 's'}${member.lastWorkingDate ? ` · LWD ${formatDate(member.lastWorkingDate)}` : ''}</div>
+        <div class="cell-subtitle">${escapeHtml(member.type)} · ${member.email ? escapeHtml(member.email) + ' · ' : ''}${assignedProjectCount(member.id)} assigned project${assignedProjectCount(member.id) === 1 ? '' : 's'}${member.lastWorkingDate ? ` · LWD ${formatDate(member.lastWorkingDate)}` : ''}</div>
       </div>
       <span class="status-pill ${slug(lifecycle)}">${escapeHtml(lifecycle)}</span>
       <div class="member-actions">
@@ -1633,7 +1651,9 @@ function openMemberModal({ member = null, group = null } = {}) {
     active: true,
     weeklyCapacity: DEFAULT_WEEKLY_CAPACITY,
     employmentStatus: 'Active',
-    lastWorkingDate: ''
+    lastWorkingDate: '',
+    email: '',
+    accessLevel: 'employee'
   };
   const lifecycle = draft.employmentStatus || (draft.active ? 'Active' : 'Exited');
 
@@ -1646,6 +1666,19 @@ function openMemberModal({ member = null, group = null } = {}) {
         <div class="field span-2">
           <label for="memberName">Name *</label>
           <input id="memberName" type="text" required maxlength="100" value="${escapeAttr(draft.name)}" placeholder="Full name">
+        </div>
+        <div class="field span-2">
+          <label for="memberEmail">JG email address</label>
+          <input id="memberEmail" type="email" maxlength="160" value="${escapeAttr(draft.email || '')}" placeholder="name@jumpinggoose.com">
+          <div class="field-help">Add the email here to grant app access immediately. The person can then use “Set up password first” on the login page. Leave blank only if they should not have app access.</div>
+        </div>
+        <div class="field">
+          <label for="memberAccessLevel">App access</label>
+          <select id="memberAccessLevel">
+            <option value="employee" ${(draft.accessLevel || 'employee') === 'employee' ? 'selected' : ''}>Employee · Work Log</option>
+            <option value="project_manager" ${draft.accessLevel === 'project_manager' ? 'selected' : ''}>Project Manager</option>
+            <option value="management" ${draft.accessLevel === 'management' ? 'selected' : ''}>Management · Full Access</option>
+          </select>
         </div>
         <div class="field">
           <label for="memberGroup">Group</label>
@@ -1705,6 +1738,12 @@ async function saveMemberFromModal(memberId) {
   const duplicate = state.members.find((item) => item.name.toLowerCase() === name.toLowerCase() && item.id !== memberId);
   if (duplicate) return showModalError(errorEl, 'A team member with this name already exists.');
 
+  const email = document.getElementById('memberEmail').value.trim().toLowerCase();
+  const accessLevel = document.getElementById('memberAccessLevel').value;
+  if (email && !email.endsWith('@jumpinggoose.com')) {
+    return showModalError(errorEl, 'Use a @jumpinggoose.com email address for app access.');
+  }
+
   const employmentStatus = document.getElementById('memberEmploymentStatus').value;
   const lastWorkingDate = document.getElementById('memberLastWorkingDate').value || '';
   if (employmentStatus !== 'Active' && !lastWorkingDate) {
@@ -1719,6 +1758,8 @@ async function saveMemberFromModal(memberId) {
     group: document.getElementById('memberGroup').value,
     type: document.getElementById('memberType').value,
     weeklyCapacity: Math.max(1, Number(document.getElementById('memberWeeklyCapacity').value) || DEFAULT_WEEKLY_CAPACITY),
+    email,
+    accessLevel,
     employmentStatus,
     lastWorkingDate: employmentStatus === 'Active' ? '' : lastWorkingDate,
     active: employmentStatus !== 'Exited'
@@ -1731,8 +1772,8 @@ async function saveMemberFromModal(memberId) {
     if (existingIndex >= 0) state.members.splice(existingIndex, 1, member);
     else state.members.push(member);
 
-    if (existingIndex >= 0 && storageMode === 'server') {
-      await syncEmployeeLifecycle(member);
+    if (storageMode === 'server') {
+      await syncEmployeeAccess(member);
     }
 
     scheduleSave();
@@ -1757,21 +1798,63 @@ async function saveMemberFromModal(memberId) {
   }
 }
 
-async function syncEmployeeLifecycle(member) {
+async function syncEmployeeAccess(member) {
   const activeAccess = member.employmentStatus !== 'Exited';
-  const { data: accessRows, error: accessError } = await supabaseClient
+
+  const { data: existingRows, error: lookupError } = await supabaseClient
     .from('user_access')
-    .update({
+    .select('email,member_id,access_level,title,head_group')
+    .eq('member_id', member.id)
+    .limit(1);
+  if (lookupError) throw lookupError;
+
+  const existing = existingRows?.[0] || null;
+
+  if (member.email) {
+    const payload = {
+      email: member.email,
+      member_id: member.id,
       display_name: member.name,
+      access_level: member.accessLevel || existing?.access_level || 'employee',
+      title: member.accessLevel === 'management'
+        ? (existing?.title && existing.title !== 'Employee' ? existing.title : 'Management')
+        : member.accessLevel === 'project_manager'
+          ? 'Project Manager'
+          : member.type || 'Employee',
+      head_group: member.accessLevel === 'management' ? (existing?.head_group || null) : null,
       active: activeAccess,
       employment_status: member.employmentStatus,
       last_working_date: member.lastWorkingDate || null,
       updated_at: new Date().toISOString()
-    })
-    .eq('member_id', member.id)
-    .select('email,member_id');
+    };
 
-  if (accessError) throw accessError;
+    let accessResult;
+    if (existing) {
+      accessResult = await supabaseClient
+        .from('user_access')
+        .update(payload)
+        .eq('member_id', member.id)
+        .select('email,member_id');
+    } else {
+      accessResult = await supabaseClient
+        .from('user_access')
+        .insert({ ...payload, created_at: new Date().toISOString() })
+        .select('email,member_id');
+    }
+    if (accessResult.error) throw accessResult.error;
+  } else if (existing) {
+    const { error: disableError } = await supabaseClient
+      .from('user_access')
+      .update({
+        display_name: member.name,
+        active: false,
+        employment_status: member.employmentStatus === 'Exited' ? 'Exited' : 'Active',
+        last_working_date: member.lastWorkingDate || null,
+        updated_at: new Date().toISOString()
+      })
+      .eq('member_id', member.id);
+    if (disableError) throw disableError;
+  }
 
   if (member.employmentStatus === 'Exited' && member.lastWorkingDate) {
     const { error: compError } = await supabaseClient
@@ -1785,8 +1868,6 @@ async function syncEmployeeLifecycle(member) {
       .lte('effective_from', member.lastWorkingDate);
     if (compError) throw compError;
   }
-
-  return accessRows || [];
 }
 
 function deleteProject(id) {
@@ -2501,6 +2582,8 @@ function normalizeState(input) {
     group: GROUPS.includes(member.group) ? member.group : 'POOL',
     type: MEMBER_TYPES.includes(member.type) ? member.type : 'Employee',
     weeklyCapacity: Math.max(1, Number(member.weeklyCapacity || DEFAULT_WEEKLY_CAPACITY)),
+    email: String(member.email || '').trim().toLowerCase(),
+    accessLevel: ['employee','project_manager','management'].includes(member.accessLevel) ? member.accessLevel : 'employee',
     employmentStatus: ['Active','Notice Period','Exited'].includes(member.employmentStatus)
       ? member.employmentStatus
       : (member.active === false ? 'Exited' : 'Active'),
