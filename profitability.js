@@ -67,13 +67,35 @@ function render(){
   const retainerRows=commercialRows.filter(r=>r.project.type==='Retainer');
   const oneTimeRows=commercialRows.filter(r=>r.project.type!=='Retainer');
   const investmentRows=rows.filter(r=>r.financialClass!=='Revenue Generating');
-  const company=aggregate(commercialRows);
+  const commercial=aggregate(commercialRows);
+  const periodEntries=timeEntries.filter(e=>inPeriod(e.work_date,fy,selectedMonth));
+  const allLabour=periodEntries.reduce((sum,e)=>sum+labourCost(e),0);
+  const allMinutes=periodEntries.reduce((sum,e)=>sum+Number(e.minutes||0),0);
+  const allExternal=rows.reduce((sum,r)=>sum+Number(r.external||0),0);
+  const company={
+    revenue:commercial.revenue,
+    labour:allLabour,
+    external:allExternal,
+    totalCost:allLabour+allExternal,
+    minutes:allMinutes
+  };
+  company.profit=company.revenue-company.totalCost;
+  company.margin=company.revenue?company.profit/company.revenue:0;
   const retainerRevenue=aggregate(retainerRows);
   const oneTimeRevenue=aggregate(oneTimeRows);
   const p1=aggregate(commercialRows.filter(r=>r.owner==='POND 1'));
   const p2=aggregate(commercialRows.filter(r=>r.owner==='POND 2'));
   const unpaidPitch=aggregate(investmentRows.filter(r=>r.financialClass==='Non-Revenue External'));
-  const internal=aggregate(investmentRows.filter(r=>r.financialClass==='Internal'));
+  const internalProjects=aggregate(investmentRows.filter(r=>r.financialClass==='Internal'));
+  const generalInternalEntries=periodEntries.filter(e=>e.project_id==='__internal__'||e.project_name==='Company / Internal');
+  const generalInternalMinutes=generalInternalEntries.reduce((sum,e)=>sum+Number(e.minutes||0),0);
+  const generalInternalLabour=generalInternalEntries.reduce((sum,e)=>sum+labourCost(e),0);
+  const internal={
+    minutes:internalProjects.minutes+generalInternalMinutes,
+    labour:internalProjects.labour+generalInternalLabour,
+    external:internalProjects.external
+  };
+  internal.totalCost=internal.labour+internal.external;
   const delivery=deliveryContribution(fy,selectedMonth);
   const missing=[...new Set(timeEntries.filter(e=>inPeriod(e.work_date,fy,selectedMonth)).filter(e=>!compFor(e.employee_id,e.work_date)).map(e=>memberName(e.employee_id)))].filter(Boolean);
   root.innerHTML=`
@@ -90,7 +112,7 @@ function render(){
         ${moneyKpi('One-Time Project Revenue',oneTimeRevenue.revenue,'One-time projects + paid pitches')}
         ${moneyKpi('JG Cost',company.totalCost,formatMoney(company.labour)+' labour · '+formatMoney(company.external)+' external')}
         ${moneyKpi('JG Profit',company.profit,company.revenue?formatPct(company.margin)+' margin':'Awaiting logged commercial work','is-accent')}
-        ${textKpi('Actual effort',formatDuration(company.minutes),'Logged commercial project time')}
+        ${textKpi('Actual effort',formatDuration(company.minutes),'All logged work, including company/internal time')}
       </section>
       <section class="grid-2">${pondCard('POND 1',p1)}${pondCard('POND 2',p2)}</section>
       <section class="grid-2">
