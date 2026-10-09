@@ -9,9 +9,15 @@
   <style>
     .worklog-summary{display:flex;justify-content:space-between;align-items:flex-end;gap:18px}
     .worklog-summary-actions{display:flex;align-items:flex-end;gap:10px}
-    .worklog-entry-grid{display:grid;grid-template-columns:minmax(230px,1.55fr) minmax(180px,1fr) minmax(260px,1.75fr) 95px 95px minmax(150px,.85fr);gap:14px;align-items:start}
-    .worklog-add-wrap{display:grid;gap:8px;min-width:150px;padding-top:24px}
-    .worklog-add-wrap small{font-size:10px;color:var(--muted);line-height:1.35;max-width:170px}
+    .worklog-entry-grid{display:grid;grid-template-columns:150px minmax(210px,1.15fr) minmax(190px,1fr) minmax(250px,1.5fr) 72px 82px 118px;gap:10px;align-items:end}
+    .worklog-entry-grid .field{margin:0}
+    .worklog-entry-grid .field label{min-height:16px;display:block;margin-bottom:6px}
+    .worklog-entry-grid .field input,.worklog-entry-grid .field select{width:100%;box-sizing:border-box}
+    .worklog-task-field{min-width:0}
+    .worklog-internal-field{grid-column:2 / 4}
+    .worklog-add-wrap{display:flex;align-items:flex-end;padding:0;min-width:0}
+    .worklog-add-wrap .button{width:100%;white-space:nowrap}
+    .worklog-add-wrap small{display:none}
     .entry-list{display:grid}
     .entry-card{display:grid;grid-template-columns:minmax(180px,1.25fr) minmax(160px,1fr) minmax(220px,1.7fr) 90px 120px;gap:14px;align-items:center;padding:14px 22px;border-top:1px solid var(--line);font-size:12px}
     .entry-card:first-child{border-top:0}
@@ -19,9 +25,10 @@
     .entry-card p{margin:0;color:var(--ink)}
     .entry-actions{display:flex;gap:10px;justify-content:flex-end}
     .date-row{display:flex;gap:10px;align-items:flex-end}
-    .worklog-select-note{margin-top:8px;color:var(--muted);font-size:10px;line-height:1.35;max-width:320px}.worklog-entry-grid .field{align-self:start}.worklog-entry-grid .field label{min-height:18px;display:block}.worklog-entry-grid .field input,.worklog-entry-grid .field select{width:100%;box-sizing:border-box}
-    @media(max-width:1100px){.worklog-entry-grid{grid-template-columns:1fr 1fr}.worklog-project-field,.worklog-task-field,.worklog-add-wrap{grid-column:1/-1}.entry-card{grid-template-columns:1fr 1fr}.entry-card .entry-task,.entry-card .entry-actions{grid-column:1/-1}}
-    @media(max-width:760px){.app-shell{display:block}.sidebar{position:relative;width:100%;height:auto}.sidebar-note{display:none}.worklog-summary{align-items:stretch;flex-direction:column}.worklog-summary-actions{align-items:stretch}.worklog-entry-grid{grid-template-columns:1fr}.worklog-project-field,.worklog-task-field,.worklog-add-wrap{grid-column:auto}.entry-card{grid-template-columns:1fr}.entry-card .entry-task,.entry-card .entry-actions{grid-column:auto}.entry-actions{justify-content:flex-start}}
+    .worklog-select-note{display:none}
+    @media(max-width:1380px){.worklog-entry-grid{grid-template-columns:140px minmax(190px,1.1fr) minmax(175px,1fr) minmax(220px,1.35fr) 68px 76px 108px;gap:8px}}
+    @media(max-width:1120px){.worklog-entry-grid{grid-template-columns:1fr 1fr 1fr}.worklog-project-field,.worklog-task-field,.worklog-internal-field{grid-column:auto}.worklog-add-wrap{grid-column:auto}.entry-card{grid-template-columns:1fr 1fr}.entry-card .entry-task,.entry-card .entry-actions{grid-column:1/-1}}
+    @media(max-width:760px){.app-shell{display:block}.sidebar{position:relative;width:100%;height:auto}.sidebar-note{display:none}.worklog-summary{align-items:stretch;flex-direction:column}.worklog-summary-actions{align-items:stretch}.worklog-entry-grid{grid-template-columns:1fr}.worklog-project-field,.worklog-task-field,.worklog-internal-field,.worklog-add-wrap{grid-column:auto}.entry-card{grid-template-columns:1fr}.entry-card .entry-task,.entry-card .entry-actions{grid-column:auto}.entry-actions{justify-content:flex-start}}
   </style>
 </head>
 <body>
@@ -136,13 +143,13 @@
           <div class="panel-body">
             <div class="worklog-entry-grid">
               <div class="field"><label>Work type</label><select id="wlWorkType" data-control="work-type"><option value="project">Project Work</option><option value="internal">Company / Internal</option></select></div>
-              <div class="field worklog-project-field" id="wlProjectField"><label>Project</label><select id="wlProject">${projectOptions()}</select><div class="worklog-select-note">Assigned projects appear first. Other live JG projects remain available for unplanned support.</div></div>
+              <div class="field worklog-project-field" id="wlProjectField"><label>Project</label><select id="wlProject">${projectOptions()}</select></div>
               <div class="field" id="wlActivityField"><label>Activity</label><select id="wlActivity">${ACTIVITY_TYPES.map(x=>'<option>'+esc(x)+'</option>').join('')}</select></div>
-              <div class="field" id="wlInternalActivityField" hidden><label>Internal activity</label><select id="wlInternalActivity">${INTERNAL_ACTIVITY_TYPES.map(x=>'<option>'+esc(x)+'</option>').join('')}</select></div>
+              <div class="field worklog-internal-field" id="wlInternalActivityField" hidden><label>Internal activity</label><select id="wlInternalActivity">${INTERNAL_ACTIVITY_TYPES.map(x=>'<option>'+esc(x)+'</option>').join('')}</select></div>
               <div class="field worklog-task-field"><label>Task / description</label><input id="wlTask" maxlength="220" placeholder="What did you work on?"></div>
               <div class="field"><label>Hours</label><input id="wlHours" type="number" min="0" max="24" step="0.01" inputmode="decimal" placeholder="1"></div>
               <div class="field"><label>Minutes</label><input id="wlMinutes" type="number" min="0" max="59" step="1" inputmode="numeric" placeholder="20"></div>
-              <div class="worklog-add-wrap"><button class="button button-primary" data-action="save" type="button">Add entry</button><small>Any whole minutes from 0–59. No seconds.</small></div>
+              <div class="worklog-add-wrap"><button class="button button-primary" data-action="save" type="button">Add entry</button></div>
             </div>
           </div>
         </section>
