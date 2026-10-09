@@ -1,0 +1,261 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0F0F0F">
+  <title>Employee Logs · JG Project Allocation</title>
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="styles.css">
+  <style>
+    .logs-controls{display:grid;grid-template-columns:1.2fr 1fr 1fr 1fr auto;gap:10px;align-items:end}
+    .logs-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
+    .logs-split{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+    .logs-list{display:grid;gap:8px}
+    .logs-list-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;padding:11px 12px;border-top:1px solid var(--line)}
+    .logs-list-row:first-child{border-top:0}
+    .logs-table{width:100%;border-collapse:collapse}
+    .logs-table th,.logs-table td{padding:10px 12px;text-align:left;border-top:1px solid var(--line);vertical-align:top;font-size:12px}
+    .logs-table th{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted)}
+    .logs-overview-row{cursor:pointer}
+    .logs-overview-row:hover{background:rgba(15,15,15,.03)}
+    .logs-muted{color:var(--muted)}
+    .logs-chip{display:inline-block;border:1px solid var(--line);padding:3px 6px;font-size:10px;text-transform:uppercase;letter-spacing:.06em}
+    @media(max-width:1000px){.logs-controls{grid-template-columns:1fr 1fr}.logs-kpis,.logs-split{grid-template-columns:1fr 1fr}}
+    @media(max-width:720px){.logs-controls,.logs-kpis,.logs-split{grid-template-columns:1fr}.logs-table{display:block;overflow-x:auto;white-space:nowrap}}
+  </style>
+</head>
+<body>
+  <div class="app-shell">
+    <aside class="sidebar">
+      <div class="brand-lockup">
+        <div class="brand-mark">JG</div>
+        <div><div class="brand-name">JUMPINGGOOSE</div><div class="brand-subtitle">Employee Logs</div></div>
+      </div>
+      <nav class="nav-list">
+        <a class="nav-item" href="/worklog.html"><span class="nav-icon">◷</span><span>My Work Log</span></a>
+        <a class="nav-item" href="/"><span class="nav-icon">▦</span><span>Projects View</span></a>
+        <a class="nav-item is-active" href="/employee-logs.html"><span class="nav-icon">≡</span><span>Employee Logs</span></a>
+        <a class="nav-item" id="profitLink" href="/profitability.html" hidden><span class="nav-icon">₹</span><span>Profitability</span></a>
+      </nav>
+      <div class="sidebar-spacer"></div>
+      <div class="sync-card"><span class="sync-dot is-online"></span><div><strong id="logsUser">Loading…</strong><small>Team actuals</small></div></div>
+    </aside>
+
+    <main class="main-area">
+      <header class="topbar">
+        <div class="history-nav" aria-label="Page navigation">
+          <button class="icon-button history-button" id="historyBack" type="button" aria-label="Go back">←</button>
+          <button class="icon-button history-button" id="historyForward" type="button" aria-label="Go forward">→</button>
+        </div>
+        <div class="page-heading">
+          <div class="eyebrow">JUMPINGGOOSE · TEAM ACTUALS</div>
+          <h1>Employee Logs</h1>
+          <p>Review employee time across projects and company/internal activity.</p>
+        </div>
+        <div class="topbar-actions"><button class="button button-secondary" id="logoutButton" type="button">Log out</button></div>
+      </header>
+      <section class="view-container" id="logsRoot"><div class="notice">Loading employee logs…</div></section>
+    </main>
+  </div>
+  <div class="toast-region" id="toastRegion" aria-live="polite"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="supabase-config.js"></script>
+  <script>
+  'use strict';
+
+  const cfg=window.JG_SUPABASE;
+  const sb=window.supabase.createClient(cfg.url,cfg.publishableKey);
+  let user=null,access=null,appState=null,entries=[];
+  let selectedEmployee='ALL',preset='month',customFrom='',customTo='';
+
+  document.addEventListener('DOMContentLoaded',init);
+
+  async function init(){
+    const auth=await sb.auth.getUser();
+    if(auth.error||!auth.data.user)return location.replace('/login.html');
+    user=auth.data.user;
+    const email=String(user.email||'').toLowerCase();
+    if(!email.endsWith('@jumpinggoose.com')){await sb.auth.signOut();return location.replace('/login.html');}
+
+    const aliasMember=email==='saurabh@jumpinggoose.com'?'sourabh':(email==='accounts@jumpinggoose.com'?'bhagya':(email==='sirajul@jumpinggoose.com'?'siraj':''));
+    let q=sb.from('user_access').select('member_id,display_name,access_level,title,active,employment_status,last_working_date');
+    q=aliasMember?q.eq('member_id',aliasMember):q.eq('email',email);
+    const ar=await q.maybeSingle();
+    if(ar.error||!ar.data?.active||ar.data.employment_status==='Exited'){await sb.auth.signOut();return location.replace('/login.html');}
+    access=ar.data;
+    if(email==='accounts@jumpinggoose.com')access={...access,access_level:'management',title:'Accounts / Management'};
+    if(access.access_level==='employee')return location.replace('/worklog.html');
+
+    document.getElementById('logsUser').textContent=access.display_name+' · '+(access.title||'Employee Logs');
+    document.getElementById('profitLink').hidden=access.access_level!=='management';
+    document.getElementById('logoutButton').addEventListener('click',logout);
+    document.getElementById('historyBack').addEventListener('click',()=>history.back());
+    document.getElementById('historyForward').addEventListener('click',()=>history.forward());
+    document.getElementById('logsRoot').addEventListener('change',handleChange);
+    document.getElementById('logsRoot').addEventListener('click',handleClick);
+
+    const sr=await sb.from('app_state').select('data').eq('id',1).single();
+    if(sr.error)return message('Could not load project and employee data.');
+    appState=sr.data.data;
+
+    const fy=appState?.meta?.currentFY||'2026-27';
+    const y=Number(fy.slice(0,4));
+    const tr=await sb.from('time_entries')
+      .select('id,user_id,employee_id,work_date,project_id,project_name,project_pond,activity_type,task_description,minutes,locked,created_at')
+      .gte('work_date',y+'-04-01').lte('work_date',(y+1)+'-03-31')
+      .order('work_date',{ascending:false}).order('created_at',{ascending:false});
+    if(tr.error){console.error(tr.error);return message('Could not load employee time entries.');}
+    entries=tr.data||[];
+    render();
+  }
+
+  async function logout(){await sb.auth.signOut();location.replace('/login.html');}
+
+  function handleChange(ev){
+    if(ev.target.id==='employeeFilter'){selectedEmployee=ev.target.value;render();}
+    if(ev.target.id==='periodPreset'){preset=ev.target.value;render();}
+    if(ev.target.id==='customFrom'){customFrom=ev.target.value;render();}
+    if(ev.target.id==='customTo'){customTo=ev.target.value;render();}
+  }
+
+  function handleClick(ev){
+    const row=ev.target.closest('[data-employee-id]');
+    if(!row)return;
+    selectedEmployee=row.dataset.employeeId;
+    render();
+    window.scrollTo({top:0,behavior:'smooth'});
+  }
+
+  function render(){
+    const range=getRange();
+    const filtered=entries.filter(e=>e.work_date>=range.from&&e.work_date<=range.to);
+    const scoped=selectedEmployee==='ALL'?filtered:filtered.filter(e=>e.employee_id===selectedEmployee);
+    const members=(appState?.members||[]).slice().sort((a,b)=>a.name.localeCompare(b.name));
+
+    const total=scoped.reduce((s,e)=>s+Number(e.minutes||0),0);
+    const internal=scoped.filter(isInternal).reduce((s,e)=>s+Number(e.minutes||0),0);
+    const project=total-internal;
+    const last=scoped.slice().sort((a,b)=>(b.work_date+b.created_at).localeCompare(a.work_date+a.created_at))[0];
+
+    document.getElementById('logsRoot').innerHTML=`
+      <div class="stack-lg">
+        <section class="panel">
+          <div class="panel-header"><div><div class="section-eyebrow">Filters</div><h2 class="panel-title">Employee activity</h2></div></div>
+          <div class="panel-body">
+            <div class="logs-controls">
+              <label class="field"><span class="field-label">Employee</span><select id="employeeFilter"><option value="ALL" ${selectedEmployee==='ALL'?'selected':''}>All employees</option>${members.map(m=>'<option value="'+attr(m.id)+'" '+(m.id===selectedEmployee?'selected':'')+'>'+esc(m.name)+'</option>').join('')}</select></label>
+              <label class="field"><span class="field-label">Period</span><select id="periodPreset"><option value="week" ${preset==='week'?'selected':''}>This week</option><option value="month" ${preset==='month'?'selected':''}>This month</option><option value="fy" ${preset==='fy'?'selected':''}>FY to date</option><option value="custom" ${preset==='custom'?'selected':''}>Custom</option></select></label>
+              <label class="field"><span class="field-label">From</span><input id="customFrom" type="date" value="${range.from}" ${preset==='custom'?'':'disabled'}></label>
+              <label class="field"><span class="field-label">To</span><input id="customTo" type="date" value="${range.to}" ${preset==='custom'?'':'disabled'}></label>
+              <div class="field"><span class="field-label">Range</span><strong>${esc(shortDate(range.from))} – ${esc(shortDate(range.to))}</strong></div>
+            </div>
+          </div>
+        </section>
+
+        <section class="logs-kpis">
+          ${kpi('Total logged',duration(total),scoped.length+' entries','is-accent')}
+          ${kpi('Project work',duration(project),total?Math.round(project/total*100)+'% of logged time':'No entries','')}
+          ${kpi('Company / Internal',duration(internal),total?Math.round(internal/total*100)+'% of logged time':'No entries','')}
+          ${kpi('Last log',last?shortDate(last.work_date):'—',last?duration(last.minutes)+' · '+last.project_name:'No entries','')}
+        </section>
+
+        ${selectedEmployee==='ALL'?renderOverview(members,filtered):renderEmployeeDetail(members.find(m=>m.id===selectedEmployee),scoped)}
+      </div>`;
+  }
+
+  function renderOverview(members,filtered){
+    const rows=members.map(m=>{
+      const list=filtered.filter(e=>e.employee_id===m.id);
+      const total=list.reduce((s,e)=>s+Number(e.minutes||0),0);
+      const internal=list.filter(isInternal).reduce((s,e)=>s+Number(e.minutes||0),0);
+      const projects=new Set(list.filter(e=>!isInternal(e)).map(e=>e.project_id)).size;
+      const last=list.slice().sort((a,b)=>(b.work_date+b.created_at).localeCompare(a.work_date+a.created_at))[0];
+      return {m,total,internal,projects,count:list.length,last};
+    });
+    return `
+      <section class="panel">
+        <div class="panel-header"><div><div class="section-eyebrow">All employees</div><h2 class="panel-title">Logged time overview</h2><p class="panel-subtitle">Click an employee to open their complete log.</p></div><span class="pill-count">${rows.length}</span></div>
+        <div class="panel-body flush">
+          <table class="logs-table">
+            <thead><tr><th>Employee</th><th>Total</th><th>Project work</th><th>Internal</th><th>Projects</th><th>Entries</th><th>Last log</th></tr></thead>
+            <tbody>${rows.map(r=>'<tr class="logs-overview-row" data-employee-id="'+attr(r.m.id)+'"><td><strong>'+esc(r.m.name)+'</strong><div class="logs-muted">'+esc(r.m.group||'')+'</div></td><td><strong>'+duration(r.total)+'</strong></td><td>'+duration(r.total-r.internal)+'</td><td>'+duration(r.internal)+'</td><td>'+r.projects+'</td><td>'+r.count+'</td><td>'+(r.last?shortDate(r.last.work_date):'—')+'</td></tr>').join('')}</tbody>
+          </table>
+        </div>
+      </section>`;
+  }
+
+  function renderEmployeeDetail(member,list){
+    if(!member)return '<div class="notice">Employee not found.</div>';
+    const projectMap=aggregate(list.filter(e=>!isInternal(e)),e=>e.project_name);
+    const activityMap=aggregate(list,e=>e.activity_type);
+    const total=list.reduce((s,e)=>s+Number(e.minutes||0),0);
+    const internal=list.filter(isInternal).reduce((s,e)=>s+Number(e.minutes||0),0);
+
+    return `
+      <section class="panel">
+        <div class="panel-header"><div><div class="section-eyebrow">Employee detail</div><h2 class="panel-title">${esc(member.name)}</h2><p class="panel-subtitle">${esc(member.group||'')} · ${esc(member.type||'Employee')} · ${duration(total-internal)} project · ${duration(internal)} internal</p></div><button class="button button-secondary" type="button" data-employee-id="ALL">Back to all employees</button></div>
+      </section>
+
+      <section class="logs-split">
+        <article class="panel">
+          <div class="panel-header"><div><div class="section-eyebrow">Project split</div><h2 class="panel-title">Where time went</h2></div></div>
+          <div class="panel-body flush"><div class="logs-list">${projectMap.length?projectMap.map(x=>'<div class="logs-list-row"><span>'+esc(x.key)+'</span><strong>'+duration(x.minutes)+'</strong></div>').join(''):'<div class="notice">No project work in this period.</div>'}</div></div>
+        </article>
+        <article class="panel">
+          <div class="panel-header"><div><div class="section-eyebrow">Activity split</div><h2 class="panel-title">Work by activity</h2></div></div>
+          <div class="panel-body flush"><div class="logs-list">${activityMap.length?activityMap.map(x=>'<div class="logs-list-row"><span>'+esc(x.key)+'</span><strong>'+duration(x.minutes)+'</strong></div>').join(''):'<div class="notice">No activity in this period.</div>'}</div></div>
+        </article>
+      </section>
+
+      <section class="panel">
+        <div class="panel-header"><div><div class="section-eyebrow">Complete history</div><h2 class="panel-title">Work log entries</h2></div><span class="pill-count">${list.length}</span></div>
+        <div class="panel-body flush">
+          ${list.length?`<table class="logs-table"><thead><tr><th>Date</th><th>Type</th><th>Project / Category</th><th>Activity</th><th>Task / description</th><th>Duration</th></tr></thead><tbody>${list.slice().sort((a,b)=>(b.work_date+b.created_at).localeCompare(a.work_date+a.created_at)).map(e=>'<tr><td>'+shortDate(e.work_date)+'</td><td><span class="logs-chip">'+(isInternal(e)?'Internal':'Project')+'</span></td><td><strong>'+esc(e.project_name)+'</strong>'+(e.project_pond?'<div class="logs-muted">'+esc(e.project_pond)+'</div>':'')+'</td><td>'+esc(e.activity_type)+'</td><td>'+esc(e.task_description||'—')+'</td><td><strong>'+duration(e.minutes)+'</strong></td></tr>').join('')}</tbody></table>`:'<div class="empty-state"><h3>No work logs in this period</h3><p>Change the period filter or select another employee.</p></div>'}
+        </div>
+      </section>`;
+  }
+
+  function aggregate(list,keyFn){
+    const map=new Map();
+    list.forEach(e=>{const k=keyFn(e)||'Other';map.set(k,(map.get(k)||0)+Number(e.minutes||0));});
+    return [...map.entries()].map(([key,minutes])=>({key,minutes})).sort((a,b)=>b.minutes-a.minutes||a.key.localeCompare(b.key));
+  }
+
+  function getRange(){
+    const today=localDate();
+    if(preset==='week'){
+      const d=new Date(today+'T00:00:00');
+      const day=(d.getDay()+6)%7;
+      d.setDate(d.getDate()-day);
+      return {from:isoLocal(d),to:today};
+    }
+    if(preset==='fy'){
+      const fy=appState?.meta?.currentFY||'2026-27';
+      return {from:fy.slice(0,4)+'-04-01',to:today};
+    }
+    if(preset==='custom'){
+      const fallback=monthRange(today);
+      return {from:customFrom||fallback.from,to:customTo||today};
+    }
+    return monthRange(today);
+  }
+
+  function monthRange(today){
+    const d=new Date(today+'T00:00:00');
+    return {from:d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-01',to:today};
+  }
+
+  function isInternal(e){return e.project_id==='__internal__'||e.project_name==='Company / Internal';}
+  function localDate(){const d=new Date(),o=d.getTimezoneOffset();return new Date(d.getTime()-o*60000).toISOString().slice(0,10);}
+  function isoLocal(d){const o=d.getTimezoneOffset();return new Date(d.getTime()-o*60000).toISOString().slice(0,10);}
+  function shortDate(v){return new Date(v+'T00:00:00').toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'});}
+  function duration(m){m=Math.round(Number(m||0));const h=Math.floor(m/60),n=m%60;return h?(n?h+'h '+n+'m':h+'h'):n+'m';}
+  function kpi(l,v,m,c){return '<article class="kpi-card '+c+'"><div class="kpi-label">'+esc(l)+'</div><div class="kpi-value">'+esc(v)+'</div><div class="kpi-meta">'+esc(m)+'</div></article>';}
+  function esc(v){return String(v??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');}
+  function attr(v){return esc(v);}
+  function message(m){document.getElementById('logsRoot').innerHTML='<div class="notice">'+esc(m)+'</div>';}
+  </script>
+</body>
+</html>
