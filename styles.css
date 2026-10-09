@@ -3204,3 +3204,36 @@ summary:focus-visible {
     max-width: 230px;
   }
 }
+
+
+/* Dashboard topbar overlap fix */
+@media (min-width: 1181px) {
+  .page-heading {
+    min-width: 0;
+    max-width: 560px;
+  }
+
+  .page-heading h1 {
+    font-size: clamp(34px, 2.35vw, 44px);
+    line-height: 1.02;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .topbar-actions {
+    grid-template-columns: 158px 164px minmax(220px, 280px) auto auto;
+  }
+
+  .fy-switcher,
+  .fy-switcher select {
+    width: 158px;
+    min-width: 158px;
+    max-width: 158px;
+  }
+
+  .session-controls {
+    width: 164px;
+    max-width: 164px;
+  }
+}
