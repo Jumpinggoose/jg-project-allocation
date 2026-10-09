@@ -129,11 +129,13 @@
           ${kpi('This month',duration(monthMin),'Actual time recorded','')}
         </section>
         <section class="panel">
-          <div class="panel-header"><div><div class="section-eyebrow">Add work</div><h2 class="panel-title">New time entry</h2><p class="panel-subtitle">Create separate entries when the same project includes design, meetings, research, planning or other activities.</p></div></div>
+          <div class="panel-header"><div><div class="section-eyebrow">Add work</div><h2 class="panel-title">New time entry</h2><p class="panel-subtitle">Log project work or company/internal time. Internal time stays separate from client project effort.</p></div></div>
           <div class="panel-body">
             <div class="worklog-entry-grid">
-              <div class="field worklog-project-field"><label>Project</label><select id="wlProject">${projectOptions()}</select><div class="worklog-select-note">Assigned projects appear first. Other live JG projects remain available for unplanned support.</div></div>
-              <div class="field"><label>Activity</label><select id="wlActivity">${ACTIVITY_TYPES.map(x=>'<option>'+esc(x)+'</option>').join('')}</select></div>
+              <div class="field"><label>Work type</label><select id="wlWorkType" data-control="work-type"><option value="project">Project Work</option><option value="internal">Company / Internal</option></select></div>
+              <div class="field worklog-project-field" id="wlProjectField"><label>Project</label><select id="wlProject">${projectOptions()}</select><div class="worklog-select-note">Assigned projects appear first. Other live JG projects remain available for unplanned support.</div></div>
+              <div class="field" id="wlActivityField"><label>Activity</label><select id="wlActivity">${ACTIVITY_TYPES.map(x=>'<option>'+esc(x)+'</option>').join('')}</select></div>
+              <div class="field" id="wlInternalActivityField" hidden><label>Internal activity</label><select id="wlInternalActivity">${INTERNAL_ACTIVITY_TYPES.map(x=>'<option>'+esc(x)+'</option>').join('')}</select></div>
               <div class="field worklog-task-field"><label>Task / description</label><input id="wlTask" maxlength="220" placeholder="What did you work on?"></div>
               <div class="field"><label>Hours</label><input id="wlHours" type="number" min="0" max="24" step="0.01" inputmode="decimal" placeholder="1"></div>
               <div class="field"><label>Minutes</label><input id="wlMinutes" type="number" min="0" max="59" step="1" inputmode="numeric" placeholder="20"></div>
