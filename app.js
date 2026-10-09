@@ -219,7 +219,7 @@ async function loadSession() {
       return false;
     }
 
-    const accessMemberAlias = email === 'saurabh@jumpinggoose.com' ? 'sourabh' : (email === 'accounts@jumpinggoose.com' ? 'bhagya' : '');
+    const accessMemberAlias = email === 'saurabh@jumpinggoose.com' ? 'sourabh' : (email === 'accounts@jumpinggoose.com' ? 'bhagya' : (email === 'sirajul@jumpinggoose.com' ? 'siraj' : ''));
     let accessQuery = supabaseClient
       .from('user_access')
       .select('member_id,display_name,access_level,title,active,employment_status,last_working_date');
