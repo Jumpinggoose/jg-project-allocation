@@ -73,7 +73,7 @@
     user=auth.data.user;
     const email=String(user.email||'').toLowerCase();
     if(!email.endsWith('@jumpinggoose.com')){await sb.auth.signOut();return location.replace('/login.html');}
-    const aliasMember=email==='saurabh@jumpinggoose.com'?'sourabh':(email==='accounts@jumpinggoose.com'?'bhagya':'');
+    const aliasMember=email==='saurabh@jumpinggoose.com'?'sourabh':(email==='accounts@jumpinggoose.com'?'bhagya':(email==='sirajul@jumpinggoose.com'?'siraj':''));
     let q=sb.from('user_access').select('member_id,display_name,access_level,title,active,employment_status,last_working_date');
     q=aliasMember?q.eq('member_id',aliasMember):q.eq('email',email);
     const ar=await q.maybeSingle();
