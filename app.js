@@ -218,15 +218,40 @@ async function loadSession() {
       return false;
     }
 
+    const { data: access, error: accessError } = await supabaseClient
+      .from('user_access')
+      .select('display_name,access_level,title,active,employment_status,last_working_date')
+      .eq('email', email)
+      .maybeSingle();
+
+    if (accessError) throw accessError;
+    if (!access || !access.active || access.employment_status === 'Exited') {
+      await supabaseClient.auth.signOut();
+      showToast('This account no longer has access to the JG workspace.', 'error');
+      redirectToLogin();
+      return false;
+    }
+
+    const role = access.access_level === 'management'
+      ? 'admin'
+      : access.access_level === 'project_manager'
+        ? 'editor'
+        : 'employee';
+
     sessionUser = {
       id: data.user.id,
       email,
-      name: data.user.user_metadata?.name || data.user.email || 'JG user',
-      role: ['piyush@jumpinggoose.com','tuhin@jumpinggoose.com','supriya@jumpinggoose.com','theo@jumpinggoose.com','midhun@jumpinggoose.com'].includes(email) ? 'admin' : (email === 'apeksha@jumpinggoose.com' ? 'editor' : 'employee')
+      name: access.display_name || data.user.user_metadata?.name || data.user.email || 'JG user',
+      role,
+      employmentStatus: access.employment_status || 'Active',
+      lastWorkingDate: access.last_working_date || ''
     };
 
     const roleLabel = sessionUser.role === 'admin' ? 'Management' : (sessionUser.role === 'editor' ? 'Project Manager' : 'Work Log');
-    els.currentUserLabel.textContent = `${sessionUser.name} · ${roleLabel}`;
+    const lifecycleLabel = sessionUser.employmentStatus === 'Notice Period'
+      ? ` · Notice Period${sessionUser.lastWorkingDate ? ` · LWD ${formatDate(sessionUser.lastWorkingDate)}` : ''}`
+      : '';
+    els.currentUserLabel.textContent = `${sessionUser.name} · ${roleLabel}${lifecycleLabel}`;
     if (sessionUser.role === 'employee') {
       window.location.replace('/worklog.html');
       return false;
