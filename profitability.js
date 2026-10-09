@@ -150,13 +150,15 @@ function renderSalaryDirectory(){
             <tbody>${members.map(m=>{
               const current=currentComp(m.id);
               const history=compensation.filter(c=>c.employee_id===m.id).sort((a,b)=>String(b.effective_from).localeCompare(String(a.effective_from)));
-              const hourly=current?Number(current.monthly_cost||0)/(Math.max(1,Number(m.weeklyCapacity||45))*52/12):0;
+              const calculatedHourly=current?Number(current.monthly_cost||0)/(Math.max(1,Number(m.weeklyCapacity||45))*52/12):0;
+              const hourly=current?(current.hourly_cost_override!=null?Number(current.hourly_cost_override):calculatedHourly):0;
+              const hourlyMeta=current?.hourly_cost_override!=null?'Custom override':'Auto-calculated';
               return `<tr>
                 <td><strong>${esc(m.name)}</strong><div class="cell-subtitle">${esc(m.type||'Employee')}</div></td>
                 <td>${esc(m.group)}</td>
                 <td><strong>${current?formatMoney(current.monthly_cost):'Not set'}</strong></td>
                 <td>${current?esc(current.effective_from):'—'}</td>
-                <td>${current?formatMoney(hourly):'—'}</td>
+                <td>${current?'<strong>'+formatMoney(hourly)+'/hr</strong><div class="cell-subtitle">'+esc(hourlyMeta)+'</div>':'—'}</td>
                 <td><div class="history-stack">${history.length?history.map(h=>`<div>${formatMoney(h.monthly_cost)} · ${esc(h.effective_from)} ${h.effective_to?'→ '+esc(h.effective_to):'→ Current'}</div>`).join(''):'—'}</div></td>
                 <td><div class="project-detail-actions"><button class="link-button" type="button" data-action="comp-person" data-id="${esc(m.id)}">${current?'Edit salary':'Set salary'}</button>${history.length?'<button class="link-button link-danger" type="button" data-action="reset-salary" data-id="'+esc(m.id)+'">Reset salary</button>':''}</div></td>
               </tr>`;
@@ -272,7 +274,8 @@ function revenueRateForMonth(projectId,month){
 function aggregate(rows){const a=rows.reduce((x,r)=>{x.revenue+=r.revenue;x.external+=r.external;x.labour+=r.labour;x.minutes+=r.minutes;return x;},{revenue:0,external:0,labour:0,minutes:0});a.totalCost=a.external+a.labour;a.profit=a.revenue-a.totalCost;a.margin=a.revenue?a.profit/a.revenue:0;a.roi=a.totalCost?a.profit/a.totalCost:0;return a;}
 function deliveryContribution(fy,month){const out={'POND 1':{minutes:0,cost:0},'POND 2':{minutes:0,cost:0},'POOL':{minutes:0,cost:0}};timeEntries.filter(e=>inPeriod(e.work_date,fy,month)).forEach(e=>{const g=member(e.employee_id)?.group||'POOL';if(!out[g])out[g]={minutes:0,cost:0};out[g].minutes+=Number(e.minutes||0);out[g].cost+=labourCost(e);});return out;}
 function compFor(id,date){return compensation.filter(c=>c.employee_id===id&&c.effective_from<=date&&(!c.effective_to||c.effective_to>=date)).sort((a,b)=>String(b.effective_from).localeCompare(String(a.effective_from)))[0]||null;}
-function labourCost(e){const c=compFor(e.employee_id,e.work_date);if(!c)return 0;const weekly=Math.max(1,Number(member(e.employee_id)?.weeklyCapacity||45));const hourly=Number(c.monthly_cost||0)/(weekly*52/12);return hourly*(Number(e.minutes||0)/60);}
+function hourlyRateForComp(employeeId,c){if(!c)return 0;if(c.hourly_cost_override!=null&&Number.isFinite(Number(c.hourly_cost_override)))return Number(c.hourly_cost_override);const weekly=Math.max(1,Number(member(employeeId)?.weeklyCapacity||45));return Number(c.monthly_cost||0)/(weekly*52/12);}
+function labourCost(e){const c=compFor(e.employee_id,e.work_date);if(!c)return 0;return hourlyRateForComp(e.employee_id,c)*(Number(e.minutes||0)/60);}
 function member(id){return (appState.members||[]).find(m=>m.id===id);}
 function memberName(id){return member(id)?.name||id;}
 function inPeriod(date,fy,month){if(!date)return false;const d=new Date(String(date).slice(0,10)+'T00:00:00'),y=d.getMonth()>=3?d.getFullYear():d.getFullYear()-1;const key=y+'-'+String(y+1).slice(-2);return key===fy&&(month==='ALL'||String(date).slice(0,7)===month);}
@@ -459,12 +462,18 @@ function openComp(employeeId='',push=true){
   const current=currentComp(selectedEmployee);
   const effective=current?.effective_from||localDate().slice(0,8)+'01';
   const amount=current?.monthly_cost??'';
-  root.innerHTML=`<div class="stack-lg">${managementTabs()}<section class="panel"><div class="panel-header"><div><div class="section-eyebrow">Management only</div><h2 class="panel-title">Edit salary / cost</h2><p class="panel-subtitle">Set the first salary, edit the current amount, or enter a later effective date for a future increment. Older periods remain preserved automatically.</p></div></div><div class="panel-body"><div class="form-grid"><div class="field"><label>Employee</label><select id="compEmployee" data-control="comp-employee">${members.map(m=>`<option value="${m.id}" ${m.id===selectedEmployee?'selected':''}>${esc(m.name)} · ${esc(m.group)}</option>`).join('')}</select></div><div class="field"><label>Effective from</label><input id="compFrom" type="date" value="${effective}"></div><div class="field"><label>Monthly salary / company cost (₹)</label><input id="compCost" type="number" min="0" step="1" value="${amount}"></div><div class="field span-2"><label>Notes</label><input id="compNotes" maxlength="220" placeholder="Increment, promotion, revised company cost, etc."></div></div><div class="worklog-edit-actions"><button class="button button-secondary" data-action="close-panel" type="button">Back</button><button class="button button-primary" data-action="save-comp" type="button">Save salary</button></div></div></section></div>`;
+  const override=current?.hourly_cost_override??'';
+  const selectedMember=members.find(m=>m.id===selectedEmployee);
+  const calculatedHourly=current?Number(current.monthly_cost||0)/(Math.max(1,Number(selectedMember?.weeklyCapacity||45))*52/12):0;
+  root.innerHTML=`<div class="stack-lg">${managementTabs()}<section class="panel"><div class="panel-header"><div><div class="section-eyebrow">Management only</div><h2 class="panel-title">Edit salary / cost</h2><p class="panel-subtitle">Set monthly cost and optionally override the hourly cost. If the override is blank, hourly cost is calculated automatically from monthly cost and weekly capacity.</p></div></div><div class="panel-body"><div class="form-grid"><div class="field"><label>Employee</label><select id="compEmployee" data-control="comp-employee">${members.map(m=>`<option value="${m.id}" ${m.id===selectedEmployee?'selected':''}>${esc(m.name)} · ${esc(m.group)}</option>`).join('')}</select></div><div class="field"><label>Effective from</label><input id="compFrom" type="date" value="${effective}"></div><div class="field"><label>Monthly salary / company cost (₹)</label><input id="compCost" type="number" min="0" step="1" value="${amount}"></div><div class="field"><label>Custom hourly cost (₹/hr) · Optional</label><input id="compHourlyOverride" type="number" min="0" step="0.01" value="${override}" placeholder="${current?calculatedHourly.toFixed(2):'Auto'}"><div class="field-help">${current?'Auto-calculated: '+formatMoney(calculatedHourly)+'/hr':'Leave blank to calculate automatically.'}</div></div><div class="field span-2"><label>Notes</label><input id="compNotes" maxlength="220" placeholder="Increment, promotion, revised company cost, etc."></div></div><div class="worklog-edit-actions"><button class="button button-secondary" data-action="close-panel" type="button">Back</button><button class="button button-primary" data-action="save-comp" type="button">Save salary</button></div></div></section></div>`;
 }
 
 async function saveComp(){
   const id=document.getElementById('compEmployee').value,from=document.getElementById('compFrom').value,cost=Number(document.getElementById('compCost').value||0);
+  const overrideRaw=document.getElementById('compHourlyOverride')?.value.trim()||'';
+  const hourlyOverride=overrideRaw===''?null:Number(overrideRaw);
   if(!id||!from||cost<0)return toast('Enter employee, effective date and a valid monthly salary / cost.','warning');
+  if(hourlyOverride!==null&&(!Number.isFinite(hourlyOverride)||hourlyOverride<0))return toast('Enter a valid custom hourly cost or leave it blank.','warning');
   const previous=compensation.filter(c=>c.employee_id===id&&c.effective_from<from&&(!c.effective_to||c.effective_to>=from)).sort((a,b)=>String(b.effective_from).localeCompare(String(a.effective_from)))[0];
   if(previous){
     const closeDate=dayBefore(from);
@@ -472,7 +481,7 @@ async function saveComp(){
     if(upd.error)return toast('Could not close the previous salary period.','error');
   }
   const existingSame=compensation.find(c=>c.employee_id===id&&c.effective_from===from);
-  const payload={employee_id:id,effective_from:from,effective_to:null,monthly_cost:cost,notes:document.getElementById('compNotes').value.trim(),updated_at:new Date().toISOString()};
+  const payload={employee_id:id,effective_from:from,effective_to:null,monthly_cost:cost,hourly_cost_override:hourlyOverride,notes:document.getElementById('compNotes').value.trim(),updated_at:new Date().toISOString()};
   const r=existingSame
     ? await sb.from('compensation_history').update(payload).eq('id',existingSame.id)
     : await sb.from('compensation_history').insert(payload);
