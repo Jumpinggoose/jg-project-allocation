@@ -3078,3 +3078,129 @@ summary:focus-visible {
     max-width: 165px;
   }
 }
+
+
+/* Topbar readability correction */
+@media (min-width: 1181px) {
+  .topbar {
+    display: grid;
+    grid-template-columns: auto minmax(360px, 1fr) auto;
+    align-items: center;
+    column-gap: 16px;
+  }
+
+  .history-nav {
+    align-self: center;
+    padding-top: 0;
+  }
+
+  .page-heading {
+    min-width: 0;
+    max-width: 650px;
+    flex: none;
+  }
+
+  .page-heading h1 {
+    white-space: nowrap;
+  }
+
+  .topbar-actions {
+    display: grid;
+    grid-template-columns: 166px 176px minmax(230px, 280px) auto auto;
+    align-items: end;
+    gap: 8px;
+    min-width: 0;
+    flex: none;
+  }
+
+  .fy-switcher {
+    width: 166px;
+    min-width: 166px;
+    max-width: 166px;
+    flex: none;
+  }
+
+  .fy-switcher select {
+    width: 166px;
+    min-width: 166px;
+    overflow: visible;
+    text-overflow: clip;
+    white-space: nowrap;
+    padding-left: 11px;
+    padding-right: 30px;
+  }
+
+  .session-controls {
+    width: 176px;
+    max-width: 176px;
+    min-width: 0;
+    flex: none;
+    gap: 6px;
+  }
+
+  .session-user {
+    min-width: 0;
+    max-width: 104px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .session-controls .button {
+    flex: 0 0 auto;
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+
+  .topbar-actions .search-box {
+    width: 100%;
+    min-width: 230px;
+    max-width: 280px;
+  }
+
+  .topbar-actions > .button {
+    padding-left: 13px;
+    padding-right: 13px;
+  }
+}
+
+@media (min-width: 1181px) and (max-width: 1500px) {
+  .topbar {
+    grid-template-columns: auto minmax(300px, .9fr) auto;
+    column-gap: 12px;
+  }
+
+  .page-heading {
+    max-width: 520px;
+  }
+
+  .page-heading h1 {
+    font-size: clamp(25px, 2.5vw, 34px);
+  }
+
+  .topbar-actions {
+    grid-template-columns: 154px 158px minmax(190px, 230px) auto auto;
+    gap: 6px;
+  }
+
+  .fy-switcher,
+  .fy-switcher select {
+    width: 154px;
+    min-width: 154px;
+    max-width: 154px;
+  }
+
+  .session-controls {
+    width: 158px;
+    max-width: 158px;
+  }
+
+  .session-user {
+    max-width: 88px;
+  }
+
+  .topbar-actions .search-box {
+    min-width: 190px;
+    max-width: 230px;
+  }
+}
