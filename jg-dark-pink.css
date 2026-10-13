@@ -447,5 +447,5 @@ select option{background:#282A2E}
  border-color:#F04291!important;outline-color:#F04291;
 }
 
-/* Retainer chart key: visible muted slate against charcoal; scoped to chart and legend. */
-.donut-wrap{--forest:#96A4B4}
+/* Approved JG monochromatic project-distribution palette. */
+.donut-wrap{--forest:#FF0072;--purple:#CD005C;--teal:#9A426D;--orange:#F47EAD}
