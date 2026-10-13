@@ -50,7 +50,7 @@ form.addEventListener('submit', async (event) => {
     email,
     password,
     options: {
-      emailRedirectTo: window.location.origin + '/'
+      emailRedirectTo: window.location.origin + '/?view=dashboard'
     }
   });
 
@@ -66,7 +66,7 @@ form.addEventListener('submit', async (event) => {
     return;
   }
 
-  showMessage('Check your JUMPINGGOOSE inbox to verify the account, then sign in.');
+  showMessage('Check your JUMPINGGOOSE inbox and verify the account. The verification link will take you directly to the dashboard.');
   submitButton.disabled = false;
   submitButton.textContent = 'Create password';
 });
