@@ -200,3 +200,70 @@ select option{background:#282430;color:#F8F5FB}
  .panel-header,.panel-body,.team-card,.project-card,.settings-card,
  .setup-group,.kpi-card,.capacity-person-card,.worklog-summary{padding:17px}
 }
+
+/* V3: monochrome surfaces; pink is reserved for interaction and focus. */
+:root{
+ --paper:#111214;--surface:#1D1F22;--surface-soft:#242629;
+ --forest:#17181B;--forest-2:#151619;
+ --line:#33363A;--line-strong:#45494E;
+ --sand:#2B2D30;--sand-light:#242629;
+ --teal-soft:#292C30;--purple-soft:#35252E;
+ --shadow-sm:0 6px 22px rgba(0,0,0,.14);
+}
+html,body{background:#111214;color:#F5F5F6}
+body{background:#111214}
+.sidebar{background:linear-gradient(180deg,#1C1D20,#151619);border-right-color:#333539}
+.main-area{background:#111214}
+.topbar{background:rgba(24,25,28,.96);border-bottom-color:#35373B}
+.brand-mark{background:#303237;color:#FAFAFA;box-shadow:none}
+.sidebar-note,.sync-card{background:#222428;border-color:#35373C}
+.nav-item{color:#B7B9BF}
+.nav-item:hover{background:#282A2E;color:#FFF}
+.nav-item.is-active{background:#33232C;box-shadow:inset 3px 0 #ED438F,inset 0 0 0 1px #4A303D;color:#FFF}
+.nav-item.is-active .nav-icon{color:#F37BB0}
+.eyebrow,.modal-eyebrow,.section-eyebrow{color:#A8AAB0}
+.search-box,.fy-switcher select,.select-compact,.segmented,
+.field input,.field select,.field textarea,.setting-row input,
+.allocation-hours,.allocation-percent,.setting-input-wrap input{
+ background:#282A2E;border-color:#45484D;color:#F5F5F6;
+}
+select option{background:#282A2E}
+.button-secondary,.button-quiet,.icon-button,.history-button,.data-action,.setup-password-button{
+ background:#292B2F;border-color:#46494E;color:#ECEDEF
+}
+.button-secondary:hover,.button-quiet:hover,.icon-button:hover,.data-action:hover{
+ background:#35373B;border-color:#585C62
+}
+.kpi-card,.panel,.team-card,.capacity-person-card,.project-section,.project-card,
+.settings-card,.setup-group,.worklog-summary,.modal-shell,.data-action,
+.deadline-item,.profile-capacity-hero,.metric-status-summary{
+ background:#1D1F22;border-color:#36393E;box-shadow:0 8px 24px rgba(0,0,0,.10)
+}
+.kpi-card.is-accent,.kpi-card.is-dark{background:#26282C;border-color:#3D4045;color:#FFF}
+.kpi-card.is-accent .kpi-label,.kpi-card.is-accent .kpi-meta{color:#B4B7BE}
+.kpi-card::after,.kpi-card.is-accent::after{opacity:0}
+.panel-header,.project-section > summary,.project-card-head,.team-card-head,
+.setup-group-header,.modal-header,.modal-footer{background:#242629;border-color:#36393E}
+.project-section[open] > summary{background:#292B2E}
+.project-section > summary:hover{background:#2B2D31}
+.project-card:hover,.team-card:hover,.capacity-person-card:hover{border-color:#585C62}
+.data-table th{background:#292B2F;color:#B9BCC1;border-color:#3D4045}
+.data-table td{border-color:#36393D}
+.data-table tbody tr:hover,.logs-overview-row:hover{background:#282A2E}
+.chip,.status-pill,.group-pill,.type-pill,.priority-pill,.capacity-pill,.pill-count,.logs-chip{
+ background:#2C2E32;border-color:#44474B;color:#D7D9DC
+}
+.group-pill.pond-1,.group-pill.pond-2,.group-pill.pool,
+.type-pill.retainer,.type-pill.one-time,.type-pill.pitch,.type-pill.internal{
+ background:#303237;color:#DDE0E4
+}
+.progress-track,.load-meter{background:#393B40}
+.progress-fill,.load-meter > span{background:#747B83}
+.segmented button.is-active,.allocation-presets button.is-active{background:#3B2833;color:#FFF;border-color:#B35B84}
+.avatar,.avatar.pond-2,.avatar.pool{background:#383A40;color:#E8EAEE}
+.notice,.compact-notice{background:#292B2E;border-color:#43464A;color:#DDE0E4}
+.empty-icon{background:#303237;color:#C5C7CC}
+.role-hour-grid > div,.profile-capacity-hero > div,.team-stat,.delivery-card,.profit-stat-grid > div{
+ background:#25272A;border-color:#36393E
+}
+.login-art{background:#191A1D}
