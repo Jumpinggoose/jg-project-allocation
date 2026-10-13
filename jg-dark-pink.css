@@ -449,3 +449,21 @@ select option{background:#282A2E}
 
 /* Approved JG monochromatic project-distribution palette. */
 .donut-wrap{--forest:#FF0072;--purple:#CD005C;--teal:#9A426D;--orange:#F47EAD}
+
+/* Approved JUMPINGGOOSE wordmark replaces the text lockup across app sidebars. */
+.sidebar .brand-lockup{
+ display:flex;flex-direction:column;align-items:stretch;justify-content:flex-start;
+ gap:6px;padding:4px 6px 22px;
+}
+.sidebar .brand-lockup::before{
+ content:"";display:block;width:100%;height:31px;
+ background-image:url("jg-logo.svg");background-repeat:no-repeat;
+ background-position:left center;background-size:contain;
+ filter:invert(1);
+}
+.sidebar .brand-lockup .brand-mark,
+.sidebar .brand-lockup .brand-name{display:none!important}
+.sidebar .brand-lockup>div:not(.brand-mark){width:100%;min-width:0}
+.sidebar .brand-lockup .brand-subtitle{
+ margin:0;color:#AEB0B6;font-size:10px;letter-spacing:.11em;
+}
