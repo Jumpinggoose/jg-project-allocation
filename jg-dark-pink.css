@@ -1,0 +1,269 @@
+/* JG dark / pink visual exploration — isolated presentation layer.
+   No markup, routes, permissions, storage, or application logic changed. */
+:root {
+  color-scheme: dark;
+  --ink:#F6F4F8; --muted:#A7A0AF; --paper:#131218;
+  --surface:#211E27; --surface-soft:#27232E;
+  --forest:#1B1820; --forest-2:#19161E;
+  --purple:#FF0072; --purple-soft:#3B1932;
+  --teal:#C2AEC5; --teal-soft:#27202E;
+  --sand:#292430; --sand-light:#211D28;
+  --yellow:#FF3998; --yellow-soft:#3A2036;
+  --red:#FF728D; --red-soft:#39212F;
+  --green:#5FDBAC; --green-soft:#17392F;
+  --orange:#FFBA88; --orange-soft:#3A2925;
+  --line:#37323F; --line-strong:#514857;
+  --accent:#FF0072; --accent-dark:#DF0068; --accent-soft:#3B1932;
+  --shadow-sm:0 6px 24px rgba(0,0,0,.16);
+  --shadow-md:0 22px 65px rgba(0,0,0,.40);
+  --radius-sm:12px; --radius:18px; --radius-lg:24px;
+}
+html {background:var(--paper);color:var(--ink)}
+body {
+  color:var(--ink);
+  background:
+    radial-gradient(ellipse 46rem 34rem at 85% -14%,rgba(191,73,129,.055),transparent 72%),
+    radial-gradient(ellipse 38rem 38rem at 47% 58%,rgba(108,75,125,.035),transparent 78%),
+    #131218;
+}
+::selection{background:rgba(255,0,114,.42);color:#FFF}
+.sidebar {
+  background:linear-gradient(170deg,#222029 0%,#1B1921 55%,#1C1923 100%);
+  border-right:1px solid #39333E;
+  box-shadow:12px 0 35px rgba(0,0,0,.13);
+}
+.brand-lockup {border-bottom-color:rgba(255,255,255,.09)}
+.brand-mark {
+  background:linear-gradient(135deg,#E62B82 4%,#C83C94 58%,#A84899 100%);
+  color:white; box-shadow:0 6px 20px rgba(210,49,122,.12);
+}
+.nav-item{color:#AAA3B2}
+.nav-item:hover{background:rgba(255,255,255,.055);color:#FFF}
+.nav-item.is-active {
+  background:linear-gradient(95deg,rgba(231,66,137,.13),rgba(193,77,152,.04));
+  color:#FFF;box-shadow:inset 3px 0 0 #E95A9C,inset 0 0 0 1px rgba(255,104,171,.12);
+}
+.nav-item.is-active .nav-icon{color:#F18AB7}
+.sidebar-note,.sync-card{
+  background:rgba(255,255,255,.035);
+  border:1px solid rgba(255,255,255,.09);
+}
+.sidebar-note-title{color:#F9F5FC}
+.weight-line,.sync-card small{color:#A9A0B2}
+.main-area{background:transparent}
+.topbar{
+  background:rgba(30,27,36,.9);
+  border-bottom:1px solid var(--line);
+  backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px);
+}
+.page-heading h1{color:#F9F6FC;letter-spacing:-.035em}
+.page-heading p,.panel-subtitle,.section-header p{color:var(--muted)}
+.eyebrow,.modal-eyebrow,.section-eyebrow{color:#EF86B4}
+.search-box,.fy-switcher select,.select-compact,.segmented,
+.field input,.field select,.field textarea,.setting-row input,
+.allocation-hours,.allocation-percent,.setting-input-wrap input{
+  background:#282430;color:#F8F5FB;border-color:#49414F;
+}
+input,select,textarea{color:var(--ink)}
+input::placeholder,textarea::placeholder,.search-box input::placeholder{color:#817A8B}
+select option{background:#282430;color:#F8F5FB}
+.search-box input{background:transparent;color:var(--ink)}
+.search-box:focus-within,.field input:focus,.field select:focus,.field textarea:focus{
+  border-color:#D969A1;box-shadow:0 0 0 3px rgba(255,0,114,.11);
+}
+.button-primary,.sign-in-button{
+  background:linear-gradient(105deg,#DA367F 0%,#CE408C 67%,#B74794 100%);
+  color:#FFF;border-color:rgba(255,134,196,.35);
+  box-shadow:0 5px 18px rgba(203,59,128,.10);
+}
+.button-primary:hover{background:linear-gradient(105deg,#E45196,#C94D98);box-shadow:0 8px 24px rgba(210,65,136,.15)}
+.button-secondary,.button-quiet,.icon-button,.history-button,.data-action,.setup-password-button{
+  background:#2D2834;color:#EAE4F0;border-color:#49404E;
+}
+.button-secondary:hover,.button-quiet:hover,.icon-button:hover,.data-action:hover{
+  background:#37303F;border-color:#72506C;color:#FFF;
+}
+.button-danger-soft{background:#38202D;color:#FF9AAF}
+.link-button{color:#EF86B4}
+.kpi-card,.panel,.team-card,.capacity-person-card,.project-section,
+.project-card,.settings-card,.setup-group,.worklog-summary,
+.recommendation-box,.modal-shell,.data-action,.deadline-item,.profile-capacity-hero,
+.metric-status-summary{
+  background:linear-gradient(155deg,#25212C 0%,#201D27 100%);
+  color:var(--ink);border:1px solid #393440;
+  box-shadow:0 8px 24px rgba(0,0,0,.09);
+}
+.kpi-card{position:relative;overflow:hidden}
+.kpi-card::after{opacity:.7}
+.kpi-card.is-accent{
+  background:linear-gradient(133deg,#5F2D4C 0%,#723255 51%,#4D335B 100%);
+  border-color:#77516D;color:#FFF;
+}
+.kpi-card.is-dark{background:linear-gradient(140deg,#332A39,#25222E);color:#FFF}
+.kpi-card.is-accent .kpi-label,.kpi-card.is-accent .kpi-meta,
+.kpi-card.is-dark .kpi-label,.kpi-card.is-dark .kpi-meta{color:#E5CFDF}
+.kpi-value,.cell-title,.mini-value,.person-name,.metric-value{color:#FCF9FF}
+.panel-header,.project-section > summary,.project-card-head,.team-card-head,
+.setup-group-header,.modal-header,.modal-footer{
+  background:rgba(255,255,255,.017);border-color:var(--line);
+}
+.project-section[open] > summary{background:rgba(225,114,168,.045)}
+.project-section > summary:hover{background:rgba(255,255,255,.035)}
+.project-card-list,.project-section-content,.panel-body{background:transparent}
+.project-card:hover,.team-card:hover,.capacity-person-card:hover{
+  border-color:#665067;box-shadow:0 14px 40px rgba(0,0,0,.2);
+}
+.data-table{color:var(--ink)}
+.data-table th{background:#302A36;color:#BBB2C5;border-color:#413847}
+.data-table td{border-color:#322C3B;color:#E4DEEA}
+.data-table tbody tr:hover,.logs-overview-row:hover{background:rgba(220,118,163,.045)}
+.cell-subtitle,.mini-label,.person-meta,.kpi-meta,.metric-name,
+.project-summary-meta,.field-help,.entry-card small{color:#A9A0B2}
+.table-wrap{border-color:var(--line)}
+.chip,.status-pill,.group-pill,.type-pill,.priority-pill,.capacity-pill,.pill-count,
+.logs-chip{border-color:#524052;background:#322938;color:#EBD6EA}
+.status-pill.completed,.status-pill.balanced{background:#17392F;color:#77E7BC}
+.status-pill.on-hold,.status-pill.paused{background:#3A2925;color:#FFD0A8}
+.status-pill.ending-urgent,.priority-pill.urgent,.status-pill.overloaded{background:#42212F;color:#FFA4BA}
+.status-pill.active,.status-pill.in-progress{background:#2F1C40;color:#F09BE0}
+.group-pill.pond-1,.group-pill.pond-2,.group-pill.pool,
+.type-pill.retainer,.type-pill.one-time,.type-pill.pitch,.type-pill.internal{
+  background:#2D223A;color:#DCC6FA;
+}
+.progress-track,.load-meter{background:#322B3B}
+.progress-fill,.load-meter > span,.toggle input:checked + .toggle-track{
+  background:linear-gradient(90deg,#D6458A,#A957A6);
+}
+.segmented button{color:#BBB1C1}
+.segmented button.is-active,.allocation-presets button.is-active{
+  background:linear-gradient(110deg,#713D60,#583C5B);color:#FFF;
+}
+.avatar{background:#42223D;color:#FFD8EF}
+.avatar.pond-2{background:#322542;color:#E8D8FF}
+.avatar.pool{background:#233B3C;color:#C7F2E7}
+.modal::backdrop{background:rgba(3,2,7,.78)}
+.modal-shell{box-shadow:0 32px 90px rgba(0,0,0,.58)}
+.notice,.compact-notice{background:#292333;color:#DACFE1;border:1px solid #50405A}
+.notice-warning{background:#3A2D22;border-color:#896438;color:#FFE1AC}
+.toast{background:#26202F;color:#F6F0F9;border-color:#584463}
+.empty-state{color:var(--muted)}
+.empty-icon{background:#312338;color:#FF79B9}
+.member-row,.setting-row,.metric-row,.entry-card,.logs-list-row,.logs-table th,.logs-table td,
+.deadline-item,.fy-year-row,.fy-carry-item{border-color:var(--line)}
+.fy-carry-item:hover{background:#292332}
+.role-hour-grid > div,.profile-capacity-hero > div,.team-stat,.delivery-card,
+.profit-stat-grid > div{background:rgba(255,255,255,.025);border-color:var(--line)}
+.logs-table th{color:var(--muted)}
+.worklog-summary p,.entry-card p{color:var(--muted)}
+/* Deliberately subtle interaction treatment; users with reduced-motion preference are respected. */
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.01ms!important;transition-duration:.01ms!important}
+}
+@media(max-width:760px){
+ .topbar{background:#15111D}
+ .sidebar{background:linear-gradient(150deg,#18111E,#0D0B12)}
+}
+
+/* V2: quieter, more tactile spacing and consistent soft corners. */
+.sidebar{gap:25px;padding:30px 22px 24px}
+.brand-lockup{padding-bottom:22px}
+.nav-list{gap:8px}
+.nav-item{border-radius:13px;padding:13px 14px}
+.sidebar-note,.sync-card{border-radius:16px;padding:17px}
+.topbar{padding-top:24px;padding-bottom:24px}
+.view-container{padding-top:28px;padding-bottom:36px}
+.panel,.team-card,.capacity-person-card,.project-section,.project-card,
+.settings-card,.setup-group,.kpi-card,.data-action,.deadline-item,
+.worklog-summary,.metric-status-summary{border-radius:20px}
+.modal-shell{border-radius:24px}
+.panel-header,.panel-body,.team-card,.project-card,.settings-card,
+.setup-group,.kpi-card,.capacity-person-card,.worklog-summary{padding:22px}
+.kpi-card{padding:24px}
+.button,.icon-button,.button-quiet,.button-primary,.button-secondary,
+.select-compact,.search-box,.segmented,.fy-switcher select,
+.field input,.field select,.field textarea,.setting-row input,
+.allocation-hours,.allocation-percent,.setting-input-wrap input{
+  border-radius:12px
+}
+.button{min-height:42px}
+.chip,.status-pill,.group-pill,.type-pill,.priority-pill,.capacity-pill,.pill-count{border-radius:9px}
+.project-section > summary{border-radius:19px;padding:20px 22px}
+.project-section[open] > summary{border-radius:19px 19px 0 0}
+.data-table th,.data-table td{padding-top:14px;padding-bottom:14px}
+.data-table tbody tr{transition:background .18s ease}
+.avatar,.brand-mark{border-radius:13px}
+.login-art{background:linear-gradient(145deg,#25202D,#1C1923)}
+@media(max-width:760px){
+ .sidebar{padding:20px 16px;gap:17px}
+ .topbar{padding-top:18px;padding-bottom:18px}
+ .view-container{padding-top:18px}
+ .panel-header,.panel-body,.team-card,.project-card,.settings-card,
+ .setup-group,.kpi-card,.capacity-person-card,.worklog-summary{padding:17px}
+}
+
+/* V3: monochrome surfaces; pink is reserved for interaction and focus. */
+:root{
+ --paper:#111214;--surface:#1D1F22;--surface-soft:#242629;
+ --forest:#17181B;--forest-2:#151619;
+ --line:#33363A;--line-strong:#45494E;
+ --sand:#2B2D30;--sand-light:#242629;
+ --teal-soft:#292C30;--purple-soft:#35252E;
+ --shadow-sm:0 6px 22px rgba(0,0,0,.14);
+}
+html,body{background:#111214;color:#F5F5F6}
+body{background:#111214}
+.sidebar{background:linear-gradient(180deg,#1C1D20,#151619);border-right-color:#333539}
+.main-area{background:#111214}
+.topbar{background:rgba(24,25,28,.96);border-bottom-color:#35373B}
+.brand-mark{background:#303237;color:#FAFAFA;box-shadow:none}
+.sidebar-note,.sync-card{background:#222428;border-color:#35373C}
+.nav-item{color:#B7B9BF}
+.nav-item:hover{background:#282A2E;color:#FFF}
+.nav-item.is-active{background:#33232C;box-shadow:inset 3px 0 #ED438F,inset 0 0 0 1px #4A303D;color:#FFF}
+.nav-item.is-active .nav-icon{color:#F37BB0}
+.eyebrow,.modal-eyebrow,.section-eyebrow{color:#A8AAB0}
+.search-box,.fy-switcher select,.select-compact,.segmented,
+.field input,.field select,.field textarea,.setting-row input,
+.allocation-hours,.allocation-percent,.setting-input-wrap input{
+ background:#282A2E;border-color:#45484D;color:#F5F5F6;
+}
+select option{background:#282A2E}
+.button-secondary,.button-quiet,.icon-button,.history-button,.data-action,.setup-password-button{
+ background:#292B2F;border-color:#46494E;color:#ECEDEF
+}
+.button-secondary:hover,.button-quiet:hover,.icon-button:hover,.data-action:hover{
+ background:#35373B;border-color:#585C62
+}
+.kpi-card,.panel,.team-card,.capacity-person-card,.project-section,.project-card,
+.settings-card,.setup-group,.worklog-summary,.modal-shell,.data-action,
+.deadline-item,.profile-capacity-hero,.metric-status-summary{
+ background:#1D1F22;border-color:#36393E;box-shadow:0 8px 24px rgba(0,0,0,.10)
+}
+.kpi-card.is-accent,.kpi-card.is-dark{background:#26282C;border-color:#3D4045;color:#FFF}
+.kpi-card.is-accent .kpi-label,.kpi-card.is-accent .kpi-meta{color:#B4B7BE}
+.kpi-card::after,.kpi-card.is-accent::after{opacity:0}
+.panel-header,.project-section > summary,.project-card-head,.team-card-head,
+.setup-group-header,.modal-header,.modal-footer{background:#242629;border-color:#36393E}
+.project-section[open] > summary{background:#292B2E}
+.project-section > summary:hover{background:#2B2D31}
+.project-card:hover,.team-card:hover,.capacity-person-card:hover{border-color:#585C62}
+.data-table th{background:#292B2F;color:#B9BCC1;border-color:#3D4045}
+.data-table td{border-color:#36393D}
+.data-table tbody tr:hover,.logs-overview-row:hover{background:#282A2E}
+.chip,.status-pill,.group-pill,.type-pill,.priority-pill,.capacity-pill,.pill-count,.logs-chip{
+ background:#2C2E32;border-color:#44474B;color:#D7D9DC
+}
+.group-pill.pond-1,.group-pill.pond-2,.group-pill.pool,
+.type-pill.retainer,.type-pill.one-time,.type-pill.pitch,.type-pill.internal{
+ background:#303237;color:#DDE0E4
+}
+.progress-track,.load-meter{background:#393B40}
+.progress-fill,.load-meter > span{background:#747B83}
+.segmented button.is-active,.allocation-presets button.is-active{background:#3B2833;color:#FFF;border-color:#B35B84}
+.avatar,.avatar.pond-2,.avatar.pool{background:#383A40;color:#E8EAEE}
+.notice,.compact-notice{background:#292B2E;border-color:#43464A;color:#DDE0E4}
+.empty-icon{background:#303237;color:#C5C7CC}
+.role-hour-grid > div,.profile-capacity-hero > div,.team-stat,.delivery-card,.profit-stat-grid > div{
+ background:#25272A;border-color:#36393E
+}
+.login-art{background:#191A1D}
