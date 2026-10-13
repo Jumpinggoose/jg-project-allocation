@@ -23,13 +23,16 @@
       <div class="login-copy">
         <div class="eyebrow">CORE TEAM ACCESS</div>
         <h1 id="loginTitle">Sign in to the live workspace.</h1>
-        <p>Use your @jumpinggoose.com email address and password.</p>
+        <p>Use your JumpingGoose Google account or sign in with your @jumpinggoose.com email and password.</p>
       </div>
 
       <div class="login-actions">
-        <button class="setup-password-button" id="setupPasswordButton" type="button">Set up password first</button>
+        <button class="google-sign-in-button" id="googleSignInButton" type="button">
+          <span class="google-mark" aria-hidden="true">G</span>
+          <span>Continue with Google</span>
+        </button>
 
-        <div class="login-divider"><span>or</span></div>
+        <div class="login-divider"><span>or use password</span></div>
 
         <form id="loginForm" class="login-form" novalidate>
           <label class="field">
@@ -43,6 +46,8 @@
           <p class="form-message" id="formMessage" role="alert" hidden></p>
           <button class="sign-in-button" id="signInButton" type="submit">Sign in</button>
         </form>
+
+        <button class="setup-password-button" id="setupPasswordButton" type="button">Set up password first</button>
       </div>
 
       <p class="login-footnote">Access is restricted to @jumpinggoose.com accounts. Contact the administrator if your account is not active.</p>
