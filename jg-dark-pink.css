@@ -446,3 +446,6 @@ select option{background:#282A2E}
 .modal .field input:focus,.modal .field select:focus,.modal .field textarea:focus{
  border-color:#F04291!important;outline-color:#F04291;
 }
+
+/* Retainer chart key: visible muted slate against charcoal; scoped to chart and legend. */
+.donut-wrap{--forest:#96A4B4}
