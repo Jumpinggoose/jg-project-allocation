@@ -48,48 +48,18 @@ h1 { margin: 16px 0 14px; max-width: 520px; font-size: clamp(42px, 5vw, 76px); l
 .login-copy p { margin: 0; max-width: 440px; color: var(--muted); font-size: 16px; line-height: 1.55; }
 
 .login-actions { width: min(100%, 520px); }
-.google-sign-in-button,
 .setup-password-button {
   width: 100%;
-  min-height: 54px;
-  border: 1px solid var(--ink);
+  min-height: 44px;
+  margin-top: 14px;
+  border: 1px solid var(--line);
   background: transparent;
-  color: var(--ink);
+  color: var(--muted);
+  font-size: 12px;
   font-weight: 850;
   cursor: pointer;
 }
-.google-sign-in-button {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  background: #fff;
-}
-.google-sign-in-button:hover,
-.setup-password-button:hover {
-  background: rgba(15,15,15,.04);
-}
-.google-sign-in-button:disabled {
-  cursor: wait;
-  opacity: .65;
-}
-.google-mark {
-  width: 24px;
-  height: 24px;
-  display: inline-grid;
-  place-items: center;
-  border: 1px solid var(--line);
-  background: #fff;
-  font-size: 14px;
-  font-weight: 900;
-}
-.setup-password-button {
-  margin-top: 14px;
-  min-height: 44px;
-  border-color: var(--line);
-  color: var(--muted);
-  font-size: 12px;
-}
+.setup-password-button:hover { background: rgba(15,15,15,.04); }
 .login-form { width: 100%; display: grid; gap: 20px; }
 .login-divider {
   display: flex;
