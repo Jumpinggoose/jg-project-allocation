@@ -355,3 +355,94 @@ select option{background:#282A2E}
  .toolbar-group{flex-wrap:wrap!important}
  .project-summary-actions{flex-wrap:wrap!important}
 }
+
+/* V5 — dashboard data visibility, status layout and form contrast. */
+.progress-track{display:block;min-width:0;width:100%;overflow:hidden;background:#3A3D42!important;height:9px}
+.progress-track .progress-fill{
+ display:block!important;height:100%!important;min-width:0;
+ background:#9399A2!important;opacity:1!important;
+ transition:width 300ms ease;
+}
+.progress-track .progress-fill:is(.forest,.teal,.yellow,.red){background:#9399A2!important}
+.metric-row{grid-template-columns:minmax(130px,.8fr) minmax(100px,1.4fr) minmax(235px,1fr);gap:18px;min-width:0}
+.metric-row:has(> .metric-value){grid-template-columns:minmax(135px,.85fr) minmax(100px,1.65fr) minmax(55px,.3fr)}
+.metric-row .metric-name{min-width:0;overflow-wrap:anywhere}
+.metric-row .metric-value{white-space:nowrap}
+.metric-status-summary{
+ min-width:0;width:100%;display:grid!important;
+ grid-template-columns:40px minmax(0,1fr)!important;
+ grid-template-rows:repeat(3,minmax(22px,auto));
+ gap:4px 14px!important;align-items:center!important;
+ padding:12px 14px!important;border:1px solid #41444A!important;
+ border-radius:15px!important;white-space:normal!important;
+ background:#222428!important;font-size:11px;line-height:1.35;
+}
+.metric-status-summary .metric-total{
+ grid-column:1;grid-row:1 / span 3!important;
+ display:flex;align-items:center;justify-content:center;min-width:0;
+ font-size:20px;line-height:1.2;
+}
+.metric-status-summary span{
+ grid-column:2;display:grid!important;
+ grid-template-columns:24px minmax(0,1fr);gap:8px!important;
+ align-items:center;justify-content:initial!important;
+ white-space:nowrap;min-width:0;
+}
+.metric-status-summary b{font-variant-numeric:tabular-nums;text-align:right}
+@media(max-width:1250px){
+ .metric-row{grid-template-columns:minmax(95px,.8fr) minmax(75px,1.2fr) minmax(205px,1fr);gap:11px}
+}
+@media(max-width:900px){
+ .metric-row{grid-template-columns:minmax(95px,1fr) minmax(75px,1.4fr)!important;gap:10px}
+ .metric-row .metric-status-summary{grid-column:1 / -1}
+ .metric-row:has(> .metric-value){grid-template-columns:minmax(95px,1fr) minmax(75px,1.4fr) 60px!important}
+}
+@media(max-width:560px){
+ .metric-row:has(> .metric-value){grid-template-columns:minmax(0,1fr) minmax(85px,1fr) 52px!important}
+ .metric-row .metric-name{font-size:11px}
+ .metric-status-summary{grid-template-columns:36px minmax(0,1fr)!important}
+}
+/* No default-browser white controls in dark modal/forms. */
+.modal,.modal-shell,.modal-body,.modal-header,.modal-footer{color:#F4F4F6}
+.modal .field label,.modal .field-label,.modal .mini-label,
+.modal .allocation-field .field-help,.modal .field-help,
+.modal .recommendation-box h4,.modal .recommendation-chip,
+.modal .allocation-hours span,.modal .setting-input-wrap small{
+ color:#BFC2C9!important;
+}
+.modal :is(input,select,textarea),
+.field :is(input,select,textarea),.setting-row input,
+.allocation-hours input,.allocation-percent input,.setting-input-wrap input{
+ background:#282A2E!important;color:#F7F7F8!important;
+ border-color:#52565D;
+}
+.modal :is(input,textarea)::placeholder,.field :is(input,textarea)::placeholder{
+ color:#A1A5AD!important;opacity:1;
+}
+.modal select option,.field select option{background:#282A2E!important;color:#F7F7F8!important}
+.allocation-hours,.allocation-percent,.setting-input-wrap{background:#282A2E!important;border-color:#52565D!important}
+.allocation-hours input.is-custom-value{background:#313038!important;color:#FFF!important}
+.allocation-hours span,.allocation-percent span,.setting-input-wrap small{
+ background:#303237!important;color:#D0D3D9!important;border-color:#52565D!important;
+}
+.allocation-presets button{
+ background:#303237!important;color:#F1F2F5!important;
+ border:1px solid #50545B!important;
+ border-radius:10px!important;
+}
+.allocation-presets button:hover{background:#41444A!important;border-color:#B06A8B!important}
+.allocation-presets button.is-active,
+.allocation-presets button.is-active:hover{
+ background:#63354D!important;border:2px solid #F04291!important;color:#FFF!important;
+}
+.recommendation-box{background:#24252A!important;border-color:#41434A!important}
+.recommendation-chip{
+ background:#303238!important;border:1px solid #51545C!important;
+ color:#EBEDF0!important;border-radius:10px!important;
+}
+.recommendation-list{gap:8px}
+.field-help,.allocation-field .field-help{color:#AFB3BB!important}
+.modal .field label,.modal .field-label{color:#CBCDD2!important}
+.modal .field input:focus,.modal .field select:focus,.modal .field textarea:focus{
+ border-color:#F04291!important;outline-color:#F04291;
+}
