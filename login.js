@@ -6,7 +6,6 @@ const passwordInput = document.getElementById('password');
 const message = document.getElementById('formMessage');
 const button = document.getElementById('signInButton');
 const setupPasswordButton = document.getElementById('setupPasswordButton');
-const googleSignInButton = document.getElementById('googleSignInButton');
 
 const config = window.JG_SUPABASE;
 if (!config?.url || !config?.publishableKey || !window.supabase) {
@@ -25,28 +24,6 @@ setupPasswordButton.addEventListener('click', () => {
   window.location.href = '/setup-password.html';
 });
 
-googleSignInButton.addEventListener('click', async () => {
-  message.hidden = true;
-  googleSignInButton.disabled = true;
-  googleSignInButton.querySelector('span:last-child').textContent = 'Opening Google…';
-
-  const { error } = await supabaseClient.auth.signInWithOAuth({
-    provider: 'google',
-    options: {
-      redirectTo: window.location.origin + '/',
-      queryParams: {
-        hd: 'jumpinggoose.com',
-        prompt: 'select_account'
-      }
-    }
-  });
-
-  if (error) {
-    showMessage(error.message || 'Unable to start Google sign-in. Please try again.');
-    googleSignInButton.disabled = false;
-    googleSignInButton.querySelector('span:last-child').textContent = 'Continue with Google';
-  }
-});
 
 form.addEventListener('submit', async (event) => {
   event.preventDefault();
