@@ -112,8 +112,8 @@
     document.getElementById('logoutButton').addEventListener('click',logout);
     document.getElementById('historyBack').addEventListener('click',()=>history.back());
     document.getElementById('historyForward').addEventListener('click',()=>history.forward());
-    window.addEventListener('popstate',()=>{selectedDate=new URLSearchParams(location.search).get('date')||localDate();render();});
-    const initialUrl=new URL(location.href);initialUrl.searchParams.set('date',selectedDate);history.replaceState({date:selectedDate},'',initialUrl);
+    window.addEventListener('popstate',()=>{selectedDate=new URLSearchParams(location.search).get('date')||localDate();worklogMode=new URLSearchParams(location.search).get('mode')==='monthly'?'monthly':'daily';render();});
+    const initialUrl=new URL(location.href);initialUrl.searchParams.set('date',selectedDate);initialUrl.searchParams.set('mode',worklogMode);history.replaceState({date:selectedDate},'',initialUrl);
     document.getElementById('worklogRoot').addEventListener('click',handleClick);
     document.getElementById('worklogRoot').addEventListener('change',handleChange);
     const sr=await sb.from('app_state').select('data').eq('id',1).single();
@@ -279,7 +279,7 @@
     entries=entries.filter(x=>x.id!==id);render();toast('Entry deleted.');
   }
 
-  function pushWorklogDate(){const u=new URL(location.href);u.searchParams.set('date',selectedDate);history.pushState({date:selectedDate},'',u);}
+  function pushWorklogDate(){const u=new URL(location.href);u.searchParams.set('date',selectedDate);u.searchParams.set('mode',worklogMode);history.pushState({date:selectedDate},'',u);}
   function parseDuration(v){const m=String(v).trim().match(/^(\d{1,2}):([0-5]\d)$/);if(!m)return 0;const t=Number(m[1])*60+Number(m[2]);return t>0&&t<=1440?t:0;}
   function durationInput(m){return Math.floor(m/60)+':'+String(m%60).padStart(2,'0');}
   function duration(m){m=Math.round(Number(m||0));const h=Math.floor(m/60),n=m%60;return h?(n?h+'h '+n+'m':h+'h'):n+'m';}
