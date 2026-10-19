@@ -199,12 +199,13 @@
       </div>`;
   }
   function projectOptions(selected=''){
-    const projects=(appState?.projects||[]).filter(p=>p.financialYear===appState.meta.currentFY&&p.status!=='Completed');
+    const projects=(appState?.projects||[]).filter(p=>p.financialYear===appState.meta.currentFY);
     const keys=['leadSpoc','primary1','primary2','support1','support2','support3','support4','mentor1','mentor2'];
-    const assigned=projects.filter(p=>keys.some(k=>p[k]===access.member_id));
-    const other=projects.filter(p=>!assigned.includes(p));
+    const assigned=projects.filter(p=>p.status!=='Completed'&&keys.some(k=>p[k]===access.member_id));
+    const other=projects.filter(p=>p.status!=='Completed'&&!assigned.includes(p));
+    const completed=projects.filter(p=>p.status==='Completed');
     const opts=list=>list.slice().sort((a,b)=>a.brand.localeCompare(b.brand)).map(p=>'<option value="'+attr(p.id)+'" '+(p.id===selected?'selected':'')+'>'+esc(p.brand)+' · '+esc(p.pond)+'</option>').join('');
-    return (assigned.length?'<optgroup label="Assigned to me">'+opts(assigned)+'</optgroup>':'')+(other.length?'<optgroup label="Other live JG projects">'+opts(other)+'</optgroup>':'');
+    return (assigned.length?'<optgroup label="Assigned to me">'+opts(assigned)+'</optgroup>':'')+(other.length?'<optgroup label="Other active JG projects">'+opts(other)+'</optgroup>':'')+(completed.length?'<optgroup label="Completed projects (backlog entries)">'+opts(completed)+'</optgroup>':'');
   }
 
   function entryRow(e){
