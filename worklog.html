@@ -84,7 +84,7 @@
   const INTERNAL_ACTIVITY_TYPES=['Internal Meeting','Team / Pond Meeting','All Hands','Management / Coordination','Training / Learning','Recruitment / Interviews','Internal Planning / Operations','JG Admin','Other Internal'];
   const cfg=window.JG_SUPABASE;
   const sb=window.supabase.createClient(cfg.url,cfg.publishableKey);
-  let user=null, access=null, appState=null, entries=[], selectedDate=new URLSearchParams(location.search).get('date')||localDate();
+  let user=null, access=null, appState=null, entries=[], selectedDate=new URLSearchParams(location.search).get('date')||localDate(), worklogMode=new URLSearchParams(location.search).get('mode')==='monthly'?'monthly':'daily';
 
   document.addEventListener('DOMContentLoaded',init);
 
@@ -136,12 +136,14 @@
   }
 
   function render(){
+    if(worklogMode==='monthly')return renderMonthly();
     const day=entries.filter(e=>e.work_date===selectedDate).sort((a,b)=>String(a.created_at).localeCompare(String(b.created_at)));
     const month=selectedDate.slice(0,7);
     const dayMin=day.reduce((s,e)=>s+Number(e.minutes||0),0);
     const monthMin=entries.filter(e=>String(e.work_date).slice(0,7)===month).reduce((s,e)=>s+Number(e.minutes||0),0);
     document.getElementById('worklogRoot').innerHTML=`
       <div class="stack-lg">
+        ${worklogTabs()}
         <section class="worklog-summary">
           <div><div class="section-eyebrow">Daily actuals</div><h2 style="margin:5px 0 4px">${esc(longDate(selectedDate))}</h2><p style="margin:0;color:var(--muted);font-size:12px">Record the time the work actually took. More or less on any day is fine.</p></div>
           <div class="worklog-summary-actions"><label class="field"><span class="field-label">Work date</span><input type="date" data-control="worklog-date" value="${selectedDate}"></label><button class="button button-secondary" data-action="today" type="button">Today</button></div>
@@ -172,6 +174,26 @@
       </div>`;
   }
 
+  function worklogTabs(){
+    return '<div class="project-toolbar" style="justify-content:flex-start;gap:12px"><button type="button" data-action="daily-tab" class="button '+(worklogMode==='daily'?'button-primary':'button-secondary')+'">Daily Log</button><button type="button" data-action="monthly-tab" class="button '+(worklogMode==='monthly'?'button-primary':'button-secondary')+'">Monthly Overview</button></div>';
+  }
+  function renderMonthly(){
+    const month=selectedDate.slice(0,7);
+    const list=entries.filter(e=>String(e.work_date).slice(0,7)===month);
+    const minutes=list.reduce((sum,e)=>sum+Number(e.minutes||0),0);
+    const grouped=new Map();
+    for(const e of list){const id=e.project_id||'__internal__';const item=grouped.get(id)||{name:e.project_name||'Company / Internal',mins:0,count:0};item.mins+=Number(e.minutes||0);item.count++;grouped.set(id,item)}
+    const byDate=new Map();
+    for(const e of list){const item=byDate.get(e.work_date)||{mins:0,count:0};item.mins+=Number(e.minutes||0);item.count++;byDate.set(e.work_date,item)}
+    const monthLabel=new Date(month+'-01T12:00:00').toLocaleDateString('en-GB',{month:'long',year:'numeric'});
+    document.getElementById('worklogRoot').innerHTML=`
+      <div class="stack-lg">${worklogTabs()}
+        <section class="worklog-summary"><div><div class="section-eyebrow">Monthly overview</div><h2 style="margin:5px 0 4px">${esc(monthLabel)}</h2><p style="color:var(--muted)">Your logged hours across projects and dates. Choose a date to edit entries in Daily Log.</p></div><div class="worklog-summary-actions"><label class="field"><span class="field-label">Month</span><input type="month" data-control="worklog-month" value="${month}"></label></div></section>
+        <section class="grid-2">${kpi('Logged this month',duration(minutes),list.length+' entries','is-accent')}${kpi('Projects / activities',String(grouped.size),'Distinct work categories','')}</section>
+        <section class="panel"><div class="panel-header"><div><div class="section-eyebrow">Project breakdown</div><h2 class="panel-title">Where your time went</h2></div></div><div class="panel-body">${grouped.size?[...grouped.values()].sort((a,b)=>b.mins-a.mins).map(x=>`<div style="margin:0 0 18px"><div style="display:flex;justify-content:space-between;gap:12px"><strong>${esc(x.name)}</strong><strong>${duration(x.mins)}</strong></div><div class="progress-track" style="margin-top:8px"><span class="progress-fill" style="display:block;width:${minutes?x.mins/minutes*100:0}%;height:100%"></span></div><small style="color:var(--muted)">${x.count} entries</small></div>`).join(''):'<p class="cell-subtitle">No time recorded this month.</p>'}</div></section>
+        <section class="panel"><div class="panel-header"><div><div class="section-eyebrow">Day-wise</div><h2 class="panel-title">Daily totals</h2></div></div><div class="panel-body flush"><div class="entry-list">${[...byDate.entries()].sort((a,b)=>b[0].localeCompare(a[0])).map(([d,x])=>`<div class="entry-card"><div><strong>${esc(longDate(d))}</strong><small>${x.count} entries</small></div><strong>${duration(x.mins)}</strong><button class="button button-secondary" type="button" data-action="open-day" data-date="${d}">View / edit day</button></div>`).join('')||'<div class="empty-state">No entries for this month.</div>'}</div></div></section>
+      </div>`;
+  }
   function projectOptions(selected=''){
     const projects=(appState?.projects||[]).filter(p=>p.financialYear===appState.meta.currentFY&&p.status!=='Completed');
     const keys=['leadSpoc','primary1','primary2','support1','support2','support3','support4','mentor1','mentor2'];
@@ -188,6 +210,9 @@
   async function handleClick(ev){
     const b=ev.target.closest('[data-action]');if(!b)return;
     const a=b.dataset.action;
+    if(a==='monthly-tab'){worklogMode='monthly';pushWorklogDate();render();return;}
+    if(a==='daily-tab'){worklogMode='daily';pushWorklogDate();render();return;}
+    if(a==='open-day'){selectedDate=b.dataset.date;worklogMode='daily';pushWorklogDate();render();return;}
     if(a==='today'){selectedDate=localDate();pushWorklogDate();render();return;}
     if(a==='save'){await saveEntry();return;}
     if(a==='edit'){await editEntry(b.dataset.id);return;}
@@ -195,6 +220,7 @@
   }
 
   function handleChange(ev){
+    if(ev.target.dataset.control==='worklog-month'){selectedDate=ev.target.value+'-01';pushWorklogDate();render();return;}
     if(ev.target.dataset.control==='worklog-date'){selectedDate=ev.target.value||localDate();pushWorklogDate();render();return;}
     if(ev.target.dataset.control==='work-type'){
       const internal=ev.target.value==='internal';
