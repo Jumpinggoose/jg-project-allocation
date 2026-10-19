@@ -168,6 +168,10 @@
           </div>
         </section>
         <section class="panel">
+          <div class="panel-header"><div><div class="section-eyebrow">This month at a glance</div><h2 class="panel-title">Monthly work summary</h2><p class="panel-subtitle">Your recorded project time for ${esc(new Date(month+'-01T12:00:00').toLocaleDateString('en-GB',{month:'long',year:'numeric'}))}.</p></div><button class="button button-secondary" type="button" data-action="monthly-tab">View full month</button></div>
+          <div class="panel-body">${(()=>{const byProject=new Map();entries.filter(e=>String(e.work_date).slice(0,7)===month).forEach(e=>{const key=e.project_id||'__internal__';const v=byProject.get(key)||{name:e.project_name||'Company / Internal',mins:0};v.mins+=Number(e.minutes||0);byProject.set(key,v)});return byProject.size?[...byProject.values()].sort((a,b)=>b.mins-a.mins).map(x=>'<div style="display:flex;justify-content:space-between;gap:14px;padding:9px 0;border-bottom:1px solid var(--line)"><span>'+esc(x.name)+'</span><strong>'+duration(x.mins)+'</strong></div>').join(''):'<p class="cell-subtitle">No logged hours this month yet.</p>'})()}</div>
+        </section>
+        <section class="panel">
           <div class="panel-header"><div><div class="section-eyebrow">Entries</div><h2 class="panel-title">${esc(longDate(selectedDate))}</h2></div><span class="pill-count">${duration(dayMin)}</span></div>
           <div class="panel-body flush">${day.length?'<div class="entry-list">'+day.map(entryRow).join('')+'</div>':'<div class="empty-state"><h3>No entries for this date</h3><p>Add each activity you worked on. There is no minimum or required daily total.</p></div>'}</div>
         </section>
