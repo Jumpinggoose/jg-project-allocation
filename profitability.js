@@ -5,6 +5,7 @@ const sb = window.supabase.createClient(cfg.url, cfg.publishableKey);
 const MANAGEMENT_EMAILS = new Set(['piyush@jumpinggoose.com','tuhin@jumpinggoose.com','supriya@jumpinggoose.com','theo@jumpinggoose.com','midhun@jumpinggoose.com','accounts@jumpinggoose.com']);
 let user=null, access=null, appState=null, timeEntries=[], financials=[], compensation=[], revenueHistory=[];
 let selectedMonth='ALL';
+let founderOverrides=[], founderInputs={piyush:false,tuhin:false}, originalTimeEntries=[];
 let selectedSection='overview';
 
 const root=document.getElementById('profitRoot');
@@ -44,14 +45,15 @@ async function loadData(){
   const fy=appState?.meta?.currentFY||'2026-27';
   const y=Number(fy.slice(0,4));
   const start=y+'-04-01', end=(y+1)+'-03-31';
-  const [tr,fr,cr,rr]=await Promise.all([
+  const [tr,fr,cr,rr,fo]=await Promise.all([
     sb.from('time_entries').select('*').gte('work_date',start).lte('work_date',end),
     sb.from('project_financial_entries').select('*').gte('entry_month',start).lte('entry_month',end),
     sb.from('compensation_history').select('*').order('effective_from',{ascending:false}),
-    sb.from('project_revenue_history').select('*').order('effective_from',{ascending:false})
+    sb.from('project_revenue_history').select('*').order('effective_from',{ascending:false}),
+    sb.from('founder_monthly_hours').select('*')
   ]);
-  if(tr.error||fr.error||cr.error||rr.error)return toast('Could not load profitability data.','error');
-  timeEntries=tr.data||[];financials=fr.data||[];compensation=cr.data||[];revenueHistory=rr.data||[];
+  if(tr.error||fr.error||cr.error||rr.error||fo.error)return toast('Could not load profitability data.','error');
+  originalTimeEntries=tr.data||[];founderOverrides=fo.data||[];financials=fr.data||[];compensation=cr.data||[];revenueHistory=rr.data||[];rebuildFounderEstimates();
   if(!history.state) replaceProfitState(new URLSearchParams(location.search).get('section')||selectedSection);
   restoreProfitState();
 }
@@ -101,6 +103,7 @@ function render(){
   root.innerHTML=`
     <div class="stack-lg">
       ${managementTabs()}
+      ${founderControls()}
       <section class="project-toolbar profitability-toolbar"><div class="toolbar-group">
         <label class="field profitability-month-field"><span class="field-label">Period</span><select data-control="month"><option value="ALL">FY ${esc(fy)} · All tracked months</option>${fyMonths(fy).map(m=>`<option value="${m}" ${selectedMonth===m?'selected':''}>${esc(monthLabel(m))}</option>`).join('')}</select></label>
         <button class="button button-secondary" type="button" data-action="section-salaries">Employees & Salary</button>
@@ -235,6 +238,67 @@ function currentRevenueRate(projectId){
   return revenueHistory.filter(r=>r.project_id===projectId&&r.effective_from<=today&&(!r.effective_to||r.effective_to>=today)).sort((a,b)=>String(b.effective_from).localeCompare(String(a.effective_from)))[0]||null;
 }
 
+
+let founderAdjustmentMonth='';
+const FOUNDER_IDS=['piyush','tuhin'];
+const ALLOCATION_KEYS=['leadSpoc','primary1','primary2','support1','support2','support3','support4','mentor1','mentor2'];
+function founderMonthlyHours(project,id,month){
+  const override=founderOverrides.find(x=>x.employee_id===id&&x.project_id===project.id&&String(x.entry_month).slice(0,7)===month);
+  if(override)return Number(override.hours);
+  const weekly=ALLOCATION_KEYS.reduce((sum,key)=>sum+(project[key]===id?Number(project.allocationHours?.[key]||0):0),0);
+  if(!weekly)return 0;
+  const first=month+'-01',last=month+'-'+String(new Date(Number(month.slice(0,4)),Number(month.slice(5,7)),0).getDate()).padStart(2,'0');
+  const from=Math.max(Date.parse(first+'T00:00:00'),Date.parse((project.startDate||first).slice(0,10)+'T00:00:00'));
+  const until=Math.min(Date.parse(last+'T00:00:00'),Date.parse((project.endDate||last).slice(0,10)+'T00:00:00'),Date.parse(localDate()+'T00:00:00'));
+  if(!Number.isFinite(from)||!Number.isFinite(until)||until<from)return 0;
+  let days=0;for(let day=from;day<=until;day+=86400000){const dow=new Date(day).getUTCDay();if(dow!==0&&dow!==6)days++;}
+  return Math.round(weekly*days/5*100)/100;
+}
+function rebuildFounderEstimates(){
+  const fy=appState?.meta?.currentFY||'2026-27';
+  const estimates=[];
+  for(const project of appState?.projects||[]){
+    if(project.financialYear!==fy)continue;
+    for(const month of fyMonths(fy)){
+      if(month>localDate().slice(0,7))continue;
+      for(const id of FOUNDER_IDS){
+        const hours=founderMonthlyHours(project,id,month);
+        if(hours<=0)continue;
+        const actual=originalTimeEntries.some(e=>e.employee_id===id&&e.project_id===project.id&&String(e.work_date).slice(0,7)===month);
+        if(actual)continue;
+        const date=month+'-15';
+        estimates.push({id:'estimate-'+id+'-'+project.id+'-'+month,employee_id:id,work_date:date,project_id:project.id,project_name:project.brand,project_pond:project.pond,activity_type:'Allocation estimate',task_description:'Estimated from weekly allocation; management-adjustable',minutes:Math.round(hours*60),estimated:true});
+      }
+    }
+  }
+  timeEntries=originalTimeEntries.concat(estimates);
+}
+function founderControls(){
+ const fy=appState?.meta?.currentFY||'2026-27';
+ const month=founderAdjustmentMonth||((selectedMonth!=='ALL')?selectedMonth:localDate().slice(0,7));
+ const projects=(appState.projects||[]).filter(p=>p.financialYear===fy&&FOUNDER_IDS.some(id=>ALLOCATION_KEYS.some(k=>p[k]===id)||founderOverrides.some(x=>x.project_id===p.id&&x.employee_id===id)));
+ const rows=projects.flatMap(p=>FOUNDER_IDS.filter(id=>ALLOCATION_KEYS.some(k=>p[k]===id)||founderOverrides.some(x=>x.project_id===p.id&&x.employee_id===id)).map(id=>{
+ const override=founderOverrides.find(x=>x.employee_id===id&&x.project_id===p.id&&String(x.entry_month).slice(0,7)===month);
+ return '<tr><td>'+esc(p.brand)+'</td><td>'+esc(memberName(id))+'</td><td>'+formatHoursDecimal(founderMonthlyHours(p,id,month))+'</td><td>'+(override?'Adjusted':'Estimated')+'</td><td><button class="link-button" type="button" data-action="edit-founder-hours" data-project="'+esc(p.id)+'" data-employee="'+id+'" data-month="'+month+'">Adjust</button></td></tr>';
+ }));
+ const logged=originalTimeEntries.filter(e=>inPeriod(e.work_date,fy,selectedMonth));
+ const estimated=timeEntries.filter(e=>e.estimated&&inPeriod(e.work_date,fy,selectedMonth));
+ return '<section class="panel"><div class="panel-header"><div><div class="section-eyebrow">Founder cost analysis</div><h2 class="panel-title">Founder time & cost scenarios</h2><p class="panel-subtitle">Estimated hours remain visible; check a founder to include their project-attributed labour cost. Fixed compensation and company expenses are unaffected.</p></div></div><div class="panel-body"><div style="display:flex;flex-wrap:wrap;gap:22px;margin-bottom:18px">'+FOUNDER_IDS.map(id=>'<label style="display:flex;align-items:center;gap:9px;color:var(--ink)"><input type="checkbox" data-control="founder-cost" value="'+id+'" '+(founderInputs[id]?'checked':'')+'> Include '+esc(memberName(id))+' labour cost</label>').join('')+'</div><p class="cell-subtitle">Logged: '+formatDuration(logged.reduce((a,e)=>a+Number(e.minutes||0),0))+' · Estimated: '+formatDuration(estimated.reduce((a,e)=>a+Number(e.minutes||0),0))+' · Current allocations are used where no historical override exists.</p><details style="margin-top:15px"><summary style="cursor:pointer;font-weight:700">Monthly founder hour adjustments</summary><div style="margin-top:14px"><label class="field"><span class="field-label">Adjustment month</span><select data-control="founder-month">'+fyMonths(fy).filter(x=>x<=localDate().slice(0,7)).map(x=>'<option value="'+x+'" '+(x===month?'selected':'')+'>'+esc(monthLabel(x))+'</option>').join('')+'</select></label><div class="table-wrap" style="margin-top:12px"><table class="data-table"><thead><tr><th>Project</th><th>Founder</th><th>Hours</th><th>Source</th><th></th></tr></thead><tbody>'+rows.join('')+'</tbody></table></div></div></details></div></section>';
+}
+async function editFounderHours(id,projectId,month){
+ if(!FOUNDER_IDS.includes(id))return;
+ const project=(appState.projects||[]).find(x=>x.id===projectId);if(!project)return;
+ const old=founderMonthlyHours(project,id,month);
+ const raw=prompt('Monthly estimated hours for '+memberName(id)+' on '+project.brand+' ('+month+'). Enter 0 if none:',String(old));
+ if(raw===null)return;
+ const hours=Number(raw);if(!Number.isFinite(hours)||hours<0||hours>744)return toast('Enter a valid hour value between 0 and 744.','warning');
+ const row={employee_id:id,project_id:projectId,entry_month:month+'-01',hours,note:'Management monthly adjustment'};
+ const res=await sb.from('founder_monthly_hours').upsert(row,{onConflict:'employee_id,project_id,entry_month'}).select().single();
+ if(res.error)return toast('Could not save founder adjustment: '+res.error.message,'error');
+ founderOverrides=founderOverrides.filter(x=>!(x.employee_id===id&&x.project_id===projectId&&String(x.entry_month).slice(0,7)===month)).concat([res.data]);
+ rebuildFounderEstimates();render();toast('Monthly founder hours updated.');
+}
+
 function projectRows(fy,month){
   return (appState.projects||[]).filter(p=>p.financialYear===fy).map(project=>{
     const times=timeEntries.filter(e=>e.project_id===project.id&&inPeriod(e.work_date,fy,month));
@@ -275,7 +339,7 @@ function aggregate(rows){const a=rows.reduce((x,r)=>{x.revenue+=r.revenue;x.exte
 function deliveryContribution(fy,month){const out={'POND 1':{minutes:0,cost:0},'POND 2':{minutes:0,cost:0},'POOL':{minutes:0,cost:0}};timeEntries.filter(e=>inPeriod(e.work_date,fy,month)).forEach(e=>{const g=member(e.employee_id)?.group||'POOL';if(!out[g])out[g]={minutes:0,cost:0};out[g].minutes+=Number(e.minutes||0);out[g].cost+=labourCost(e);});return out;}
 function compFor(id,date){return compensation.filter(c=>c.employee_id===id&&c.effective_from<=date&&(!c.effective_to||c.effective_to>=date)).sort((a,b)=>String(b.effective_from).localeCompare(String(a.effective_from)))[0]||null;}
 function hourlyRateForComp(employeeId,c){if(!c)return 0;if(c.hourly_cost_override!=null&&Number.isFinite(Number(c.hourly_cost_override)))return Number(c.hourly_cost_override);const weekly=Math.max(1,Number(member(employeeId)?.weeklyCapacity||45));return Number(c.monthly_cost||0)/(weekly*52/12);}
-function labourCost(e){const c=compFor(e.employee_id,e.work_date);if(!c)return 0;return hourlyRateForComp(e.employee_id,c)*(Number(e.minutes||0)/60);}
+function labourCost(e){if(e.estimated&&!founderInputs[e.employee_id])return 0;const c=compFor(e.employee_id,e.work_date);if(!c)return 0;return hourlyRateForComp(e.employee_id,c)*(Number(e.minutes||0)/60);}
 function member(id){return (appState.members||[]).find(m=>m.id===id);}
 function memberName(id){return member(id)?.name||id;}
 function inPeriod(date,fy,month){if(!date)return false;const d=new Date(String(date).slice(0,10)+'T00:00:00'),y=d.getMonth()>=3?d.getFullYear():d.getFullYear()-1;const key=y+'-'+String(y+1).slice(-2);return key===fy&&(month==='ALL'||String(date).slice(0,7)===month);}
@@ -421,10 +485,11 @@ function deliveryCard(g,x){x=x||{minutes:0,cost:0};return `<div class="delivery-
 function moneyKpi(l,v,m,c=''){return `<article class="kpi-card ${c}"><div class="kpi-label">${esc(l)}</div><div class="kpi-value">${formatMoney(v)}</div><div class="kpi-meta">${esc(m)}</div></article>`;}
 function textKpi(l,v,m){return `<article class="kpi-card"><div class="kpi-label">${esc(l)}</div><div class="kpi-value">${esc(v)}</div><div class="kpi-meta">${esc(m)}</div></article>`;}
 
-function onChange(e){if(e.target.dataset.control==='month'){selectedMonth=e.target.value;replaceProfitState(selectedSection);render();return;}if(e.target.dataset.control==='comp-employee'){openComp(e.target.value,false);}}
+function onChange(e){if(e.target.dataset.control==='founder-cost'){founderInputs[e.target.value]=e.target.checked;render();return;}if(e.target.dataset.control==='founder-month'){founderAdjustmentMonth=e.target.value;render();return;}if(e.target.dataset.control==='month'){selectedMonth=e.target.value;replaceProfitState(selectedSection);render();return;}if(e.target.dataset.control==='comp-employee'){openComp(e.target.value,false);}}
 function onClick(e){
   const b=e.target.closest('[data-action]');if(!b)return;
   const a=b.dataset.action;
+  if(a==='edit-founder-hours')return editFounderHours(b.dataset.employee,b.dataset.project,b.dataset.month);
   if(a==='section-overview') return navigateProfit('overview');
   if(a==='section-salaries') return navigateProfit('salaries');
   if(a==='section-revenue') return navigateProfit('revenue');
