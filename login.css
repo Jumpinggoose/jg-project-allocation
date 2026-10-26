@@ -124,3 +124,46 @@ h1 { margin: 16px 0 14px; max-width: 520px; font-size: clamp(42px, 5vw, 76px); l
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
 }
+
+/* Google-only sign-in CTA */
+.login-actions { width: min(100%, 520px); }
+.google-signin-button {
+  width: 100%;
+  min-height: 66px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+  gap: 16px;
+  padding: 15px 24px;
+  border: 2px solid #FF0072;
+  border-radius: 999px !important;
+  background: #FF0072;
+  color: #fff;
+  font-size: 16px;
+  font-weight: 850;
+  letter-spacing: .01em;
+  cursor: pointer;
+  box-shadow: 0 12px 32px rgba(255, 0, 114, .20);
+  transition: transform 160ms ease, box-shadow 160ms ease, background 160ms ease;
+}
+.google-signin-button:hover { background: #e60066; box-shadow: 0 15px 36px rgba(255, 0, 114, .28); transform: translateY(-2px); }
+.google-signin-button:focus-visible { outline: 3px solid #171717; outline-offset: 4px; }
+.google-signin-button:disabled { opacity: .65; cursor: wait; transform: none; }
+.google-icon {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  flex: 0 0 32px;
+  border-radius: 50%;
+  background: #fff;
+  color: #4285f4;
+  font: 900 20px Arial, sans-serif;
+}
+.google-arrow { position: absolute; right: 26px; font-size: 21px; font-weight: 500; }
+.login-actions .form-message { margin-top: 14px; }
+@media (max-width: 480px) {
+  .google-signin-button { min-height: 60px; padding: 12px 42px 12px 16px; font-size: 14px; }
+  .google-arrow { right: 18px; }
+}
