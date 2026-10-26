@@ -4,6 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#0F0F0F">
+  <meta name="robots" content="noindex, nofollow">
   <meta name="description" content="Secure sign-in for the JUMPINGGOOSE project allocation application.">
   <title>Sign in · JG Project Allocation</title>
   <link rel="icon" href="icon.svg" type="image/svg+xml">
@@ -36,7 +37,7 @@
         <p class="form-message" id="formMessage" role="alert" hidden></p>
       </div>
 
-      <p class="login-footnote">Access is restricted to approved, active JG accounts. Personal Gmail accounts require administrator approval.</p>
+      <p class="login-footnote">Official JUMPINGGOOSE internal workspace. Sign-in is handled by Google through Supabase. Access is limited to approved, active team members.</p>
     </section>
 
     <aside class="login-art" aria-hidden="true">
@@ -46,7 +47,7 @@
       <div class="accent-block"></div>
     </aside>
   </main>
-  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.3"></script>
   <script src="supabase-config.js"></script>
   <script src="login.js" defer></script>
 </body>
