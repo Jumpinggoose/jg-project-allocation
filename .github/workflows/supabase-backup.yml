@@ -1,0 +1,93 @@
+name: JG Encrypted Database Backup
+
+on:
+  workflow_dispatch:
+  schedule:
+    # 02:30 India Standard Time (21:00 UTC on the preceding date).
+    - cron: "0 21 * * *"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: jg-supabase-database-backup
+  cancel-in-progress: false
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      SUPABASE_DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+      BACKUP_ENCRYPTION_PASSWORD: ${{ secrets.BACKUP_ENCRYPTION_PASSWORD }}
+      TZ: Asia/Kolkata
+    steps:
+      - name: Ensure backup secrets are configured
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ -z "$SUPABASE_DB_URL" ] || [ -z "$BACKUP_ENCRYPTION_PASSWORD" ]; then
+            echo "::error::Configure SUPABASE_DB_URL and BACKUP_ENCRYPTION_PASSWORD as GitHub Actions repository secrets."
+            exit 1
+          fi
+          if [ "${#BACKUP_ENCRYPTION_PASSWORD}" -lt 24 ]; then
+            echo "::error::BACKUP_ENCRYPTION_PASSWORD must be at least 24 characters."
+            exit 1
+          fi
+
+      - name: Install Supabase CLI
+        uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Export database (roles, schema, data)
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p backup
+          supabase db dump --db-url "$SUPABASE_DB_URL" --role-only -f backup/roles.sql
+          supabase db dump --db-url "$SUPABASE_DB_URL" -f backup/schema.sql
+          supabase db dump --db-url "$SUPABASE_DB_URL" --data-only --use-copy -f backup/data.sql
+          test -s backup/schema.sql
+          test -s backup/data.sql
+          echo "Reminder: Supabase CLI excludes managed schemas such as auth and storage; see BACKUP_SETUP.md."
+
+      - name: Encrypt and integrity-check archive
+        id: package
+        shell: bash
+        run: |
+          set -euo pipefail
+          stamp="$(date +%Y-%m-%d)"
+          echo "stamp=$stamp" >> "$GITHUB_OUTPUT"
+          if [ "$(date +%d)" = "01" ]; then
+            echo "is_month_start=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "is_month_start=false" >> "$GITHUB_OUTPUT"
+          fi
+          tar -czf backup.tar.gz backup
+          archive="jg-supabase-$stamp.enc"
+          openssl enc -aes-256-cbc -pbkdf2 -iter 200000 -salt \
+            -in backup.tar.gz -out "$archive" \
+            -pass env:BACKUP_ENCRYPTION_PASSWORD
+          openssl enc -d -aes-256-cbc -pbkdf2 -iter 200000 \
+            -in "$archive" -pass env:BACKUP_ENCRYPTION_PASSWORD \
+            | tar -tzf - >/dev/null
+          rm -rf backup backup.tar.gz
+          test -s "$archive"
+
+      - name: Store encrypted daily archive for 30 days
+        uses: actions/upload-artifact@v4
+        with:
+          name: jg-daily-${{ steps.package.outputs.stamp }}
+          path: jg-supabase-*.enc
+          retention-days: 30
+          if-no-files-found: error
+
+      - name: Store additional monthly archive for 90 days
+        if: steps.package.outputs.is_month_start == 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: jg-monthly-${{ steps.package.outputs.stamp }}
+          path: jg-supabase-*.enc
+          retention-days: 90
+          if-no-files-found: error
