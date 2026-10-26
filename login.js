@@ -7,7 +7,7 @@ const message = document.getElementById('formMessage');
 const button = document.getElementById('signInButton');
 const setupPasswordButton = document.getElementById('setupPasswordButton');
 
-const config = window.JG_SUPABASE;
+const googleSignInButton = document.getElementById('googleSignInButton');\nconst config = window.JG_SUPABASE;
 if (!config?.url || !config?.publishableKey || !window.supabase) {
   showMessage('Supabase configuration is missing.');
   throw new Error('Supabase configuration is missing.');
@@ -19,6 +19,19 @@ async function checkExistingSession() {
   const { data, error } = await supabaseClient.auth.getSession();
   if (!error && data.session) window.location.replace('/');
 }
+
+googleSignInButton.addEventListener('click', async () => {
+  googleSignInButton.disabled = true;
+  message.hidden = true;
+  const { error } = await supabaseClient.auth.signInWithOAuth({
+    provider: 'google',
+    options: { redirectTo: window.location.origin + '/' }
+  });
+  if (error) {
+    showMessage(error.message || 'Unable to open Google sign-in.');
+    googleSignInButton.disabled = false;
+  }
+});
 
 setupPasswordButton.addEventListener('click', () => {
   window.location.href = '/setup-password.html';
@@ -37,10 +50,6 @@ form.addEventListener('submit', async (event) => {
     return;
   }
 
-  if (!email.endsWith('@jumpinggoose.com')) {
-    showMessage('Use your @jumpinggoose.com email address.');
-    return;
-  }
 
   button.disabled = true;
   button.textContent = 'Signing in…';
