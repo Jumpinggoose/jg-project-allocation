@@ -7,7 +7,8 @@ const message = document.getElementById('formMessage');
 const button = document.getElementById('signInButton');
 const setupPasswordButton = document.getElementById('setupPasswordButton');
 
-const googleSignInButton = document.getElementById('googleSignInButton');\nconst config = window.JG_SUPABASE;
+const googleSignInButton = document.getElementById('googleSignInButton');
+const config = window.JG_SUPABASE;
 if (!config?.url || !config?.publishableKey || !window.supabase) {
   showMessage('Supabase configuration is missing.');
   throw new Error('Supabase configuration is missing.');
