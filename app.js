@@ -213,12 +213,6 @@ async function loadSession() {
     }
 
     const email = String(data.user.email || '').toLowerCase();
-    if (!email.endsWith('@jumpinggoose.com')) {
-      await supabaseClient.auth.signOut();
-      showToast('Access is limited to @jumpinggoose.com accounts.', 'error');
-      redirectToLogin();
-      return false;
-    }
 
     const accessMemberAlias = email === 'saurabh@jumpinggoose.com' ? 'sourabh' : (email === 'accounts@jumpinggoose.com' ? 'bhagya' : (email === 'sirajul@jumpinggoose.com' ? 'siraj' : ''));
     let accessQuery = supabaseClient
@@ -1687,7 +1681,7 @@ function openMemberModal({ member = null, group = null } = {}) {
         </div>
         <div class="field span-2">
           <label for="memberEmail">JG email address</label>
-          <input id="memberEmail" type="email" maxlength="160" value="${escapeAttr(draft.email || '')}" placeholder="name@jumpinggoose.com">
+          <input id="memberEmail" type="email" maxlength="160" value="${escapeAttr(draft.email || '')}" placeholder="name@jumpinggoose.com or intern@gmail.com">
           <div class="field-help">Add the email here to grant app access immediately. The person can then use “Set up password first” on the login page. Leave blank only if they should not have app access.</div>
         </div>
         <div class="field">
