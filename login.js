@@ -1,14 +1,14 @@
 'use strict';
 
-const form = document.getElementById('loginForm');
-const emailInput = document.getElementById('email');
-const passwordInput = document.getElementById('password');
 const message = document.getElementById('formMessage');
-const button = document.getElementById('signInButton');
-const setupPasswordButton = document.getElementById('setupPasswordButton');
-
 const googleSignInButton = document.getElementById('googleSignInButton');
 const config = window.JG_SUPABASE;
+
+function showMessage(text) {
+  message.textContent = text;
+  message.hidden = false;
+}
+
 if (!config?.url || !config?.publishableKey || !window.supabase) {
   showMessage('Supabase configuration is missing.');
   throw new Error('Supabase configuration is missing.');
@@ -24,52 +24,16 @@ async function checkExistingSession() {
 googleSignInButton.addEventListener('click', async () => {
   googleSignInButton.disabled = true;
   message.hidden = true;
-  const { error } = await supabaseClient.auth.signInWithOAuth({
-    provider: 'google',
-    options: { redirectTo: window.location.origin + '/' }
-  });
-  if (error) {
+  try {
+    const { error } = await supabaseClient.auth.signInWithOAuth({
+      provider: 'google',
+      options: { redirectTo: window.location.origin + '/' }
+    });
+    if (error) throw error;
+  } catch (error) {
     showMessage(error.message || 'Unable to open Google sign-in.');
     googleSignInButton.disabled = false;
   }
 });
-
-setupPasswordButton.addEventListener('click', () => {
-  window.location.href = '/setup-password.html';
-});
-
-
-form.addEventListener('submit', async (event) => {
-  event.preventDefault();
-  message.hidden = true;
-
-  const email = emailInput.value.trim().toLowerCase();
-  const password = passwordInput.value;
-
-  if (!email || !password) {
-    showMessage('Enter both your email address and password.');
-    return;
-  }
-
-
-  button.disabled = true;
-  button.textContent = 'Signing in…';
-
-  const { error } = await supabaseClient.auth.signInWithPassword({ email, password });
-
-  if (error) {
-    showMessage(error.message || 'Unable to sign in. Please try again.');
-    button.disabled = false;
-    button.textContent = 'Sign in';
-    return;
-  }
-
-  window.location.replace('/');
-});
-
-function showMessage(text) {
-  message.textContent = text;
-  message.hidden = false;
-}
 
 checkExistingSession();
