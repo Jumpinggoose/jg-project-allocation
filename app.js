@@ -589,12 +589,13 @@ function renderCurrentView() {
 
 function renderDashboard() {
   const allProjects = getVisibleProjects(state.projects);
-  const total = allProjects.length;
-  const active = allProjects.filter(isActiveProject).length;
-  const completed = allProjects.filter((project) => project.status === 'Completed').length;
-  const onHold = allProjects.filter((project) => project.status === 'On Hold').length;
-  const pond1 = allProjects.filter((project) => project.pond === 'POND 1').length;
-  const pond2 = allProjects.filter((project) => project.pond === 'POND 2').length;
+  const paidProjects = allProjects.filter(isPaidProject);
+  const total = paidProjects.length;
+  const active = paidProjects.filter(isActiveProject).length;
+  const completed = paidProjects.filter((project) => project.status === 'Completed').length;
+  const onHold = paidProjects.filter((project) => project.status === 'On Hold').length;
+  const pond1 = paidProjects.filter((project) => project.pond === 'POND 1').length;
+  const pond2 = paidProjects.filter((project) => project.pond === 'POND 2').length;
 
   const typeCounts = Object.fromEntries(PROJECT_TYPES.map((type) => [type, allProjects.filter((project) => project.type === type).length]));
   const typeStatusCounts = Object.fromEntries(PROJECT_TYPES.map((type) => {
@@ -624,27 +625,29 @@ function renderDashboard() {
   return `
     <div class="stack-lg">
       <section class="kpi-grid" aria-label="Key project metrics">
-        ${kpiCard('Total projects', total, 'Across Pond 1 and Pond 2', 'is-accent')}
-        ${kpiCard('Active load', active, 'Everything except completed', 'is-dark')}
+        ${kpiCard('Paid projects', total, 'Retainers + One-Time only', 'is-accent')}
+        ${kpiCard('Active projects', active, 'Paid projects excluding completed', 'is-dark')}
         ${kpiCard('Completed', completed, total ? `${Math.round((completed / total) * 100)}% of all projects` : 'No projects yet')}
         ${kpiCard('On hold', onHold, onHold ? 'Needs attention' : 'No blocked work')}
-        ${kpiCard('Pond 1', pond1, `${countActiveByPond('POND 1')} currently active`)}
-        ${kpiCard('Pond 2', pond2, `${countActiveByPond('POND 2')} currently active`)}
+        ${kpiCard('Pond 1', pond1, `${countActiveByPond('POND 1')} active paid projects`)}
+        ${kpiCard('Pond 2', pond2, `${countActiveByPond('POND 2')} active paid projects`)}
+        ${kpiCard('Pitches', typeCounts.Pitch, 'Unpaid · tracked separately')}
+        ${kpiCard('Internal', typeCounts.Internal, 'Internal work · tracked separately')}
       </section>
 
       <section class="grid-2">
         <article class="panel">
           <div class="panel-header">
             <div>
-              <div class="section-eyebrow">Project mix · all JG</div>
+              <div class="section-eyebrow">Work mix · paid and unpaid</div>
               <h2 class="panel-title">Work by engagement type</h2>
             </div>
-            <span class="pill-count">${total}</span>
+            <span class="pill-count">${allProjects.length} work items</span>
           </div>
           <div class="panel-body">
             <div class="donut-wrap">
               <div class="donut" style="background:${donutGradient(typeCounts)}">
-                <div class="donut-center"><strong>${total}</strong><span>Projects</span></div>
+                <div class="donut-center"><strong>${allProjects.length}</strong><span>Work items</span></div>
               </div>
               <div class="legend-list">
                 ${PROJECT_TYPES.map((type, index) => `
@@ -660,7 +663,7 @@ function renderDashboard() {
                 <div class="metric-row">
                   <span class="metric-name">${escapeHtml(type)}</span>
                   <span class="progress-track"><span class="progress-fill ${['forest','','teal','yellow'][index]}" style="width:${(typeCounts[type] / maxType) * 100}%"></span></span>
-                  <span class="metric-status-summary" aria-label="${typeCounts[type]} total projects">
+                  <span class="metric-status-summary" aria-label="${typeCounts[type]} work items">
                     <strong class="metric-total">${typeCounts[type]}</strong>
                     <span><b>${typeStatusCounts[type].ongoing}</b> Ongoing</span>
                     <span><b>${typeStatusCounts[type].holdPaused}</b> Hold/Paused</span>
@@ -705,7 +708,7 @@ function renderDashboard() {
           <div class="table-wrap">
             <table class="data-table data-table--summary">
               <thead>
-                <tr><th>Pond</th><th>Retainer</th><th>One-Time</th><th>Pitch</th><th>Internal</th><th>Total</th><th>Active</th><th>Completed</th></tr>
+                <tr><th>Pond</th><th>Retainer</th><th>One-Time</th><th>Pitch (separate)</th><th>Internal (separate)</th><th>Paid total</th><th>Active paid</th><th>Completed paid</th></tr>
               </thead>
               <tbody>
                 ${['POND 1','POND 2'].map((pond) => renderPondBreakdownRow(pond, allProjects)).join('')}
@@ -2041,21 +2044,22 @@ function exportFYReviewWorkbook(fy) {
       XLSX.utils.book_append_sheet(workbook, sheet, name.slice(0, 31));
     };
 
-    const completed = projects.filter((project) => project.status === 'Completed').length;
-    const holdPaused = projects.filter((project) => ['On Hold','Paused'].includes(project.status)).length;
-    const ongoing = projects.length - completed - holdPaused;
+    const paidProjects = projects.filter(isPaidProject);
+    const completed = paidProjects.filter((project) => project.status === 'Completed').length;
+    const holdPaused = paidProjects.filter((project) => ['On Hold','Paused'].includes(project.status)).length;
+    const ongoing = paidProjects.length - completed - holdPaused;
     const summaryRows = [
       ['Financial Year', `FY ${fy}`],
-      ['Total Projects', projects.length],
+      ['Paid Projects (Retainers + One-Time)', paidProjects.length],
       ['Ongoing', ongoing],
       ['On Hold / Paused', holdPaused],
       ['Completed', completed],
-      ['Pond 1 Projects', projects.filter((project) => project.pond === 'POND 1').length],
-      ['Pond 2 Projects', projects.filter((project) => project.pond === 'POND 2').length],
+      ['Pond 1 Paid Projects', paidProjects.filter((project) => project.pond === 'POND 1').length],
+      ['Pond 2 Paid Projects', paidProjects.filter((project) => project.pond === 'POND 2').length],
       ['Retainers', projects.filter((project) => project.type === 'Retainer').length],
       ['One-Time', projects.filter((project) => project.type === 'One-Time').length],
-      ['Pitches', projects.filter((project) => project.type === 'Pitch').length],
-      ['Internal', projects.filter((project) => project.type === 'Internal').length]
+      ['Pitches (Unpaid - Separate)', projects.filter((project) => project.type === 'Pitch').length],
+      ['Internal (Separate)', projects.filter((project) => project.type === 'Internal').length]
     ];
     addSheet('FY Summary', ['Metric','Value'], summaryRows);
     addSheet('All Projects', projectHeaders, projects.map(projectRow));
@@ -2462,12 +2466,16 @@ function assignedProjectCount(memberId) {
   return state.projects.filter((project) => ROLE_KEYS.some((key) => project[key] === memberId)).length;
 }
 
+function isPaidProject(project) {
+  return project.type === 'Retainer' || project.type === 'One-Time';
+}
+
 function isActiveProject(project) {
   return project.status !== 'Completed';
 }
 
 function countActiveByPond(pond) {
-  return getProjectsForSelectedFY().filter((project) => project.pond === pond && isActiveProject(project)).length;
+  return getProjectsForSelectedFY().filter((project) => project.pond === pond && isPaidProject(project) && isActiveProject(project)).length;
 }
 
 function renderPondBreakdownRow(pond, projects) {
@@ -2479,9 +2487,9 @@ function renderPondBreakdownRow(pond, projects) {
     <td class="num">${count('One-Time')}</td>
     <td class="num">${count('Pitch')}</td>
     <td class="num">${count('Internal')}</td>
-    <td class="num"><strong>${pondProjects.length}</strong></td>
-    <td class="num">${pondProjects.filter(isActiveProject).length}</td>
-    <td class="num">${pondProjects.filter((project) => project.status === 'Completed').length}</td>
+    <td class="num"><strong>${pondProjects.filter(isPaidProject).length}</strong></td>
+    <td class="num">${pondProjects.filter((project) => isPaidProject(project) && isActiveProject(project)).length}</td>
+    <td class="num">${pondProjects.filter((project) => isPaidProject(project) && project.status === 'Completed').length}</td>
   </tr>`;
 }
 
