@@ -25,6 +25,11 @@
     .entry-card small{display:block;margin-top:3px;color:var(--muted)}
     .entry-card p{margin:0;color:var(--ink)}
     .entry-actions{display:flex;gap:10px;justify-content:flex-end}
+    .entry-edit{grid-column:1/-1;display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;padding:8px 0}
+    .entry-edit .field{min-width:0;margin:0}.entry-edit label{display:block;margin-bottom:6px;font-size:12px}
+    .entry-edit input,.entry-edit select{width:100%;box-sizing:border-box}
+    .entry-edit .edit-task{grid-column:span 2}.entry-edit .edit-actions{grid-column:1/-1;display:flex;gap:10px;justify-content:flex-end}
+    @media(max-width:760px){.entry-edit{grid-template-columns:1fr}.entry-edit .edit-task{grid-column:auto}}
     .date-row{display:flex;gap:10px;align-items:flex-end}
     .worklog-select-note{display:none}
     @media(max-width:1380px){.worklog-entry-grid{grid-template-columns:140px minmax(190px,1.1fr) minmax(175px,1fr) minmax(220px,1.35fr) 68px 76px 108px;gap:8px}}
@@ -84,7 +89,7 @@
   const INTERNAL_ACTIVITY_TYPES=['Internal Meeting','Team / Pond Meeting','All Hands','Management / Coordination','Training / Learning','Recruitment / Interviews','Internal Planning / Operations','JG Admin','Other Internal'];
   const cfg=window.JG_SUPABASE;
   const sb=window.supabase.createClient(cfg.url,cfg.publishableKey);
-  let user=null, access=null, appState=null, entries=[], selectedDate=new URLSearchParams(location.search).get('date')||localDate(), worklogMode=new URLSearchParams(location.search).get('mode')==='monthly'?'monthly':'daily';
+  let user=null, access=null, appState=null, entries=[], editingEntryId=null, selectedDate=new URLSearchParams(location.search).get('date')||localDate(), worklogMode=new URLSearchParams(location.search).get('mode')==='monthly'?'monthly':'daily';
 
   document.addEventListener('DOMContentLoaded',init);
 
@@ -209,7 +214,30 @@
   }
 
   function entryRow(e){
+    if(editingEntryId===e.id)return editEntryRow(e);
     return '<div class="entry-card"><div><strong>'+esc(e.project_name)+'</strong><small>'+esc(e.project_pond||'')+'</small></div><div><strong>'+esc(e.activity_type)+'</strong></div><div class="entry-task"><p>'+esc(e.task_description||'—')+'</p></div><div><strong>'+duration(e.minutes)+'</strong>'+(e.locked?'<small>Locked</small>':'')+'</div><div class="entry-actions">'+(e.locked?'':'<button class="link-button" data-action="edit" data-id="'+attr(e.id)+'" type="button">Edit</button><button class="link-button" data-action="delete" data-id="'+attr(e.id)+'" type="button">Delete</button>')+'</div></div>';
+  }
+
+  function editEntryRow(e){
+    const internal=e.project_id==='__internal__';
+    const projectList=projectOptions(internal?'':e.project_id);
+    const missingProject=!internal&&!(appState?.projects||[]).some(p=>p.id===e.project_id);
+    const projectChoice=missingProject?'<option selected value="'+attr(e.project_id)+'">'+esc(e.project_name||'Previous project')+' (existing)</option>':'';
+    const activityOptions=(internal?INTERNAL_ACTIVITY_TYPES:ACTIVITY_TYPES);
+    const activitySelect=(items)=>items.map(x=>'<option value="'+attr(x)+'" '+(x===e.activity_type?'selected':'')+'>'+esc(x)+'</option>').join('');
+    const knownActivity=activityOptions.includes(e.activity_type);
+    const extraActivity=!knownActivity?'<option selected value="'+attr(e.activity_type)+'">'+esc(e.activity_type)+'</option>':'';
+    return `<div class="entry-card"><div class="entry-edit" role="group" aria-label="Edit work log entry">
+      <div class="field"><label>Work date</label><input id="editWorkDate" type="date" value="${attr(e.work_date)}"></div>
+      <div class="field"><label>Work type</label><select id="editWorkType" data-control="edit-work-type"><option value="project" ${internal?'':'selected'}>Project Work</option><option value="internal" ${internal?'selected':''}>Company / Internal</option></select></div>
+      <div class="field" id="editProjectField" ${internal?'hidden':''}><label>Project</label><select id="editProject">${projectChoice}${projectList}</select></div>
+      <div class="field" id="editActivityField" ${internal?'hidden':''}><label>Activity</label><select id="editActivity">${activitySelect(ACTIVITY_TYPES)}${!internal?extraActivity:''}</select></div>
+      <div class="field" id="editInternalActivityField" ${internal?'':'hidden'}><label>Internal activity</label><select id="editInternalActivity">${activitySelect(INTERNAL_ACTIVITY_TYPES)}${internal?extraActivity:''}</select></div>
+      <div class="field edit-task"><label>Task / description</label><input id="editTask" maxlength="220" value="${attr(e.task_description||'')}" placeholder="What did you work on?"></div>
+      <div class="field"><label>Hours</label><input id="editHours" type="number" min="0" max="24" step="1" value="${Math.floor(Number(e.minutes||0)/60)}"></div>
+      <div class="field"><label>Minutes</label><input id="editMinutes" type="number" min="0" max="59" step="1" value="${Number(e.minutes||0)%60}"></div>
+      <div class="edit-actions"><button class="button button-secondary" type="button" data-action="cancel-edit">Cancel</button><button class="button button-primary" type="button" data-action="save-edit" data-id="${attr(e.id)}">Save changes</button></div>
+    </div></div>`;
   }
 
   async function handleClick(ev){
@@ -220,13 +248,22 @@
     if(a==='open-day'){selectedDate=b.dataset.date;worklogMode='daily';pushWorklogDate();render();return;}
     if(a==='today'){selectedDate=localDate();pushWorklogDate();render();return;}
     if(a==='save'){await saveEntry();return;}
-    if(a==='edit'){await editEntry(b.dataset.id);return;}
+    if(a==='edit'){editEntry(b.dataset.id);return;}
+    if(a==='cancel-edit'){editingEntryId=null;render();return;}
+    if(a==='save-edit'){await saveEditedEntry(b.dataset.id,b);return;}
     if(a==='delete'){await deleteEntry(b.dataset.id);return;}
   }
 
   function handleChange(ev){
     if(ev.target.dataset.control==='worklog-month'){selectedDate=ev.target.value+'-01';pushWorklogDate();render();return;}
     if(ev.target.dataset.control==='worklog-date'){selectedDate=ev.target.value||localDate();pushWorklogDate();render();return;}
+    if(ev.target.dataset.control==='edit-work-type'){
+      const internal=ev.target.value==='internal';
+      document.getElementById('editProjectField').hidden=internal;
+      document.getElementById('editActivityField').hidden=internal;
+      document.getElementById('editInternalActivityField').hidden=!internal;
+      return;
+    }
     if(ev.target.dataset.control==='work-type'){
       const internal=ev.target.value==='internal';
       document.getElementById('wlProjectField').hidden=internal;
@@ -266,14 +303,42 @@
     entries.unshift(r.data);render();toast(internal?'Internal time entry added.':'Time entry added.');
   }
 
-  async function editEntry(id){
-    const e=entries.find(x=>x.id===id);if(!e||e.locked)return;
-    const task=prompt('Task / description:',e.task_description||'');if(task===null)return;
-    const d=prompt('Duration as H:MM, for example 1:20 or 0:45:',durationInput(e.minutes));if(d===null)return;
-    const mins=parseDuration(d);if(!mins)return toast('Use H:MM, for example 1:20.','warning');
-    const r=await sb.from('time_entries').update({task_description:task.trim(),minutes:mins,updated_at:new Date().toISOString()}).eq('id',id).select().single();
-    if(r.error){console.error(r.error);return toast('Could not update this entry.','error');}
-    entries=entries.map(x=>x.id===id?r.data:x);render();toast('Entry updated.');
+  function editEntry(id){
+    const e=entries.find(x=>x.id===id);
+    if(!e||e.locked)return;
+    editingEntryId=id;worklogMode='daily';selectedDate=e.work_date;render();
+    document.getElementById('editWorkDate')?.focus();
+  }
+
+  async function saveEditedEntry(id,button){
+    const e=entries.find(x=>x.id===id);
+    if(!e||e.locked)return toast('This entry cannot be edited.','warning');
+    const date=document.getElementById('editWorkDate')?.value;
+    const internal=document.getElementById('editWorkType')?.value==='internal';
+    const projectId=document.getElementById('editProject')?.value;
+    const project=(appState?.projects||[]).find(p=>p.id===projectId);
+    if(!date||!/^\d{4}-\d{2}-\d{2}$/.test(date))return toast('Choose a valid work date.','warning');
+    if(!internal&&!project&&projectId!==e.project_id)return toast('Choose a project.','warning');
+    const hInput=document.getElementById('editHours')?.value||'0',mInput=document.getElementById('editMinutes')?.value||'0';
+    const hours=Number(hInput),mins=Number(mInput);
+    if(!Number.isInteger(hours)||hours<0||hours>24||!Number.isInteger(mins)||mins<0||mins>59)return toast('Enter whole hours (0–24) and minutes (0–59).','warning');
+    const total=hours*60+mins;
+    if(total<=0||total>1440)return toast('Time must be greater than zero and no more than 24 hours.','warning');
+    const activity=internal?document.getElementById('editInternalActivity')?.value:document.getElementById('editActivity')?.value;
+    if(!activity)return toast('Choose an activity.','warning');
+    const payload={
+      work_date:date,project_id:internal?'__internal__':projectId,
+      project_name:internal?'Company / Internal':project?.brand||e.project_name,
+      project_pond:internal?null:project?.pond||e.project_pond,
+      activity_type:activity,task_description:document.getElementById('editTask')?.value.trim()||'',
+      minutes:total,updated_at:new Date().toISOString()
+    };
+    button.disabled=true;
+    const r=await sb.from('time_entries').update(payload).eq('id',id).eq('user_id',user.id).eq('locked',false).select().single();
+    button.disabled=false;
+    if(r.error){console.error(r.error);return toast('Could not update this entry. Check whether it is still unlocked.','error');}
+    entries=entries.map(x=>x.id===id?r.data:x);
+    editingEntryId=null;selectedDate=date;pushWorklogDate();render();toast('Work log updated.');
   }
 
   async function deleteEntry(id){
