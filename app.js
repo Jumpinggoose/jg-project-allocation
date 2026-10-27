@@ -1685,7 +1685,7 @@ function openMemberModal({ member = null, group = null } = {}) {
         <div class="field span-2">
           <label for="memberEmail">JG email address</label>
           <input id="memberEmail" type="email" maxlength="160" value="${escapeAttr(draft.email || '')}" placeholder="name@jumpinggoose.com or intern@gmail.com">
-          <div class="field-help">Add the email here to grant app access immediately. The person can then use “Set up password first” on the login page. Leave blank only if they should not have app access.</div>
+          <div class="field-help">Enter the team member’s Google account email to grant access. They can then open the Project Log and select “Continue with Google” to sign in. Leave blank if they should not have app access.</div>
         </div>
         <div class="field">
           <label for="memberAccessLevel">App access</label>
