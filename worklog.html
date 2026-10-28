@@ -113,7 +113,7 @@
     const employeeLogsLink=document.getElementById('employeeLogsLink');
     if(employeeLogsLink)employeeLogsLink.hidden=access.access_level==='employee';
     const profitLink=document.getElementById('profitLink');
-    if(profitLink)profitLink.hidden=access.access_level!=='management';
+    if(profitLink)profitLink.hidden=!(access.access_level==='management' && ['piyush@jumpinggoose.com','tuhin@jumpinggoose.com','accounts@jumpinggoose.com'].includes(email));
     document.getElementById('logoutButton').addEventListener('click',logout);
     document.getElementById('historyBack').addEventListener('click',()=>history.back());
     document.getElementById('historyForward').addEventListener('click',()=>history.forward());
