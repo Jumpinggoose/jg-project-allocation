@@ -104,7 +104,7 @@
     if(access.access_level==='employee')return location.replace('/worklog.html');
 
     document.getElementById('logsUser').textContent=access.display_name+' · '+(access.title||'Employee Logs');
-    document.getElementById('profitLink').hidden=access.access_level!=='management';
+    document.getElementById('profitLink').hidden=!(access.access_level==='management' && ['piyush@jumpinggoose.com','tuhin@jumpinggoose.com','accounts@jumpinggoose.com'].includes(email));
     document.getElementById('logoutButton').addEventListener('click',logout);
     document.getElementById('historyBack').addEventListener('click',()=>history.back());
     document.getElementById('historyForward').addEventListener('click',()=>history.forward());
