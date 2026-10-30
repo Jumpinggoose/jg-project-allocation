@@ -4,6 +4,7 @@ const cfg = window.JG_SUPABASE;
 const sb = window.supabase.createClient(cfg.url, cfg.publishableKey);
 const MANAGEMENT_EMAILS = new Set(['piyush@jumpinggoose.com','tuhin@jumpinggoose.com','accounts@jumpinggoose.com']);
 let user=null, access=null, appState=null, timeEntries=[], financials=[], compensation=[], revenueHistory=[];
+const WORKLOG_BASELINE_MONTH='2026-10'; // Historical logs before this month may be incomplete.
 let selectedMonth='ALL';
 let founderOverrides=[], founderInputs={piyush:false,tuhin:false}, originalTimeEntries=[];
 let selectedSection='overview';
@@ -64,6 +65,18 @@ function render(){
   if(selectedSection==='project-revenue') return renderProjectRevenue();
 
   const fy=appState.meta.currentFY||'2026-27';
+  const monthsWithActualLogs=new Set(originalTimeEntries.filter(e=>inPeriod(e.work_date,fy,'ALL')).map(e=>String(e.work_date).slice(0,7)));
+  const fyPeriodMonths=fyMonths(fy);
+  const preBaselineMonths=fyPeriodMonths.filter(m=>m<WORKLOG_BASELINE_MONTH);
+  const periodNotice=selectedMonth==='ALL'
+    ? '<strong>Financial year view · Partial actuals.</strong> The full FY is selected, but work-log tracking is being backfilled from October 2026. April–September 2026 may be incomplete, so FY profit and margin should not be treated as full-year actual performance. Work logs are present for '+monthsWithActualLogs.size+' of 12 FY months. The presence of entries does not confirm a complete month.'
+    : selectedMonth<WORKLOG_BASELINE_MONTH
+      ? '<strong>Historical period · Incomplete / unverified.</strong> This month is before the October 2026 work-log tracking baseline. Missing hours can understate costs and overstate profitability. Do not treat these results as complete actuals.'
+      : '<strong>Work-log tracking period · From October 2026.</strong> Figures use logged hours for the selected month. Timesheet completeness has not been independently verified; missing entries can understate costs and overstate profitability.';
+  const chosenMonthHasLogs=selectedMonth==='ALL'||monthsWithActualLogs.has(selectedMonth);
+  const missingLogsNotice=selectedMonth!=='ALL'&&!chosenMonthHasLogs
+    ? '<div class="notice notice-warning"><strong>No employee work logs found for this month.</strong> Profit and margin are not reliable until time entries are recorded and checked.</div>'
+    : '';
   const rows=projectRows(fy,selectedMonth);
   const commercialRows=rows.filter(r=>r.financialClass==='Revenue Generating'&&r.profitabilityReady);
   const retainerRows=commercialRows.filter(r=>r.project.type==='Retainer');
@@ -105,10 +118,11 @@ function render(){
       ${managementTabs()}
       ${founderControls()}
       <section class="project-toolbar profitability-toolbar"><div class="toolbar-group">
-        <label class="field profitability-month-field"><span class="field-label">Period</span><select data-control="month"><option value="ALL">FY ${esc(fy)} · All tracked months</option>${fyMonths(fy).map(m=>`<option value="${m}" ${selectedMonth===m?'selected':''}>${esc(monthLabel(m))}</option>`).join('')}</select></label>
+        <label class="field profitability-month-field"><span class="field-label">Period</span><select data-control="month"><option value="ALL">FY ${esc(fy)} · Partial actuals</option>${fyPeriodMonths.map(m=>`<option value="${m}" ${selectedMonth===m?'selected':''}>${esc(monthLabel(m))}${m<WORKLOG_BASELINE_MONTH?' · Historical / unverified':''}</option>`).join('')}</select></label>
         <button class="button button-secondary" type="button" data-action="section-salaries">Employees & Salary</button>
         <button class="button button-primary" type="button" data-action="section-project-revenue">One-Time Revenue</button>
-      </div><div class="notice compact-notice">Profitability is calculated only for periods where actual time has been logged. Revenue without time logs is shown as awaiting timesheets.</div></section>
+      </div><div class="notice notice-warning" role="status">${periodNotice}</div></section>
+      ${missingLogsNotice}
       <section class="profitability-kpis">
         ${moneyKpi('JG Revenue',company.revenue,'Total commercial revenue tied to logged work')}
         ${moneyKpi('Retainer Revenue',retainerRevenue.revenue,'Recurring monthly retainer revenue')}
