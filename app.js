@@ -1686,7 +1686,7 @@ function openMemberModal({ member = null, group = null } = {}) {
           <input id="memberName" type="text" required maxlength="100" value="${escapeAttr(draft.name)}" placeholder="Full name">
         </div>
         <div class="field span-2">
-          <label for="memberEmail">JG email address</label>
+          <label for="memberEmail">Google account email</label>
           <input id="memberEmail" type="email" maxlength="160" value="${escapeAttr(draft.email || '')}" placeholder="name@jumpinggoose.com or intern@gmail.com">
           <div class="field-help">Enter the team member’s Google account email to grant access. They can then open the Project Log and select “Continue with Google” to sign in. Leave blank if they should not have app access.</div>
         </div>
@@ -1758,8 +1758,13 @@ async function saveMemberFromModal(memberId) {
 
   const email = document.getElementById('memberEmail').value.trim().toLowerCase();
   const accessLevel = document.getElementById('memberAccessLevel').value;
+  const memberType = document.getElementById('memberType').value;
+  if (email && !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)) {
+    return showModalError(errorEl, 'Enter a valid Google account email address.');
+  }
   if (email && !email.endsWith('@jumpinggoose.com')) {
-    return showModalError(errorEl, 'Use a @jumpinggoose.com email address for app access.');
+    if (memberType !== 'Intern') return showModalError(errorEl, 'External email addresses are supported for interns only.');
+    if (accessLevel !== 'employee') return showModalError(errorEl, 'Interns using external email addresses must have Employee · Work Log access.');
   }
 
   const employmentStatus = document.getElementById('memberEmploymentStatus').value;
