@@ -105,6 +105,7 @@ function render(){
   const oneTimeRevenue=aggregate(oneTimeRows);
   const p1=aggregate(commercialRows.filter(r=>r.owner==='POND 1'));
   const p2=aggregate(commercialRows.filter(r=>r.owner==='POND 2'));
+  const pondStream=(pond,type)=>aggregate(commercialRows.filter(r=>r.owner===pond&&(type==='Retainer'?r.project.type==='Retainer':r.project.type!=='Retainer')));
   const unpaidPitch=aggregate(investmentRows.filter(r=>r.financialClass==='Non-Revenue External'));
   const internalProjects=aggregate(investmentRows.filter(r=>r.financialClass==='Internal'));
   const generalInternalEntries=periodEntries.filter(e=>e.project_id==='__internal__'||e.project_name==='Company / Internal');
@@ -136,7 +137,13 @@ function render(){
         ${moneyKpi('JG Profit',company.profit,company.revenue?formatPct(company.margin)+' margin':'Awaiting logged commercial work','is-accent')}
         ${textKpi('Actual effort',formatDuration(company.minutes),'All logged work, including company/internal time')}
       </section>
+      <section class="panel"><div class="panel-header"><div><div class="section-eyebrow">Business stream profitability</div><h2 class="panel-title">Retainers vs One-Time Projects</h2><p class="panel-subtitle">Revenue, labour and external costs are attributed to the projects where work was logged. Paid pitches are included with one-time projects. Internal and unpaid pitch investment remains in JG Cost, not these commercial summaries.</p></div></div></section>
+      <section class="grid-2">${streamProfitCard('Retainer Profitability',retainerRevenue)}
+        ${streamProfitCard('One-Time Profitability',oneTimeRevenue)}
+      </section>
+      <section class="panel"><div class="panel-header"><div><div class="section-eyebrow">Pond profitability</div><h2 class="panel-title">POND 1 vs POND 2</h2><p class="panel-subtitle">A project belongs to its owning Pond, while labour cost follows everyone who worked on it, including members of the other Pond and Pool. Each project's cost is counted once.</p></div></div></section>
       <section class="grid-2">${pondCard('POND 1',p1)}${pondCard('POND 2',p2)}</section>
+      <section class="grid-2">${pondStreamCard('POND 1',pondStream('POND 1','Retainer'),pondStream('POND 1','One-Time'))}${pondStreamCard('POND 2',pondStream('POND 2','Retainer'),pondStream('POND 2','One-Time'))}</section>
       <section class="grid-2">
         ${investmentCard('Unpaid pitch / non-revenue external',unpaidPitch,'Cost invested in external opportunities without project revenue.')}
         ${investmentCard('Internal / JG investment',internal,'Cost invested in JG internal work. Profit and margin do not apply.')}
@@ -486,6 +493,8 @@ function formatHoursDecimal(value){
   const n=Number(value||0);
   return (Number.isInteger(n)?String(n):n.toFixed(1).replace(/\.0$/,''))+'h';
 }
+function streamProfitCard(label,s){return `<article class="panel"><div class="panel-header"><div><div class="section-eyebrow">Commercial stream</div><h2 class="panel-title">${esc(label)}</h2></div></div><div class="panel-body"><div class="profit-stat-grid"><div><span>Revenue</span><strong>${formatMoney(s.revenue)}</strong></div><div><span>Labour + external cost</span><strong>${formatMoney(s.totalCost)}</strong></div><div><span>Profit</span><strong>${formatMoney(s.profit)}</strong></div><div><span>Margin</span><strong>${s.revenue?formatPct(s.margin):'—'}</strong></div></div></div></article>`;}
+function pondStreamCard(pond,retainer,oneTime){return `<article class="panel"><div class="panel-header"><div><div class="section-eyebrow">${esc(pond)} · by project type</div><h2 class="panel-title">Commercial breakdown</h2></div></div><div class="panel-body flush"><div class="logs-list"><div class="logs-list-row"><strong>Retainers</strong><span>${formatMoney(retainer.revenue)} revenue · ${formatMoney(retainer.profit)} profit · ${retainer.revenue?formatPct(retainer.margin):'—'} margin</span></div><div class="logs-list-row"><strong>One-Time / Paid Pitches</strong><span>${formatMoney(oneTime.revenue)} revenue · ${formatMoney(oneTime.profit)} profit · ${oneTime.revenue?formatPct(oneTime.margin):'—'} margin</span></div></div></div></article>`;}
 function pondCard(name,s){return `<article class="panel pond-profit-card"><div class="panel-header"><div><div class="section-eyebrow">${esc(name)}</div><h2 class="panel-title">Owned profitability</h2></div></div><div class="panel-body"><div class="profit-stat-grid"><div><span>Revenue owned</span><strong>${formatMoney(s.revenue)}</strong></div><div><span>Total delivery cost</span><strong>${formatMoney(s.totalCost)}</strong></div><div><span>Profit</span><strong>${formatMoney(s.profit)}</strong></div><div><span>Margin</span><strong>${s.revenue?formatPct(s.margin):'—'}</strong></div></div></div></article>`;}
 function investmentCard(label,stats,meta){
   return `<article class="panel"><div class="panel-header"><div><div class="section-eyebrow">Non-commercial effort</div><h2 class="panel-title">${esc(label)}</h2><p class="panel-subtitle">${esc(meta)}</p></div></div><div class="panel-body"><div class="profit-stat-grid"><div><span>Hours invested</span><strong>${formatDuration(stats.minutes)}</strong></div><div><span>Labour cost</span><strong>${formatMoney(stats.labour)}</strong></div><div><span>External cost</span><strong>${formatMoney(stats.external)}</strong></div><div><span>Total investment</span><strong>${formatMoney(stats.totalCost)}</strong></div></div></div></article>`;
