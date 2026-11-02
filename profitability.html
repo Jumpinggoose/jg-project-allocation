@@ -14,9 +14,14 @@
     <aside class="sidebar">
       <div class="brand-lockup"><div class="brand-mark">JG</div><div><div class="brand-name">JUMPINGGOOSE</div><div class="brand-subtitle">Management</div></div></div>
       <nav class="nav-list">
-        <a class="nav-item" href="/"><span class="nav-icon">▦</span><span>Planning App</span></a>
         <a class="nav-item" href="/worklog.html"><span class="nav-icon">◷</span><span>My Work Log</span></a>
-        <a class="nav-item is-active" href="/profitability.html"><span class="nav-icon">₹</span><span>Profitability</span></a>
+        <a class="nav-item" href="/?view=dashboard"><span class="nav-icon">▦</span><span>Dashboard</span></a>
+        <a class="nav-item" href="/?view=pond1"><span class="nav-icon">①</span><span>Pond 1 Projects</span></a>
+        <a class="nav-item" href="/?view=pond2"><span class="nav-icon">②</span><span>Pond 2 Projects</span></a>
+        <a class="nav-item" data-management-nav href="/?view=team"><span class="nav-icon">◎</span><span>Team Overview</span></a>
+        <a class="nav-item" data-management-nav href="/?view=setup"><span class="nav-icon">⚙</span><span>Admin Panel</span></a>
+        <a class="nav-item" id="employeeLogsLink" href="/employee-logs.html"><span class="nav-icon">≡</span><span>Employee Logs</span></a>
+        <a class="nav-item is-active" id="profitLink" href="/profitability.html"><span class="nav-icon">₹</span><span>Profitability</span></a>
       </nav>
       <div class="sidebar-spacer"></div>
       <div class="sync-card"><span class="sync-dot is-online"></span><div><strong id="profitUser">Loading…</strong><small>Management access</small></div></div>
