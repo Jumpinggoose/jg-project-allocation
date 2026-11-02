@@ -76,6 +76,7 @@
   <div class="toast-region" id="toastRegion" aria-live="polite"></div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.3"></script>
+  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script src="supabase-config.js"></script>
   <script>
   'use strict';
@@ -83,7 +84,7 @@
   const cfg=window.JG_SUPABASE;
   const sb=window.supabase.createClient(cfg.url,cfg.publishableKey);
   let user=null,access=null,appState=null,entries=[];
-  let selectedEmployee='ALL',preset='month',selectedMonth=localDate().slice(0,7);
+  let selectedEmployee='ALL',preset='month',selectedMonth=localDate().slice(0,7),exportMonth='ALL',exportBusy=false,canExportLogs=false;
 
   document.addEventListener('DOMContentLoaded',init);
 
@@ -102,6 +103,7 @@
     access=ar.data;
     if(email==='accounts@jumpinggoose.com')access={...access,access_level:'management',title:'Accounts / Management'};
     if(access.access_level==='employee')return location.replace('/worklog.html');
+    canExportLogs=access.access_level==='management';
 
     document.getElementById('logsUser').textContent=access.display_name+' · '+(access.title||'Employee Logs');
     document.getElementById('profitLink').hidden=!(access.access_level==='management' && ['piyush@jumpinggoose.com','tuhin@jumpinggoose.com','accounts@jumpinggoose.com'].includes(email));
@@ -131,9 +133,11 @@
   function handleChange(ev){
     if(ev.target.id==='employeeFilter'){selectedEmployee=ev.target.value;render();}
     if(ev.target.id==='selectedMonth'){selectedMonth=ev.target.value||localDate().slice(0,7);preset='months';render();}
+    if(ev.target.id==='exportMonth'){exportMonth=ev.target.value;render();}
   }
 
   function handleClick(ev){
+    if(ev.target.closest('[data-action="export-worklogs"]')){exportWorklogs();return;}
     if(ev.target.closest('[data-action="this-month"]')){preset='month';selectedMonth=localDate().slice(0,7);render();return;}
     const row=ev.target.closest('[data-employee-id]');
     if(!row)return;
@@ -165,6 +169,10 @@
               
               <div class="field"><span class="field-label">Range</span><strong>${esc(shortDate(range.from))} – ${esc(shortDate(range.to))}</strong></div>
             </div>
+            ${canExportLogs?`<div style="display:flex;align-items:end;justify-content:flex-end;flex-wrap:wrap;gap:12px;margin-top:16px">
+              <label class="field"><span class="field-label">Export period</span><select id="exportMonth"><option value="ALL" ${exportMonth==='ALL'?'selected':''}>All months in FY</option>${fyMonthsExport().map(m=>`<option value="${m}" ${exportMonth===m?'selected':''}>${esc(monthLabelExport(m))}</option>`).join('')}</select></label>
+              <button type="button" class="button button-primary" data-action="export-worklogs" ${exportBusy?'disabled':''}>${exportBusy?'Preparing Excel…':'Export Work Logs (.xlsx)'}</button>
+            </div>`:' '}
           </div>
         </section>
 
@@ -229,6 +237,48 @@
           ${list.length?`<table class="logs-table"><thead><tr><th>Date</th><th>Type</th><th>Project / Category</th><th>Activity</th><th>Task / description</th><th>Duration</th></tr></thead><tbody>${list.slice().sort((a,b)=>(b.work_date+b.created_at).localeCompare(a.work_date+a.created_at)).map(e=>'<tr><td>'+shortDate(e.work_date)+'</td><td><span class="logs-chip">'+(isInternal(e)?'Internal':'Project')+'</span></td><td><strong>'+esc(e.project_name)+'</strong>'+(e.project_pond?'<div class="logs-muted">'+esc(e.project_pond)+'</div>':'')+'</td><td>'+esc(e.activity_type)+'</td><td>'+esc(e.task_description||'—')+'</td><td><strong>'+duration(e.minutes)+'</strong></td></tr>').join('')}</tbody></table>`:'<div class="empty-state"><h3>No work logs in this period</h3><p>Change the period filter or select another employee.</p></div>'}
         </div>
       </section>`;
+  }
+
+  function fyMonthsExport(){
+    const y=Number((appState?.meta?.currentFY||'2026-27').slice(0,4));
+    return Array.from({length:12},(_,i)=>{const d=new Date(y,3+i,1);return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0');});
+  }
+  function monthLabelExport(m){return new Date(m+'-01T12:00:00').toLocaleDateString('en-GB',{month:'long',year:'numeric'});}
+  function excelSafe(v){const x=String(v??'');return /^[\s]*[=+@-]/.test(x)?"'"+x:x;}
+  async function exportWorklogs(){
+    if(!canExportLogs||exportBusy)return;
+    if(!window.XLSX){window.alert('Excel library unavailable. Refresh and try again.');return;}
+    exportBusy=true;render();
+    try{
+      const fy=appState.meta.currentFY||'2026-27',y=Number(fy.slice(0,4));
+      const start=exportMonth==='ALL'?y+'-04-01':exportMonth+'-01';
+      const end=exportMonth==='ALL'?(y+1)+'-03-31':exportMonth+'-'+String(new Date(Number(exportMonth.slice(0,4)),Number(exportMonth.slice(5,7)),0).getDate()).padStart(2,'0');
+      let all=[];
+      for(let offset=0;;offset+=500){
+        const q=await sb.from('time_entries').select('id,employee_id,work_date,project_id,project_name,project_pond,activity_type,task_description,minutes,locked,created_at').gte('work_date',start).lte('work_date',end).order('work_date',{ascending:true}).order('created_at',{ascending:true}).range(offset,offset+499);
+        if(q.error)throw q.error;
+        const chunk=q.data||[];all.push(...chunk);
+        if(chunk.length<500)break;
+      }
+      const members=new Map((appState.members||[]).map(m=>[m.id,m]));
+      const byEmployee=new Map(),byProject=new Map(),byActivity=new Map();
+      const bump=(map,k,n)=>{const r=map.get(k)||{count:0,mins:0};r.count++;r.mins+=n;map.set(k,r);};
+      const detail=all.map(e=>{
+        const m=members.get(e.employee_id)||{},n=Number(e.minutes||0),name=m.name||e.employee_id||'Unknown',project=e.project_name||'Company / Internal';
+        bump(byEmployee,name,n);bump(byProject,project,n);bump(byActivity,e.activity_type||'Other',n);
+        return [e.work_date,excelSafe(name),excelSafe(m.email||''),excelSafe(m.group||''),excelSafe(project),isInternal(e)?'Internal':'Project',excelSafe(e.activity_type),excelSafe(e.task_description),Math.floor(n/60),n%60,Number((n/60).toFixed(2)),duration(n),e.locked?'Locked':'Unlocked',excelSafe(e.project_pond),e.created_at||''];
+      });
+      const wb=XLSX.utils.book_new();
+      const append=(name,head,rows)=>{const ws=XLSX.utils.aoa_to_sheet([head,...rows]);ws['!cols']=head.map((h,i)=>({wch:Math.min(45,Math.max(14,h.length+2,...rows.slice(0,100).map(r=>String(r[i]??'').length+2)))}));XLSX.utils.book_append_sheet(wb,ws,name);};
+      append('All Entries',['Date','Employee','Email','Pond / Pool','Project','Work Type','Activity','Task / Description','Hours','Minutes','Total Hours (decimal)','Duration','Status','Project Pond','Created At'],detail);
+      const summary=map=>[...map.entries()].sort((a,b)=>b[1].mins-a[1].mins).map(([name,r])=>[excelSafe(name),r.count,Number((r.mins/60).toFixed(2)),duration(r.mins)]);
+      const headings=['Name','Entries','Total Hours (decimal)','Duration'];
+      append('By Employee',headings,summary(byEmployee));
+      append('By Project',headings,summary(byProject));
+      append('By Activity',headings,summary(byActivity));
+      XLSX.writeFile(wb,'JG_Work_Logs_'+(exportMonth==='ALL'?fy:exportMonth)+'.xlsx');
+    }catch(err){console.error(err);window.alert('Could not export work logs. Please try again.');}
+    finally{exportBusy=false;render();}
   }
 
   function aggregate(list,keyFn){
