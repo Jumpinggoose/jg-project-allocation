@@ -1759,7 +1759,7 @@ async function saveMemberFromModal(memberId) {
   const email = document.getElementById('memberEmail').value.trim().toLowerCase();
   const accessLevel = document.getElementById('memberAccessLevel').value;
   const memberType = document.getElementById('memberType').value;
-  if (email && !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)) {
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     return showModalError(errorEl, 'Enter a valid Google account email address.');
   }
   if (email && !email.endsWith('@jumpinggoose.com')) {
