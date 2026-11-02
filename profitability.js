@@ -165,18 +165,7 @@ function managementTabs(){
 
 function renderSalaryDirectory(){
   const members=(appState.members||[]).filter(m=>m.active).slice().sort((a,b)=>a.name.localeCompare(b.name));
-  root.innerHTML=`
-    <div class="stack-lg">
-      ${managementTabs()}
-      <section class="panel">
-        <div class="panel-header project-detail-head">
-          <div><div class="section-eyebrow">Management only</div><h2 class="panel-title">Employees & Salary</h2><p class="panel-subtitle">Set or edit salary/cost with an effective date. When it changes later, the earlier period is preserved automatically.</p></div>
-          <button class="button button-primary" type="button" data-action="comp">Edit salary</button>
-        </div>
-        <div class="panel-body flush">
-          <div class="table-wrap"><table class="data-table salary-table">
-            <thead><tr><th>Employee</th><th>Group</th><th>Current monthly salary / cost</th><th>Effective from</th><th>Hourly cost</th><th>History</th><th></th></tr></thead>
-            <tbody>${members.map(m=>{
+  const salaryRow=m=>{
               const current=currentComp(m.id);
               const history=compensation.filter(c=>c.employee_id===m.id).sort((a,b)=>String(b.effective_from).localeCompare(String(a.effective_from)));
               const calculatedHourly=current?Number(current.monthly_cost||0)/(Math.max(1,Number(m.weeklyCapacity||45))*52/12):0;
@@ -184,17 +173,41 @@ function renderSalaryDirectory(){
               const hourlyMeta=current?.hourly_cost_override!=null?'Custom override':'Auto-calculated';
               return `<tr>
                 <td><strong>${esc(m.name)}</strong><div class="cell-subtitle">${esc(m.type||'Employee')}</div></td>
-                <td>${esc(m.group)}</td>
+                
                 <td><strong>${current?formatMoney(current.monthly_cost):'Not set'}</strong></td>
                 <td>${current?esc(current.effective_from):'—'}</td>
                 <td>${current?'<strong>'+formatMoney(hourly)+'/hr</strong><div class="cell-subtitle">'+esc(hourlyMeta)+'</div>':'—'}</td>
                 <td><div class="history-stack">${history.length?history.map(h=>`<div>${formatMoney(h.monthly_cost)} · ${esc(h.effective_from)} ${h.effective_to?'→ '+esc(h.effective_to):'→ Current'}</div>`).join(''):'—'}</div></td>
                 <td><div class="project-detail-actions"><button class="link-button" type="button" data-action="comp-person" data-id="${esc(m.id)}">${current?'Edit salary':'Set salary'}</button>${history.length?'<button class="link-button link-danger" type="button" data-action="reset-salary" data-id="'+esc(m.id)+'">Reset salary</button>':''}</div></td>
               </tr>`;
-            }).join('')}</tbody>
-          </table></div>
-        </div>
-      </section>
+            };
+  const groupTable=(heading,list)=>`<div class="salary-team-section" style="border-top:1px solid var(--line)">
+    <div style="padding:14px 18px;display:flex;justify-content:space-between;align-items:center"><strong>${esc(heading)}</strong><span class="pill-count">${list.length}</span></div>
+    <div class="table-wrap"><table class="data-table salary-table"><thead><tr><th>Employee</th><th>Monthly salary / cost</th><th>Effective from</th><th>Hourly cost</th><th>History</th><th>Actions</th></tr></thead><tbody>
+      ${list.length?list.map(salaryRow).join(''):'<tr><td colspan="6" class="cell-subtitle">No members in this group.</td></tr>'}
+    </tbody></table></div>
+  </div>`;
+  const pondPanel=(pond,people)=>{
+    const employees=people.filter(m=>String(m.type||'Employee').toLowerCase()==='employee');
+    const interns=people.filter(m=>String(m.type||'').toLowerCase()==='intern');
+    const others=people.filter(m=>!['employee','intern'].includes(String(m.type||'Employee').toLowerCase()));
+    return `<section class="panel"><div class="panel-header"><div><div class="section-eyebrow">Team salary overview</div><h2 class="panel-title">${esc(pond)}</h2></div><span class="pill-count">${people.length}</span></div><div class="panel-body flush">
+      ${groupTable('Employees',employees)}
+      ${groupTable('Interns',interns)}
+      ${others.length?groupTable('Freelancers / Other',others):''}
+    </div></section>`;
+  };
+  const byPond=pond=>members.filter(m=>String(m.group||'POOL').toUpperCase()===pond);
+  const pool=members.filter(m=>!['POND 1','POND 2'].includes(String(m.group||'POOL').toUpperCase()));
+  root.innerHTML=`
+    <div class="stack-lg">
+      ${managementTabs()}
+      <section class="panel"><div class="panel-header project-detail-head">
+        <div><div class="section-eyebrow">Management only</div><h2 class="panel-title">Employees & Salary</h2><p class="panel-subtitle">Set or edit salary/cost with an effective date. Historical changes are preserved. Grouped by Pond and member type.</p></div>
+        <button class="button button-primary" type="button" data-action="comp">Edit salary</button>
+      </div></section>
+      <section class="grid-2">${pondPanel('POND 1',byPond('POND 1'))}${pondPanel('POND 2',byPond('POND 2'))}</section>
+      ${pondPanel('POOL',pool)}
     </div>`;
 }
 
