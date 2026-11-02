@@ -554,7 +554,10 @@ function renderCurrentView() {
   const employeeLogsNav = document.querySelector('[data-view="employee-logs"]');
   if (employeeLogsNav) employeeLogsNav.hidden = sessionUser?.role === 'employee';
   const profitabilityNav = document.querySelector('[data-view="profitability"]');
-  if (profitabilityNav) profitabilityNav.hidden = !userIsAdmin() || !['piyush@jumpinggoose.com','tuhin@jumpinggoose.com','accounts@jumpinggoose.com'].includes(String(sessionUser?.email || '').toLowerCase());
+  if (profitabilityNav) profitabilityNav.hidden = !userIsAdmin() || ![ 'piyush@jumpinggoose.com',
+  'tuhin@jumpinggoose.com',
+  'accounts@jumpinggoose.com',
+  'theo@jumpinggoose.com'].includes(String(sessionUser?.email || '').toLowerCase());
   const teamNav = document.querySelector('[data-view="team"]');
   if (teamNav) teamNav.hidden = sessionUser?.role === 'employee';
   if (els.dataButton) els.dataButton.hidden = sessionUser?.role === 'employee';
