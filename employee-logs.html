@@ -12,6 +12,10 @@
     .logs-controls{display:grid;grid-template-columns:1.2fr 1fr 1fr 1fr auto;gap:10px;align-items:end}
     .logs-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
     .logs-split{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+    .pond-log-overflow{width:100%;overflow-x:auto}
+    .pond-log-table{min-width:470px}
+    .pond-log-table th,.pond-log-table td{padding:12px 10px}
+    .logs-pond-overview{align-items:start}
     .logs-list{display:grid;gap:8px}
     .logs-list-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px;padding:11px 12px;border-top:1px solid var(--line)}
     .logs-list-row:first-child{border-top:0}
@@ -193,22 +197,17 @@
   function renderOverview(members,filtered){
     const rows=members.map(m=>{
       const list=filtered.filter(e=>e.employee_id===m.id);
-      const total=list.reduce((s,e)=>s+Number(e.minutes||0),0);
-      const internal=list.filter(isInternal).reduce((s,e)=>s+Number(e.minutes||0),0);
+      const total=list.reduce((sum,e)=>sum+Number(e.minutes||0),0);
+      const internal=list.filter(isInternal).reduce((sum,e)=>sum+Number(e.minutes||0),0);
       const projects=new Set(list.filter(e=>!isInternal(e)).map(e=>e.project_id)).size;
-      const last=list.slice().sort((a,b)=>(b.work_date+b.created_at).localeCompare(a.work_date+a.created_at))[0];
-      return {m,total,internal,projects,count:list.length,last};
+      return {m,total,internal,projects,count:list.length};
     });
-    return `
-      <section class="panel">
-        <div class="panel-header"><div><div class="section-eyebrow">All employees</div><h2 class="panel-title">Logged time overview</h2><p class="panel-subtitle">Click an employee to open their complete log.</p></div><span class="pill-count">${rows.length}</span></div>
-        <div class="panel-body flush">
-          <table class="logs-table">
-            <thead><tr><th>Employee</th><th>Total</th><th>Project work</th><th>Internal</th><th>Projects</th><th>Entries</th><th>Last log</th></tr></thead>
-            <tbody>${rows.map(r=>'<tr class="logs-overview-row" data-employee-id="'+attr(r.m.id)+'"><td><strong>'+esc(r.m.name)+'</strong><div class="logs-muted">'+esc(r.m.group||'')+'</div></td><td><strong>'+duration(r.total)+'</strong></td><td>'+duration(r.total-r.internal)+'</td><td>'+duration(r.internal)+'</td><td>'+r.projects+'</td><td>'+r.count+'</td><td>'+(r.last?shortDate(r.last.work_date):'—')+'</td></tr>').join('')}</tbody>
-          </table>
-        </div>
-      </section>`;
+    const card=(name,items)=>'<section class="panel"><div class="panel-header"><div><div class="section-eyebrow">Team activity</div><h2 class="panel-title">'+esc(name)+'</h2><p class="panel-subtitle">Click a member to view their detailed log.</p></div><span class="pill-count">'+items.length+'</span></div><div class="panel-body flush"><div class="pond-log-overflow"><table class="logs-table pond-log-table"><thead><tr><th>Team member</th><th>Total</th><th>Project</th><th>Internal</th><th>Entries</th></tr></thead><tbody>'+
+      (items.map(r=>'<tr class="logs-overview-row" data-employee-id="'+attr(r.m.id)+'"><td><strong>'+esc(r.m.name)+'</strong><div class="logs-muted">'+esc(r.m.type||'Employee')+' · '+r.projects+' projects</div></td><td><strong>'+duration(r.total)+'</strong></td><td>'+duration(r.total-r.internal)+'</td><td>'+duration(r.internal)+'</td><td>'+r.count+'</td></tr>').join('')||'<tr><td colspan="5" class="logs-muted">No members in this group.</td></tr>')+
+      '</tbody></table></div></div></section>';
+    const grouped=name=>rows.filter(r=>(r.m.group||'POOL').toUpperCase()===name);
+    const pool=rows.filter(r=>!['POND 1','POND 2'].includes((r.m.group||'POOL').toUpperCase()));
+    return '<section class="logs-split logs-pond-overview">'+card('POND 1',grouped('POND 1'))+card('POND 2',grouped('POND 2'))+'</section>'+card('POOL',pool);
   }
 
   function renderEmployeeDetail(member,list){
