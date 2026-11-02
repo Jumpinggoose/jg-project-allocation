@@ -130,11 +130,11 @@
 
   function handleChange(ev){
     if(ev.target.id==='employeeFilter'){selectedEmployee=ev.target.value;render();}
-    if(ev.target.id==='periodPreset'){preset=ev.target.value;render();}
-    if(ev.target.id==='selectedMonth'){selectedMonth=ev.target.value||localDate().slice(0,7);render();}
+    if(ev.target.id==='selectedMonth'){selectedMonth=ev.target.value||localDate().slice(0,7);preset='months';render();}
   }
 
   function handleClick(ev){
+    if(ev.target.closest('[data-action="this-month"]')){preset='month';selectedMonth=localDate().slice(0,7);render();return;}
     const row=ev.target.closest('[data-employee-id]');
     if(!row)return;
     selectedEmployee=row.dataset.employeeId;
@@ -160,8 +160,8 @@
           <div class="panel-body">
             <div class="logs-controls">
               <label class="field"><span class="field-label">Employee</span><select id="employeeFilter"><option value="ALL" ${selectedEmployee==='ALL'?'selected':''}>All employees</option>${members.map(m=>'<option value="'+attr(m.id)+'" '+(m.id===selectedEmployee?'selected':'')+'>'+esc(m.name)+'</option>').join('')}</select></label>
-              <label class="field"><span class="field-label">Period</span><select id="periodPreset"><option value="week" ${preset==='week'?'selected':''}>This week</option><option value="month" ${preset==='month'?'selected':''}>This month</option><option value="fy" ${preset==='fy'?'selected':''}>FY to date</option><option value="months" ${preset==='months'?'selected':''}>Select month</option></select></label>
-              <label class="field"><span class="field-label">Month</span><input id="selectedMonth" type="month" value="${selectedMonth}" ${preset==='months'?'':'disabled'}></label>
+              <label class="field"><span class="field-label">Period</span><button class="button ${preset==='month'?'button-primary':'button-secondary'}" type="button" data-action="this-month">This month</button></label>
+              <label class="field"><span class="field-label">Months</span><input id="selectedMonth" type="month" value="${selectedMonth}"></label>
               
               <div class="field"><span class="field-label">Range</span><strong>${esc(shortDate(range.from))} – ${esc(shortDate(range.to))}</strong></div>
             </div>
