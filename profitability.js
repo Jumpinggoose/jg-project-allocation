@@ -187,27 +187,21 @@ function renderSalaryDirectory(){
       ${list.length?list.map(salaryRow).join(''):'<tr><td colspan="6" class="cell-subtitle">No members in this group.</td></tr>'}
     </tbody></table></div>
   </div>`;
-  const pondPanel=(pond,people)=>{
-    const employees=people.filter(m=>String(m.type||'Employee').toLowerCase()==='employee');
-    const interns=people.filter(m=>String(m.type||'').toLowerCase()==='intern');
-    const others=people.filter(m=>!['employee','intern'].includes(String(m.type||'Employee').toLowerCase()));
-    return `<section class="panel"><div class="panel-header"><div><div class="section-eyebrow">Team salary overview</div><h2 class="panel-title">${esc(pond)}</h2></div><span class="pill-count">${people.length}</span></div><div class="panel-body flush">
-      ${groupTable('Employees',employees)}
-      ${groupTable('Interns',interns)}
-      ${others.length?groupTable('Freelancers / Other',others):''}
-    </div></section>`;
-  };
-  const byPond=pond=>members.filter(m=>String(m.group||'POOL').toUpperCase()===pond);
-  const pool=members.filter(m=>!['POND 1','POND 2'].includes(String(m.group||'POOL').toUpperCase()));
+  const employees=members.filter(m=>String(m.type||'Employee').toLowerCase()==='employee');
+  const interns=members.filter(m=>String(m.type||'').toLowerCase()==='intern');
+  const others=members.filter(m=>!['employee','intern'].includes(String(m.type||'Employee').toLowerCase()));
   root.innerHTML=`
     <div class="stack-lg">
       ${managementTabs()}
       <section class="panel"><div class="panel-header project-detail-head">
-        <div><div class="section-eyebrow">Management only</div><h2 class="panel-title">Employees & Salary</h2><p class="panel-subtitle">Set or edit salary/cost with an effective date. Historical changes are preserved. Grouped by Pond and member type.</p></div>
+        <div><div class="section-eyebrow">Management only</div><h2 class="panel-title">Employees & Salary</h2><p class="panel-subtitle">Set or edit salary/cost with an effective date. Historical changes are preserved. Employees and interns are grouped separately.</p></div>
         <button class="button button-primary" type="button" data-action="comp">Edit salary</button>
       </div></section>
-      <section class="grid-2">${pondPanel('POND 1',byPond('POND 1'))}${pondPanel('POND 2',byPond('POND 2'))}</section>
-      ${pondPanel('POOL',pool)}
+      <section class="panel"><div class="panel-body flush">
+        ${groupTable('Employees',employees)}
+        ${groupTable('Interns',interns)}
+        ${others.length?groupTable('Freelancers / Other',others):''}
+      </div></section>
     </div>`;
 }
 
