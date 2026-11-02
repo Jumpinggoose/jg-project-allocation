@@ -2,7 +2,12 @@
 
 const cfg = window.JG_SUPABASE;
 const sb = window.supabase.createClient(cfg.url, cfg.publishableKey);
-const MANAGEMENT_EMAILS = new Set(['piyush@jumpinggoose.com','tuhin@jumpinggoose.com','accounts@jumpinggoose.com']);
+const MANAGEMENT_EMAILS = new Set([
+  'piyush@jumpinggoose.com',
+  'tuhin@jumpinggoose.com',
+  'accounts@jumpinggoose.com',
+  'theo@jumpinggoose.com'
+]);
 let user=null, access=null, appState=null, timeEntries=[], financials=[], compensation=[], revenueHistory=[];
 const WORKLOG_BASELINE_MONTH='2026-10'; // Historical logs before this month may be incomplete.
 let selectedMonth='ALL';
