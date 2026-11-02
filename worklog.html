@@ -57,7 +57,11 @@
       </div>
       <nav class="nav-list">
         <a class="nav-item is-active" href="/worklog.html"><span class="nav-icon">◷</span><span>My Work Log</span></a>
-        <a class="nav-item" id="planningLink" href="/"><span class="nav-icon">▦</span><span>Projects View</span></a>
+        <a class="nav-item" href="/?view=dashboard"><span class="nav-icon">▦</span><span>Dashboard</span></a>
+        <a class="nav-item" href="/?view=pond1"><span class="nav-icon">①</span><span>Pond 1 Projects</span></a>
+        <a class="nav-item" href="/?view=pond2"><span class="nav-icon">②</span><span>Pond 2 Projects</span></a>
+        <a class="nav-item" data-management-nav href="/?view=team" hidden><span class="nav-icon">◎</span><span>Team Overview</span></a>
+        <a class="nav-item" data-management-nav href="/?view=setup" hidden><span class="nav-icon">⚙</span><span>Admin Panel</span></a>
         <a class="nav-item" id="employeeLogsLink" href="/employee-logs.html" hidden><span class="nav-icon">≡</span><span>Employee Logs</span></a>
         <a class="nav-item" id="profitLink" href="/profitability.html" hidden><span class="nav-icon">₹</span><span>Profitability</span></a>
       </nav>
@@ -110,6 +114,7 @@
     document.getElementById('planningLink').hidden=false;
     document.getElementById('planningLink').textContent='';
     document.getElementById('planningLink').innerHTML='<span class="nav-icon">▦</span><span>Projects View</span>';
+    document.querySelectorAll('[data-management-nav]').forEach(link=>{link.hidden=access.access_level!=='management';});
     const employeeLogsLink=document.getElementById('employeeLogsLink');
     if(employeeLogsLink)employeeLogsLink.hidden=access.access_level==='employee';
     const profitLink=document.getElementById('profitLink');
