@@ -12,6 +12,8 @@
     .logs-controls{display:grid;grid-template-columns:1.2fr 1fr 1fr 1fr auto;gap:10px;align-items:end}
     .logs-kpis{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px}
     .logs-split{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+    .pond-team-section+.pond-team-section{border-top:1px solid var(--line)}
+    .pond-team-heading{display:flex;align-items:center;justify-content:space-between;padding:14px 16px;gap:12px}
     .pond-log-overflow{width:100%;overflow-x:auto}
     .pond-log-table{min-width:470px}
     .pond-log-table th,.pond-log-table td{padding:12px 10px}
@@ -202,9 +204,14 @@
       const projects=new Set(list.filter(e=>!isInternal(e)).map(e=>e.project_id)).size;
       return {m,total,internal,projects,count:list.length};
     });
-    const card=(name,items)=>'<section class="panel"><div class="panel-header"><div><div class="section-eyebrow">Team activity</div><h2 class="panel-title">'+esc(name)+'</h2><p class="panel-subtitle">Click a member to view their detailed log.</p></div><span class="pill-count">'+items.length+'</span></div><div class="panel-body flush"><div class="pond-log-overflow"><table class="logs-table pond-log-table"><thead><tr><th>Team member</th><th>Total</th><th>Project</th><th>Internal</th><th>Entries</th></tr></thead><tbody>'+
-      (items.map(r=>'<tr class="logs-overview-row" data-employee-id="'+attr(r.m.id)+'"><td><strong>'+esc(r.m.name)+'</strong><div class="logs-muted">'+esc(r.m.type||'Employee')+' · '+r.projects+' projects</div></td><td><strong>'+duration(r.total)+'</strong></td><td>'+duration(r.total-r.internal)+'</td><td>'+duration(r.internal)+'</td><td>'+r.count+'</td></tr>').join('')||'<tr><td colspan="5" class="logs-muted">No members in this group.</td></tr>')+
-      '</tbody></table></div></div></section>';
+    const memberRows=items=>items.map(r=>'<tr class="logs-overview-row" data-employee-id="'+attr(r.m.id)+'"><td><strong>'+esc(r.m.name)+'</strong><div class="logs-muted">'+r.projects+' projects</div></td><td><strong>'+duration(r.total)+'</strong></td><td>'+duration(r.total-r.internal)+'</td><td>'+duration(r.internal)+'</td><td>'+r.count+'</td></tr>').join('');
+    const section=(label,items)=>'<div class="pond-team-section"><div class="pond-team-heading"><strong>'+esc(label)+'</strong><span class="pill-count">'+items.length+'</span></div><div class="pond-log-overflow"><table class="logs-table pond-log-table"><thead><tr><th>Team member</th><th>Total</th><th>Project</th><th>Internal</th><th>Entries</th></tr></thead><tbody>'+(memberRows(items)||'<tr><td colspan="5" class="logs-muted">No '+esc(label.toLowerCase())+' in this group.</td></tr>')+'</tbody></table></div></div>';
+    const card=(name,items)=>{
+      const employees=items.filter(r=>String(r.m.type||'Employee').toLowerCase()==='employee');
+      const interns=items.filter(r=>String(r.m.type||'').toLowerCase()==='intern');
+      const others=items.filter(r=>!['employee','intern'].includes(String(r.m.type||'Employee').toLowerCase()));
+      return '<section class="panel"><div class="panel-header"><div><div class="section-eyebrow">Team activity</div><h2 class="panel-title">'+esc(name)+'</h2><p class="panel-subtitle">Click a member to view their detailed log.</p></div><span class="pill-count">'+items.length+'</span></div><div class="panel-body flush">'+section('Employees',employees)+section('Interns',interns)+(others.length?section('Freelancers / Other',others):'')+'</div></section>';
+    };
     const grouped=name=>rows.filter(r=>(r.m.group||'POOL').toUpperCase()===name);
     const pool=rows.filter(r=>!['POND 1','POND 2'].includes((r.m.group||'POOL').toUpperCase()));
     return '<section class="logs-split logs-pond-overview">'+card('POND 1',grouped('POND 1'))+card('POND 2',grouped('POND 2'))+'</section>'+card('POOL',pool);
