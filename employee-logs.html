@@ -170,6 +170,11 @@
     const internal=scoped.filter(isInternal).reduce((s,e)=>s+Number(e.minutes||0),0);
     const project=total-internal;
     const last=scoped.slice().sort((a,b)=>(b.work_date+b.created_at).localeCompare(a.work_date+a.created_at))[0];
+    const chosenMember=members.find(m=>m.id===selectedEmployee);
+    const selectedBenchmark=selectedEmployee==='ALL'?members.reduce((sum,m)=>sum+monthlyHourBenchmark(m),0):monthlyHourBenchmark(chosenMember);
+    const selectedRemaining=Math.max(0,selectedBenchmark*60-total);
+    const selectedExtra=Math.max(0,total-selectedBenchmark*60);
+    const selectedUtilisation=selectedBenchmark?Math.round(total/(selectedBenchmark*60)*100):0;
 
     document.getElementById('logsRoot').innerHTML=`
       <div class="stack-lg">
@@ -191,12 +196,13 @@
         </section>
 
         <section class="logs-kpis">
-          ${kpi('Total logged',duration(total),scoped.length+' entries','is-accent')}
+          ${kpi('Total logged',selectedEmployee==='ALL'?duration(total):duration(total)+' / '+selectedBenchmark+'h',selectedEmployee==='ALL'?scoped.length+' entries':'Monthly benchmark · '+selectedUtilisation+'%','is-accent')}
           ${kpi('Project work',duration(project),total?Math.round(project/total*100)+'% of logged time':'No entries','')}
           ${kpi('Company / Internal',duration(internal),total?Math.round(internal/total*100)+'% of logged time':'No entries','')}
           ${kpi('Last log',last?shortDate(last.work_date):'—',last?duration(last.minutes)+' · '+last.project_name:'No entries','')}
         </section>
-
+        ${selectedEmployee!=='ALL'?'<section class="logs-kpis">'+kpi('Monthly benchmark',selectedBenchmark+'h','22 average workdays × 8 hours')+kpi('Remaining benchmark',duration(selectedRemaining),'Benchmark less recorded hours')+kpi('Above benchmark',duration(selectedExtra),selectedExtra?'Additional logged effort':'Within benchmark')+'</section>':''}
+        <div class="notice compact-notice">Monthly benchmark: 22 average working days × 8 hours = 176 hours for standard full-time staff. Lower configured weekly capacity is prorated. Logged hours are submitted work entries, not attendance; remaining benchmark time is not necessarily free allocation. Hours above benchmark are additional logged effort, not automatically paid overtime. Holidays, leave and working days may vary.</div>
         ${selectedEmployee==='ALL'?renderOverview(members,filtered):renderEmployeeDetail(members.find(m=>m.id===selectedEmployee),scoped)}
       </div>`;
   }
@@ -207,10 +213,11 @@
       const total=list.reduce((sum,e)=>sum+Number(e.minutes||0),0);
       const internal=list.filter(isInternal).reduce((sum,e)=>sum+Number(e.minutes||0),0);
       const projects=new Set(list.filter(e=>!isInternal(e)).map(e=>e.project_id)).size;
-      return {m,total,internal,projects,count:list.length};
+      const benchmark=monthlyHourBenchmark(m);
+      return {m,total,internal,projects,count:list.length,benchmark,remaining:Math.max(0,benchmark*60-total),extra:Math.max(0,total-benchmark*60)};
     });
-    const memberRows=items=>items.map(r=>'<tr class="logs-overview-row" data-employee-id="'+attr(r.m.id)+'"><td><strong>'+esc(r.m.name)+'</strong><div class="logs-muted">'+r.projects+' projects</div></td><td><strong>'+duration(r.total)+'</strong></td><td>'+duration(r.total-r.internal)+'</td><td>'+duration(r.internal)+'</td><td>'+r.count+'</td></tr>').join('');
-    const section=(label,items)=>'<div class="pond-team-section"><div class="pond-team-heading"><strong>'+esc(label)+'</strong><span class="pill-count">'+items.length+'</span></div><div class="pond-log-overflow"><table class="logs-table pond-log-table"><thead><tr><th>Team member</th><th>Total</th><th>Project</th><th>Internal</th><th>Entries</th></tr></thead><tbody>'+(memberRows(items)||'<tr><td colspan="5" class="logs-muted">No '+esc(label.toLowerCase())+' in this group.</td></tr>')+'</tbody></table></div></div>';
+    const memberRows=items=>items.map(r=>'<tr class="logs-overview-row" data-employee-id="'+attr(r.m.id)+'"><td><strong>'+esc(r.m.name)+'</strong><div class="logs-muted">'+r.projects+' projects</div></td><td><strong>'+duration(r.total)+' / '+r.benchmark+'h</strong></td><td>'+duration(r.remaining)+'</td><td>'+duration(r.extra)+'</td><td>'+r.count+'</td></tr>').join('');
+    const section=(label,items)=>'<div class="pond-team-section"><div class="pond-team-heading"><strong>'+esc(label)+'</strong><span class="pill-count">'+items.length+'</span></div><div class="pond-log-overflow"><table class="logs-table pond-log-table"><thead><tr><th>Team member</th><th>Logged / target</th><th>Remaining</th><th>Extra</th><th>Entries</th></tr></thead><tbody>'+(memberRows(items)||'<tr><td colspan="5" class="logs-muted">No '+esc(label.toLowerCase())+' in this group.</td></tr>')+'</tbody></table></div></div>';
     const card=(name,items)=>{
       const employees=items.filter(r=>String(r.m.type||'Employee').toLowerCase()==='employee');
       const interns=items.filter(r=>String(r.m.type||'').toLowerCase()==='intern');
@@ -331,6 +338,10 @@
   function localDate(){const d=new Date(),o=d.getTimezoneOffset();return new Date(d.getTime()-o*60000).toISOString().slice(0,10);}
   function isoLocal(d){const o=d.getTimezoneOffset();return new Date(d.getTime()-o*60000).toISOString().slice(0,10);}
   function shortDate(v){return new Date(v+'T00:00:00').toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'});}
+  function monthlyHourBenchmark(member){
+    const weekly=Number(member?.weeklyCapacity);
+    return Number.isFinite(weekly)&&weekly>0&&weekly<40 ? Math.round(176*weekly/40*10)/10 : 176;
+  }
   function duration(m){m=Math.round(Number(m||0));const h=Math.floor(m/60),n=m%60;return h?(n?h+'h '+n+'m':h+'h'):n+'m';}
   function kpi(l,v,m,c){return '<article class="kpi-card '+c+'"><div class="kpi-label">'+esc(l)+'</div><div class="kpi-value">'+esc(v)+'</div><div class="kpi-meta">'+esc(m)+'</div></article>';}
   function esc(v){return String(v??'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#039;');}
