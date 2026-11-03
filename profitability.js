@@ -168,9 +168,9 @@ function renderSalaryDirectory(){
   const salaryRow=m=>{
               const current=currentComp(m.id);
               const history=compensation.filter(c=>c.employee_id===m.id).sort((a,b)=>String(b.effective_from).localeCompare(String(a.effective_from)));
-              const calculatedHourly=current?Number(current.monthly_cost||0)/(Math.max(1,Number(m.weeklyCapacity||45))*52/12):0;
+              const calculatedHourly=current?Number(current.monthly_cost||0)/(30*9):0;
               const hourly=current?(current.hourly_cost_override!=null?Number(current.hourly_cost_override):calculatedHourly):0;
-              const hourlyMeta=current?.hourly_cost_override!=null?'Custom override':'Auto-calculated';
+              const hourlyMeta=current?.hourly_cost_override!=null?'Custom override':'Monthly salary ÷ 30 days ÷ 9 hrs';
               return `<tr>
                 <td><strong>${esc(m.name)}</strong><div class="cell-subtitle">${esc(m.type||'Employee')}</div></td>
                 
@@ -371,7 +371,7 @@ function revenueRateForMonth(projectId,month){
 function aggregate(rows){const a=rows.reduce((x,r)=>{x.revenue+=r.revenue;x.external+=r.external;x.labour+=r.labour;x.minutes+=r.minutes;return x;},{revenue:0,external:0,labour:0,minutes:0});a.totalCost=a.external+a.labour;a.profit=a.revenue-a.totalCost;a.margin=a.revenue?a.profit/a.revenue:0;a.roi=a.totalCost?a.profit/a.totalCost:0;return a;}
 function deliveryContribution(fy,month){const out={'POND 1':{minutes:0,cost:0},'POND 2':{minutes:0,cost:0},'POOL':{minutes:0,cost:0}};timeEntries.filter(e=>inPeriod(e.work_date,fy,month)).forEach(e=>{const g=member(e.employee_id)?.group||'POOL';if(!out[g])out[g]={minutes:0,cost:0};out[g].minutes+=Number(e.minutes||0);out[g].cost+=labourCost(e);});return out;}
 function compFor(id,date){return compensation.filter(c=>c.employee_id===id&&c.effective_from<=date&&(!c.effective_to||c.effective_to>=date)).sort((a,b)=>String(b.effective_from).localeCompare(String(a.effective_from)))[0]||null;}
-function hourlyRateForComp(employeeId,c){if(!c)return 0;if(c.hourly_cost_override!=null&&Number.isFinite(Number(c.hourly_cost_override)))return Number(c.hourly_cost_override);const weekly=Math.max(1,Number(member(employeeId)?.weeklyCapacity||45));return Number(c.monthly_cost||0)/(weekly*52/12);}
+function hourlyRateForComp(employeeId,c){if(!c)return 0;if(c.hourly_cost_override!=null&&Number.isFinite(Number(c.hourly_cost_override)))return Number(c.hourly_cost_override);return Number(c.monthly_cost||0)/(30*9);}
 function labourCost(e){if(e.estimated&&!founderInputs[e.employee_id])return 0;const c=compFor(e.employee_id,e.work_date);if(!c)return 0;return hourlyRateForComp(e.employee_id,c)*(Number(e.minutes||0)/60);}
 function member(id){return (appState.members||[]).find(m=>m.id===id);}
 function memberName(id){return member(id)?.name||id;}
