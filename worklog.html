@@ -161,7 +161,7 @@
         </section>
         <section class="grid-2">
           ${kpi('Logged today',duration(dayMin),day.length+' '+(day.length===1?'entry':'entries'),'is-accent')}
-          ${kpi('This month',duration(monthMin)+' / '+benchmark+'h','Monthly benchmark','')}
+          ${kpi('This month',duration(monthMin)+' / '+benchmark+'h','176h = 22 average working days × 8 hours','')}
         </section>
         <section class="panel">
           <div class="panel-header"><div><div class="section-eyebrow">Add work</div><h2 class="panel-title">New time entry</h2><p class="panel-subtitle">Log project work or company/internal time. Internal time stays separate from client project effort.</p></div></div>
@@ -213,7 +213,7 @@
     document.getElementById('worklogRoot').innerHTML=`
       <div class="stack-lg">${worklogTabs()}
         <section class="worklog-summary"><div><div class="section-eyebrow">Monthly overview</div><h2 style="margin:5px 0 4px">${esc(monthLabel)}</h2><p style="color:var(--muted)">Your logged hours across projects and dates. Choose a date to edit entries in Daily Log.</p></div><div class="worklog-summary-actions"><label class="field"><span class="field-label">Month</span><input type="month" data-control="worklog-month" value="${month}"></label></div></section>
-        <section class="grid-2">${kpi('Total logged',duration(minutes)+' / '+benchmark+'h',utilisation+'% of monthly benchmark · '+list.length+' entries','is-accent')}
+        <section class="grid-2">${kpi('Total logged',duration(minutes)+' / '+benchmark+'h',utilisation+'% · 22 average working days × 8 hours · '+list.length+' entries','is-accent')}
           ${kpi('Remaining benchmark hours',duration(remaining),'Benchmark less submitted work logs','')}
           ${kpi('Above benchmark',duration(extra),extra?'Additional logged effort':'No hours above monthly benchmark','')}
           ${kpi('Projects / activities',String(grouped.size),'Distinct work categories','')}
