@@ -83,10 +83,10 @@ function render(){
   const fyPeriodMonths=fyMonths(fy);
   const preBaselineMonths=fyPeriodMonths.filter(m=>m<WORKLOG_BASELINE_MONTH);
   const periodNotice=selectedMonth==='ALL'
-    ? '<strong>Financial year view · Partial actuals.</strong> The full FY is selected, but work-log tracking is being backfilled from October 2026. April–September 2026 may be incomplete, so FY profit and margin should not be treated as full-year actual performance. Work logs are present for '+monthsWithActualLogs.size+' of 12 FY months. The presence of entries does not confirm a complete month.'
+    ? '<strong>FY view · Mixed reporting basis.</strong> Retainers use FY activity; one-time projects and paid pitches show one fixed fee and cumulative lifetime costs. Work logs before October 2026 may be incomplete; '+monthsWithActualLogs.size+' of 12 FY months contain entries, but completeness is not verified.'
     : selectedMonth<WORKLOG_BASELINE_MONTH
-      ? '<strong>Historical period · Incomplete / unverified.</strong> This month is before the October 2026 work-log tracking baseline. Missing hours can understate costs and overstate profitability. Do not treat these results as complete actuals.'
-      : '<strong>Work-log tracking period · From October 2026.</strong> Figures use logged hours for the selected month. Timesheet completeness has not been independently verified; missing entries can understate costs and overstate profitability.';
+      ? '<strong>Historical month · Mixed reporting basis.</strong> Retainers use this month; one-time projects show lifetime profitability. This month predates the October 2026 tracking baseline, so missing work logs can understate cost.'
+      : '<strong>Selected month · Mixed reporting basis.</strong> Retainers use the selected month; one-time projects and paid pitches show fixed fees and cumulative lifetime costs even when the month changes. Timesheet completeness is not verified.';
   const chosenMonthHasLogs=selectedMonth==='ALL'||monthsWithActualLogs.has(selectedMonth);
   const missingLogsNotice=selectedMonth!=='ALL'&&!chosenMonthHasLogs
     ? '<div class="notice notice-warning"><strong>No employee work logs found for this month.</strong> Profit and margin are not reliable until time entries are recorded and checked.</div>'
@@ -361,7 +361,7 @@ function projectRows(fy,month){
   const revenue=projectRevenue(project,fy,month,times,fin);
   const external=fin.reduce((sum,e)=>sum+Number(e.external_cost||0),0);
   const labour=times.reduce((sum,e)=>sum+labourCost(e),0);
-  const owner=fin[0]?.ownership_pond||project.pond;
+  const owner=(fixed?feeEntriesForProject(project.id)[0]:fin[0])?.ownership_pond||project.pond;
   const totalCost=labour+external;
   const profit=profitabilityReady&&financialClass==='Revenue Generating'?revenue-totalCost:0;
   const endDate=project.endDate||'';
@@ -447,6 +447,7 @@ function openProjectPeople(projectId,push=true){
             ${summaryStat('Actual time',formatDuration(row.minutes),'Total logged time')}
             ${summaryStat('Labour cost',formatMoney(row.labour),'Actual people cost')}
             ${summaryStat('External cost',formatMoney(row.external),'Vendors / production / other')}
+            ${row.fixed?summaryStat('Post-deadline labour',row.project.endDate?formatMoney(row.postDeadlineCost):'End date not set',row.project.endDate?formatDuration(row.postDeadlineMinutes)+' logged after '+row.project.endDate:'Set planned end date in Project View'):''}
             ${summaryStat(commercial?'Total project cost':'Total investment',formatMoney(row.totalCost),commercial?(row.revenue?formatPct(row.totalCost/row.revenue)+' of revenue':'Revenue not entered'):'Non-commercial cost')}
           </div>
         </div>
