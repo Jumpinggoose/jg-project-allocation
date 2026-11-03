@@ -195,6 +195,12 @@
     const month=selectedDate.slice(0,7);
     const list=entries.filter(e=>String(e.work_date).slice(0,7)===month);
     const minutes=list.reduce((sum,e)=>sum+Number(e.minutes||0),0);
+    const currentMember=(appState?.members||[]).find(m=>m.id===access?.member_id);
+    const benchmark=monthlyHourBenchmark(currentMember);
+    const targetMinutes=benchmark*60;
+    const remaining=Math.max(0,targetMinutes-minutes);
+    const extra=Math.max(0,minutes-targetMinutes);
+    const utilisation=benchmark?Math.round((minutes/targetMinutes)*100):0;
     const grouped=new Map();
     for(const e of list){const id=e.project_id||'__internal__';const item=grouped.get(id)||{name:e.project_name||'Company / Internal',mins:0,count:0};item.mins+=Number(e.minutes||0);item.count++;grouped.set(id,item)}
     const byActivity=new Map();
@@ -206,7 +212,16 @@
     document.getElementById('worklogRoot').innerHTML=`
       <div class="stack-lg">${worklogTabs()}
         <section class="worklog-summary"><div><div class="section-eyebrow">Monthly overview</div><h2 style="margin:5px 0 4px">${esc(monthLabel)}</h2><p style="color:var(--muted)">Your logged hours across projects and dates. Choose a date to edit entries in Daily Log.</p></div><div class="worklog-summary-actions"><label class="field"><span class="field-label">Month</span><input type="month" data-control="worklog-month" value="${month}"></label></div></section>
-        <section class="grid-2">${kpi('Logged this month',duration(minutes),list.length+' entries','is-accent')}${kpi('Projects / activities',String(grouped.size),'Distinct work categories','')}</section>
+        <section class="grid-2">${kpi('Total logged',duration(minutes)+' / '+benchmark+'h',utilisation+'% of monthly benchmark · '+list.length+' entries','is-accent')}
+          ${kpi('Remaining benchmark hours',duration(remaining),'Benchmark less submitted work logs','')}
+          ${kpi('Above benchmark',duration(extra),extra?'Additional logged effort':'No hours above monthly benchmark','')}
+          ${kpi('Projects / activities',String(grouped.size),'Distinct work categories','')}
+        </section>
+        <section class="panel"><div class="panel-body">
+          <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap"><strong>Monthly benchmark utilisation</strong><strong>${utilisation}%</strong></div>
+          <div class="progress-track" style="margin:10px 0"><span class="progress-fill" style="display:block;width:${Math.min(100,utilisation)}%;height:100%"></span></div>
+          <p class="cell-subtitle" style="margin:0">Full-time benchmark: 22 average working days × 8 hours = 176 hours. A lower configured weekly capacity is prorated. Logged time reflects submitted entries, not attendance. Remaining benchmark hours are not necessarily available for new assignments. Hours above benchmark are additional logged effort, not automatically paid overtime. Actual holidays, leave and working days can vary.</p>
+        </div></section>
         <section class="grid-2">
         <section class="panel"><div class="panel-header"><div><div class="section-eyebrow">Project breakdown</div><h2 class="panel-title">Where your time went</h2></div></div><div class="panel-body">${grouped.size?[...grouped.values()].sort((a,b)=>b.mins-a.mins).map(x=>`<div style="margin:0 0 18px"><div style="display:flex;justify-content:space-between;gap:12px"><strong>${esc(x.name)}</strong><strong>${duration(x.mins)}</strong></div><div class="progress-track" style="margin-top:8px"><span class="progress-fill" style="display:block;width:${minutes?x.mins/minutes*100:0}%;height:100%"></span></div><small style="color:var(--muted)">${x.count} entries</small></div>`).join(''):'<p class="cell-subtitle">No time recorded this month.</p>'}</div></section>
         <section class="panel"><div class="panel-header"><div><div class="section-eyebrow">Activity split</div><h2 class="panel-title">Work by activity</h2></div></div><div class="panel-body flush"><div class="entry-list">${activitySplit.length?activitySplit.map(([name,mins])=>`<div class="entry-card" style="grid-template-columns:minmax(180px,1fr) auto"><strong>${esc(name)}</strong><strong>${duration(mins)}</strong></div>`).join(''):'<div class="empty-state">No activity recorded for this month.</div>'}</div></div></section>
@@ -363,6 +378,10 @@
 
   function pushWorklogDate(){const u=new URL(location.href);u.searchParams.set('date',selectedDate);u.searchParams.set('mode',worklogMode);history.pushState({date:selectedDate},'',u);}
   function parseDuration(v){const m=String(v).trim().match(/^(\d{1,2}):([0-5]\d)$/);if(!m)return 0;const t=Number(m[1])*60+Number(m[2]);return t>0&&t<=1440?t:0;}
+  function monthlyHourBenchmark(member){
+    const weekly=Number(member?.weeklyCapacity);
+    return Number.isFinite(weekly)&&weekly>0&&weekly<40 ? Math.round(176*weekly/40*10)/10 : 176;
+  }
   function durationInput(m){return Math.floor(m/60)+':'+String(m%60).padStart(2,'0');}
   function duration(m){m=Math.round(Number(m||0));const h=Math.floor(m/60),n=m%60;return h?(n?h+'h '+n+'m':h+'h'):n+'m';}
   function localDate(){const d=new Date(),o=d.getTimezoneOffset();return new Date(d.getTime()-o*60000).toISOString().slice(0,10);}
