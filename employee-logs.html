@@ -202,7 +202,7 @@
           ${kpi('Last log',last?shortDate(last.work_date):'—',last?duration(last.minutes)+' · '+last.project_name:'No entries','')}
         </section>
         ${selectedEmployee!=='ALL'?'<section class="logs-kpis">'+kpi('Monthly benchmark',selectedBenchmark+'h','22 average workdays × 8 hours')+kpi('Remaining benchmark',duration(selectedRemaining),'Benchmark less recorded hours')+kpi('Above benchmark',duration(selectedExtra),selectedExtra?'Additional logged effort':'Within benchmark')+'</section>':''}
-        <div class="notice compact-notice">Monthly benchmark: 22 average working days × 8 hours = 176 hours for standard full-time staff. Lower configured weekly capacity is prorated. Logged hours are submitted work entries, not attendance; remaining benchmark time is not necessarily free allocation. Hours above benchmark are additional logged effort, not automatically paid overtime. Holidays, leave and working days may vary.</div>
+        <p class="cell-subtitle" style="margin:0 0 12px">176h monthly benchmark = 22 average working days × 8 hours per day. Reduced individual benchmarks may differ.</p>
         ${selectedEmployee==='ALL'?renderOverview(members,filtered):renderEmployeeDetail(members.find(m=>m.id===selectedEmployee),scoped)}
       </div>`;
   }
