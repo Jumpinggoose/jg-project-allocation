@@ -47,21 +47,30 @@ async function init(){
 }
 async function logout(){await sb.auth.signOut();location.replace('/login.html');}
 
+async function fetchAllProfitRows(table,orderColumn){
+ const rows=[];
+ for(let offset=0;;offset+=500){
+  const r=await sb.from(table).select('*').order(orderColumn,{ascending:true}).range(offset,offset+499);
+  if(r.error)throw r.error;
+  const chunk=r.data||[];rows.push(...chunk);
+  if(chunk.length<500)break;
+ }
+ return rows;
+}
 async function loadData(){
-  const fy=appState?.meta?.currentFY||'2026-27';
-  const y=Number(fy.slice(0,4));
-  const start=y+'-04-01', end=(y+1)+'-03-31';
-  const [tr,fr,cr,rr,fo]=await Promise.all([
-    sb.from('time_entries').select('*').gte('work_date',start).lte('work_date',end),
-    sb.from('project_financial_entries').select('*').gte('entry_month',start).lte('entry_month',end),
-    sb.from('compensation_history').select('*').order('effective_from',{ascending:false}),
-    sb.from('project_revenue_history').select('*').order('effective_from',{ascending:false}),
-    sb.from('founder_monthly_hours').select('*')
-  ]);
-  if(tr.error||fr.error||cr.error||rr.error||fo.error)return toast('Could not load profitability data.','error');
-  originalTimeEntries=tr.data||[];founderOverrides=fo.data||[];financials=fr.data||[];compensation=cr.data||[];revenueHistory=rr.data||[];rebuildFounderEstimates();
-  if(!history.state) replaceProfitState(new URLSearchParams(location.search).get('section')||selectedSection);
-  restoreProfitState();
+ try{
+ const [tr,fr,cr,rr,fo]=await Promise.all([
+  fetchAllProfitRows('time_entries','work_date'),
+  fetchAllProfitRows('project_financial_entries','entry_month'),
+  sb.from('compensation_history').select('*').order('effective_from',{ascending:false}),
+  sb.from('project_revenue_history').select('*').order('effective_from',{ascending:false}),
+  sb.from('founder_monthly_hours').select('*')
+ ]);
+ if(cr.error||rr.error||fo.error)throw(cr.error||rr.error||fo.error);
+ originalTimeEntries=tr;financials=fr;compensation=cr.data||[];revenueHistory=rr.data||[];founderOverrides=fo.data||[];rebuildFounderEstimates();
+ if(!history.state)replaceProfitState(new URLSearchParams(location.search).get('section')||selectedSection);
+ restoreProfitState();
+ }catch(err){console.error(err);toast('Could not load profitability data.','error');}
 }
 
 function render(){
@@ -89,8 +98,9 @@ function render(){
   const investmentRows=rows.filter(r=>r.financialClass!=='Revenue Generating');
   const commercial=aggregate(commercialRows);
   const periodEntries=timeEntries.filter(e=>inPeriod(e.work_date,fy,selectedMonth));
-  const allLabour=periodEntries.reduce((sum,e)=>sum+labourCost(e),0);
-  const allMinutes=periodEntries.reduce((sum,e)=>sum+Number(e.minutes||0),0);
+  const generalEntries=periodEntries.filter(e=>e.project_id==='__internal__'||e.project_name==='Company / Internal');
+  const allLabour=rows.reduce((sum,r)=>sum+r.labour,0)+generalEntries.reduce((sum,e)=>sum+labourCost(e),0);
+  const allMinutes=rows.reduce((sum,r)=>sum+r.minutes,0)+generalEntries.reduce((sum,e)=>sum+Number(e.minutes||0),0);
   const allExternal=rows.reduce((sum,r)=>sum+Number(r.external||0),0);
   const company={
     revenue:commercial.revenue,
@@ -108,7 +118,7 @@ function render(){
   const pondStream=(pond,type)=>aggregate(commercialRows.filter(r=>r.owner===pond&&(type==='Retainer'?r.project.type==='Retainer':r.project.type!=='Retainer')));
   const unpaidPitch=aggregate(investmentRows.filter(r=>r.financialClass==='Non-Revenue External'));
   const internalProjects=aggregate(investmentRows.filter(r=>r.financialClass==='Internal'));
-  const generalInternalEntries=periodEntries.filter(e=>e.project_id==='__internal__'||e.project_name==='Company / Internal');
+  const generalInternalEntries=generalEntries;
   const generalInternalMinutes=generalInternalEntries.reduce((sum,e)=>sum+Number(e.minutes||0),0);
   const generalInternalLabour=generalInternalEntries.reduce((sum,e)=>sum+labourCost(e),0);
   const internal={
@@ -118,7 +128,8 @@ function render(){
   };
   internal.totalCost=internal.labour+internal.external;
   const delivery=deliveryContribution(fy,selectedMonth);
-  const missing=[...new Set(timeEntries.filter(e=>inPeriod(e.work_date,fy,selectedMonth)).filter(e=>!compFor(e.employee_id,e.work_date)).map(e=>memberName(e.employee_id)))].filter(Boolean);
+  const fixedProjectIds=new Set(rows.filter(r=>r.fixed).map(r=>r.project.id));
+  const missing=[...new Set(timeEntries.filter(e=>inPeriod(e.work_date,fy,selectedMonth)||fixedProjectIds.has(e.project_id)).filter(e=>!compFor(e.employee_id,e.work_date)).map(e=>memberName(e.employee_id)))].filter(Boolean);
   root.innerHTML=`
     <div class="stack-lg">
       ${managementTabs()}
@@ -137,7 +148,7 @@ function render(){
         ${moneyKpi('JG Profit',company.profit,company.revenue?formatPct(company.margin)+' margin':'Awaiting logged commercial work','is-accent')}
         ${textKpi('Actual effort',formatDuration(company.minutes),'All logged work, including company/internal time')}
       </section>
-      <section class="panel"><div class="panel-header"><div><div class="section-eyebrow">Business stream profitability</div><h2 class="panel-title">Retainers vs One-Time Projects</h2><p class="panel-subtitle">Revenue, labour and external costs are attributed to the projects where work was logged. Paid pitches are included with one-time projects. Internal and unpaid pitch investment remains in JG Cost, not these commercial summaries.</p></div></div></section>
+      <section class="panel"><div class="panel-header"><div><div class="section-eyebrow">Business stream profitability</div><h2 class="panel-title">Retainers vs One-Time Projects</h2><p class="panel-subtitle">Retainers use the selected month or financial year. One-Time Projects and paid pitches use their fixed fee and lifetime costs. Internal and unpaid pitch investment remains separate.</p></div></div></section>
       <section class="grid-2">${streamProfitCard('Retainer Profitability',retainerRevenue)}
         ${streamProfitCard('One-Time Profitability',oneTimeRevenue)}
       </section>
@@ -150,7 +161,7 @@ function render(){
       </section>
       <section class="panel"><div class="panel-header"><div><div class="section-eyebrow">Two Pond metrics</div><h2 class="panel-title">Revenue ownership vs delivery contribution</h2><p class="panel-subtitle">Revenue follows the owning Pond. Delivery follows the Pond or Pool of the people who actually logged the work.</p></div></div><div class="panel-body"><div class="delivery-grid">${['POND 1','POND 2','POOL'].map(g=>deliveryCard(g,delivery[g])).join('')}</div></div></section>
       ${missing.length?`<div class="notice notice-warning"><strong>Salary / cost missing:</strong> ${esc(missing.join(', '))}. Labour cost is understated until an effective salary period is added.</div>`:''}
-      <section class="panel"><div class="panel-header"><div><div class="section-eyebrow">Project profitability</div><h2 class="panel-title">Actual effort against revenue</h2></div></div><div class="panel-body flush">${projectTable(rows)}</div></section>
+      <section class="panel"><div class="panel-header"><div><div class="section-eyebrow">Project profitability</div><h2 class="panel-title">Actual effort against revenue</h2><p class="panel-subtitle">One-time projects show lifetime costs even when a month is selected. Overruns use the planned project end date.</p></div></div><div class="panel-body flush">${projectTable(rows)}</div></section>
     </div>`;
 }
 
@@ -243,15 +254,15 @@ function renderProjectRevenue(){
       ${managementTabs()}
       <section class="panel">
         <div class="panel-header project-detail-head">
-          <div><div class="section-eyebrow">Management only</div><h2 class="panel-title">One-Time Project Revenue</h2><p class="panel-subtitle">One-time projects and paid pitches are kept separate from recurring retainers. Enter revenue and external costs against the appropriate billing month.</p></div>
+          <div><div class="section-eyebrow">Management only</div><h2 class="panel-title">One-Time Project Revenue</h2><p class="panel-subtitle">One-time projects and paid pitches use one fixed fee with cumulative costs. The latest fee entry is the active project value; previous months remain as history.</p></div>
           <button class="button button-primary" type="button" data-action="finance">Add / edit one-time revenue</button>
         </div>
         <div class="panel-body flush">
           <div class="table-wrap"><table class="data-table">
-            <thead><tr><th>Project</th><th>Type</th><th>Owner</th><th>Revenue entered</th><th>External cost</th><th>Latest billing month</th><th></th></tr></thead>
+            <thead><tr><th>Project</th><th>Type</th><th>Owner</th><th>Fixed project fee</th><th>External cost</th><th>Latest billing month</th><th></th></tr></thead>
             <tbody>${projects.map(p=>{
               const rows=financials.filter(x=>x.project_id===p.id).sort((a,b)=>String(b.entry_month).localeCompare(String(a.entry_month)));
-              const revenue=rows.reduce((sum,x)=>sum+Number(x.revenue||0),0);
+              const revenue=fixedProjectFee(p.id);
               const external=rows.reduce((sum,x)=>sum+Number(x.external_cost||0),0);
               return `<tr><td><strong>${esc(p.brand)}</strong></td><td>${esc(p.type)}</td><td>${esc(p.pond)}</td><td><strong>${rows.length?formatMoney(revenue):'Not set'}</strong></td><td>${formatMoney(external)}</td><td>${rows[0]?esc(monthLabel(String(rows[0].entry_month).slice(0,7))):'—'}</td><td><button class="link-button" data-action="finance-project" data-id="${esc(p.id)}" type="button">${rows.length?'Edit revenue':'Set revenue'}</button></td></tr>`;
             }).join('')}</tbody>
@@ -332,34 +343,44 @@ async function editFounderHours(id,projectId,month){
  rebuildFounderEstimates();render();toast('Monthly founder hours updated.');
 }
 
-function projectRows(fy,month){
-  return (appState.projects||[]).filter(p=>p.financialYear===fy).map(project=>{
-    const times=timeEntries.filter(e=>e.project_id===project.id&&inPeriod(e.work_date,fy,month));
-    const fin=financials.filter(e=>e.project_id===project.id&&inPeriod(e.entry_month,fy,month));
-    const financialClass=project.financialClass||defaultFinancialClass(project.type);
-    const minutes=times.reduce((sum,e)=>sum+Number(e.minutes||0),0);
-    const profitabilityReady=minutes>0;
-    const revenue=projectRevenue(project,fy,month,times,fin);
-    const external=fin.reduce((sum,e)=>sum+Number(e.external_cost||0),0);
-    const labour=times.reduce((sum,e)=>sum+labourCost(e),0);
-    const owner=fin[0]?.ownership_pond||project.pond;
-    const totalCost=labour+external;
-    const profit=profitabilityReady&&financialClass==='Revenue Generating'?revenue-totalCost:0;
-    return {project,financialClass,owner,revenue,external,labour,totalCost,profit,margin:profitabilityReady&&financialClass==='Revenue Generating'&&revenue?profit/revenue:0,minutes,profitabilityReady};
-  }).filter(r=>r.minutes||r.revenue||r.external);
+function isFixedFeeProject(project){
+ return project.type!=='Retainer'&&(project.financialClass||defaultFinancialClass(project.type))==='Revenue Generating';
 }
-
+function feeEntriesForProject(id){
+ return financials.filter(e=>e.project_id===id).slice().sort((a,b)=>String(b.entry_month).localeCompare(String(a.entry_month))||String(b.updated_at||'').localeCompare(String(a.updated_at||'')));
+}
+function fixedProjectFee(id){return Number(feeEntriesForProject(id)[0]?.revenue||0);}
+function projectRows(fy,month){
+ return (appState.projects||[]).filter(p=>p.financialYear===fy).map(project=>{
+  const fixed=isFixedFeeProject(project);
+  const times=timeEntries.filter(e=>e.project_id===project.id&&(fixed||inPeriod(e.work_date,fy,month)));
+  const fin=financials.filter(e=>e.project_id===project.id&&(fixed||inPeriod(e.entry_month,fy,month)));
+  const financialClass=project.financialClass||defaultFinancialClass(project.type);
+  const minutes=times.reduce((sum,e)=>sum+Number(e.minutes||0),0);
+  const profitabilityReady=minutes>0;
+  const revenue=projectRevenue(project,fy,month,times,fin);
+  const external=fin.reduce((sum,e)=>sum+Number(e.external_cost||0),0);
+  const labour=times.reduce((sum,e)=>sum+labourCost(e),0);
+  const owner=fin[0]?.ownership_pond||project.pond;
+  const totalCost=labour+external;
+  const profit=profitabilityReady&&financialClass==='Revenue Generating'?revenue-totalCost:0;
+  const endDate=project.endDate||'';
+  const late=fixed&&endDate?times.filter(e=>String(e.work_date||'').slice(0,10)>endDate&&!e.estimated):[];
+  const postDeadlineMinutes=late.reduce((sum,e)=>sum+Number(e.minutes||0),0);
+  const postDeadlineCost=late.reduce((sum,e)=>sum+labourCost(e),0);
+  return {project,financialClass,owner,revenue,external,labour,totalCost,profit,margin:profitabilityReady&&financialClass==='Revenue Generating'&&revenue?profit/revenue:0,minutes,profitabilityReady,postDeadlineMinutes,postDeadlineCost,fixed};
+ }).filter(r=>r.minutes||r.revenue||r.external);
+}
 function projectRevenue(project,fy,month,times,fin){
-  if((project.financialClass||defaultFinancialClass(project.type))!=='Revenue Generating')return 0;
-  if(!times.length)return fin.reduce((sum,e)=>sum+Number(e.revenue||0),0);
-  if(project.type!=='Retainer')return fin.reduce((sum,e)=>sum+Number(e.revenue||0),0);
-  const months=[...new Set(times.map(e=>String(e.work_date).slice(0,7)))];
-  return months.reduce((sum,m)=>{
-    const rate=revenueRateForMonth(project.id,m);
-    if(rate)return sum+Number(rate.monthly_revenue||0);
-    const fallback=fin.filter(e=>String(e.entry_month).slice(0,7)===m).reduce((x,e)=>x+Number(e.revenue||0),0);
-    return sum+fallback;
-  },0);
+ if((project.financialClass||defaultFinancialClass(project.type))!=='Revenue Generating')return 0;
+ if(isFixedFeeProject(project))return fixedProjectFee(project.id);
+ if(!times.length)return fin.reduce((sum,e)=>sum+Number(e.revenue||0),0);
+ const months=[...new Set(times.map(e=>String(e.work_date).slice(0,7)))];
+ return months.reduce((sum,m)=>{
+  const rate=revenueRateForMonth(project.id,m);
+  if(rate)return sum+Number(rate.monthly_revenue||0);
+  return sum+fin.filter(e=>String(e.entry_month).slice(0,7)===m).reduce((x,e)=>x+Number(e.revenue||0),0);
+ },0);
 }
 
 function revenueRateForMonth(projectId,month){
@@ -379,7 +400,7 @@ function inPeriod(date,fy,month){if(!date)return false;const d=new Date(String(d
 
 function projectTable(rows){
   if(!rows.length)return '<div class="empty-state"><h3>No project data for this period</h3><p>Logged time and financial entries will appear here.</p></div>';
-  return `<div class="table-wrap"><table class="data-table profitability-table"><thead><tr><th>Project</th><th>Class</th><th>Owned by</th><th>Hours</th><th>Revenue</th><th>Labour</th><th>External</th><th>Profit / Investment</th><th>Margin</th><th></th></tr></thead><tbody>${rows.sort((a,b)=>b.revenue-a.revenue||b.minutes-a.minutes).map(r=>{
+  return `<div class="table-wrap"><table class="data-table profitability-table"><thead><tr><th>Project</th><th>Class</th><th>Owned by</th><th>Hours</th><th>Revenue</th><th>Labour</th><th>External</th><th>Profit / Investment</th><th>Margin</th><th>Post-deadline cost</th><th></th></tr></thead><tbody>${rows.sort((a,b)=>b.revenue-a.revenue||b.minutes-a.minutes).map(r=>{
     const commercial=r.financialClass==='Revenue Generating';
     return `<tr>
       <td><strong>${esc(r.project.brand)}</strong><div class="cell-subtitle">${esc(r.project.type)} · ${esc(r.project.status)}</div></td>
@@ -391,6 +412,7 @@ function projectTable(rows){
       <td>${formatMoney(r.external)}</td>
       <td><strong>${commercial?(r.profitabilityReady?formatMoney(r.profit):'—'):formatMoney(r.totalCost)}</strong><div class="cell-subtitle">${commercial?(r.profitabilityReady?'Profit':'Awaiting timesheets'):'Investment cost'}</div></td>
       <td>${commercial?(r.profitabilityReady&&r.revenue?formatPct(r.margin):'—'):'N/A'}</td>
+      <td>${r.fixed?(r.project.endDate?(r.postDeadlineMinutes?'<strong>'+formatMoney(r.postDeadlineCost)+'</strong><div class="cell-subtitle">'+formatDuration(r.postDeadlineMinutes)+' after '+esc(r.project.endDate)+'</div>':'<span class="cell-subtitle">No work logged after deadline</span>'):'<span class="cell-subtitle">End date not set</span>'):'—'}</td>
       <td><div class="project-detail-actions"><button class="link-button" data-action="project-people" data-id="${r.project.id}" type="button">People & cost</button>${commercial?(r.project.type==='Retainer'?'<button class="link-button" data-action="revenue-rate-project" data-id="'+r.project.id+'" type="button">Retainer revenue</button>':'<button class="link-button" data-action="finance-project" data-id="'+r.project.id+'" type="button">Project revenue</button>'):''}</div></td>
     </tr>`;
   }).join('')}</tbody></table></div>`;
@@ -401,7 +423,7 @@ function openProjectPeople(projectId,push=true){
   const fy=appState.meta.currentFY||'2026-27';
   const row=projectRows(fy,selectedMonth).find(r=>r.project.id===projectId);
   if(!row)return toast('No data is available for this project in the selected period.','warning');
-  const people=projectPeopleRows(row.project,fy,selectedMonth);
+  const people=projectPeopleRows(row.project,fy,row.fixed?'LIFETIME':selectedMonth);
   const commercial=row.financialClass==='Revenue Generating';
   const labourShareTotal=Math.max(0,row.labour);
 
@@ -412,7 +434,7 @@ function openProjectPeople(projectId,push=true){
           <div>
             <div class="section-eyebrow">Project people & cost</div>
             <h2 class="panel-title">${esc(row.project.brand)}</h2>
-            <p class="panel-subtitle">${esc(financialClassLabel(row.financialClass))} · ${esc(row.owner)} · ${selectedMonth==='ALL'?'FY '+esc(fy):esc(monthLabel(selectedMonth))}</p>
+            <p class="panel-subtitle">${esc(financialClassLabel(row.financialClass))} · ${esc(row.owner)} · ${row.fixed?'Project lifetime':(selectedMonth==='ALL'?'FY '+esc(fy):esc(monthLabel(selectedMonth)))}</p>
           </div>
           <div class="project-detail-actions">
             <button class="button button-secondary" data-action="close-panel" type="button">Back to profitability</button>
@@ -459,7 +481,7 @@ function openProjectPeople(projectId,push=true){
 }
 
 function projectPeopleRows(project,fy,month){
-  const projectEntries=timeEntries.filter(e=>e.project_id===project.id&&inPeriod(e.work_date,fy,month));
+  const projectEntries=timeEntries.filter(e=>e.project_id===project.id&&(month==='LIFETIME'||inPeriod(e.work_date,fy,month)));
   const byPerson=new Map();
   projectEntries.forEach(entry=>{
     if(!byPerson.has(entry.employee_id)){
@@ -566,9 +588,9 @@ function populateFinanceForm(){
   document.getElementById('finExternal').value=existing?Number(existing.external_cost||0):'';
   document.getElementById('finNotes').value=existing?.notes||'';
   const hint=document.getElementById('finModeHint');
-  if(hint)hint.textContent=existing?'Editing an existing month: saving REPLACES this amount.':'New billing month: saving ADDS this amount to the project total.';
+  if(hint)hint.textContent=existing?'Editing this entry: saving REPLACES its fee. The latest month sets the project value.':'New fee revision: this value will REPLACE the fixed project fee, not add to previous months.';
   const button=document.querySelector('[data-action="save-finance"]');
-  if(button)button.textContent=existing?'Update billing month':'Add new billing month';
+  if(button)button.textContent=existing?'Update project fee':'Save fee revision';
 }
 function appendFinanceHistory(projectId){
   const entries=financeEntriesFor(projectId);
@@ -595,7 +617,7 @@ function openFinance(projectId='',push=true){
   const project=projects.find(p=>p.id===projectId)||projects[0];
   const existingEntries=financials.filter(e=>e.project_id===project?.id).slice().sort((a,b)=>String(b.entry_month).localeCompare(String(a.entry_month)));
   const month=existingEntries[0]?.entry_month?.slice(0,7)||(selectedMonth==='ALL'?localDate().slice(0,7):selectedMonth);
-  root.innerHTML=`<div class="stack-lg"><section class="panel"><div class="panel-header"><div><div class="section-eyebrow">Management only</div><h2 class="panel-title">Edit project revenue / costs</h2><p class="panel-subtitle">For one-time projects and paid pitches. To edit revenue, choose an existing billing month. New months create additional revenue. Retainers are managed separately.</p></div></div><div class="panel-body"><div class="form-grid"><div class="field span-2"><label>Project</label><select id="finProject">${projects.map(p=>`<option value="${p.id}" ${p.id===project?.id?'selected':''}>${esc(p.brand)} · ${esc(p.pond)}</option>`).join('')}</select></div><div class="field"><label>Month</label><input id="finMonth" type="month" value="${month}"></div><div class="field"><label>Revenue-owning Pond</label><select id="finPond"><option ${project?.pond==='POND 1'?'selected':''}>POND 1</option><option ${project?.pond==='POND 2'?'selected':''}>POND 2</option></select></div><div class="field"><label>Revenue (₹)</label><input id="finRevenue" type="number" min="0" step="1"></div><div class="field"><label>External cost (₹)</label><input id="finExternal" type="number" min="0" step="1"></div><div class="field span-2"><label>Notes</label><input id="finNotes" maxlength="220"></div></div><div class="worklog-edit-actions"><button class="button button-secondary" data-action="close-panel" type="button">Back</button><button class="button button-primary" data-action="save-finance" type="button">Save project revenue</button></div></div><div class="notice compact-notice" id="finModeHint" style="margin-top:12px"></div></section></div>`;
+  root.innerHTML=`<div class="stack-lg"><section class="panel"><div class="panel-header"><div><div class="section-eyebrow">Management only</div><h2 class="panel-title">Edit project revenue / costs</h2><p class="panel-subtitle">For one-time projects and paid pitches. The latest month defines the fixed project fee. Older entries are history, not additional revenue.</p></div></div><div class="panel-body"><div class="form-grid"><div class="field span-2"><label>Project</label><select id="finProject">${projects.map(p=>`<option value="${p.id}" ${p.id===project?.id?'selected':''}>${esc(p.brand)} · ${esc(p.pond)}</option>`).join('')}</select></div><div class="field"><label>Month</label><input id="finMonth" type="month" value="${month}"></div><div class="field"><label>Revenue-owning Pond</label><select id="finPond"><option ${project?.pond==='POND 1'?'selected':''}>POND 1</option><option ${project?.pond==='POND 2'?'selected':''}>POND 2</option></select></div><div class="field"><label>Revenue (₹)</label><input id="finRevenue" type="number" min="0" step="1"></div><div class="field"><label>External cost (₹)</label><input id="finExternal" type="number" min="0" step="1"></div><div class="field span-2"><label>Notes</label><input id="finNotes" maxlength="220"></div></div><div class="worklog-edit-actions"><button class="button button-secondary" data-action="close-panel" type="button">Back</button><button class="button button-primary" data-action="save-finance" type="button">Save project revenue</button></div></div><div class="notice compact-notice" id="finModeHint" style="margin-top:12px"></div></section></div>`;
   populateFinanceForm();appendFinanceHistory(project.id);
 }
 async function saveFinance(){
@@ -608,12 +630,12 @@ async function saveFinance(){
   const revenue=Number(revenueRaw),external_cost=Number(externalRaw);
   if(!Number.isFinite(revenue)||revenue<0||!Number.isFinite(external_cost)||external_cost<0)return toast('Enter valid non-negative amounts.','warning');
   const existing=financeEntriesFor(project.id).find(e=>String(e.entry_month).slice(0,7)===month);
-  if(!existing&&financeEntriesFor(project.id).length&&!window.confirm('This NEW month will ADD to the existing project revenue. To edit an old amount, cancel and click Edit beside its billing month. Continue?'))return;
+  if(!existing&&financeEntriesFor(project.id).length&&!window.confirm('New fee revision: the latest month will set the project fee, not add to previous months. Continue?'))return;
   const payload={project_id:project.id,project_name:project.brand,ownership_pond:document.getElementById('finPond').value,entry_month:month+'-01',revenue,external_cost,notes:document.getElementById('finNotes').value.trim(),updated_at:new Date().toISOString()};
   const r=await sb.from('project_financial_entries').upsert(payload,{onConflict:'project_id,entry_month'});
   if(r.error)return toast('Could not save project financials.','error');
   selectedSection='project-revenue';replaceProfitState('project-revenue');
-  toast(existing?'Billing month updated; previous value replaced.':'New billing month added.');
+  toast(existing?'Project fee updated.':'Project fee revision saved.');
   await loadData();
 }
 
