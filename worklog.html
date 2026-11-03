@@ -151,6 +151,7 @@
     const month=selectedDate.slice(0,7);
     const dayMin=day.reduce((s,e)=>s+Number(e.minutes||0),0);
     const monthMin=entries.filter(e=>String(e.work_date).slice(0,7)===month).reduce((s,e)=>s+Number(e.minutes||0),0);
+    const benchmark=monthlyHourBenchmark((appState?.members||[]).find(m=>m.id===access?.member_id));
     document.getElementById('worklogRoot').innerHTML=`
       <div class="stack-lg">
         ${worklogTabs()}
@@ -160,7 +161,7 @@
         </section>
         <section class="grid-2">
           ${kpi('Logged today',duration(dayMin),day.length+' '+(day.length===1?'entry':'entries'),'is-accent')}
-          ${kpi('This month',duration(monthMin),'Actual time recorded','')}
+          ${kpi('This month',duration(monthMin)+' / '+benchmark+'h','Monthly benchmark','')}
         </section>
         <section class="panel">
           <div class="panel-header"><div><div class="section-eyebrow">Add work</div><h2 class="panel-title">New time entry</h2><p class="panel-subtitle">Log project work or company/internal time. Internal time stays separate from client project effort.</p></div></div>
@@ -219,8 +220,6 @@
         </section>
         <section class="panel"><div class="panel-body">
           <div style="display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap"><strong>Monthly benchmark utilisation</strong><strong>${utilisation}%</strong></div>
-          <div class="progress-track" style="margin:10px 0"><span class="progress-fill" style="display:block;width:${Math.min(100,utilisation)}%;height:100%"></span></div>
-          <p class="cell-subtitle" style="margin:0">Full-time benchmark: 22 average working days × 8 hours = 176 hours. A lower configured weekly capacity is prorated. Logged time reflects submitted entries, not attendance. Remaining benchmark hours are not necessarily available for new assignments. Hours above benchmark are additional logged effort, not automatically paid overtime. Actual holidays, leave and working days can vary.</p>
         </div></section>
         <section class="grid-2">
         <section class="panel"><div class="panel-header"><div><div class="section-eyebrow">Project breakdown</div><h2 class="panel-title">Where your time went</h2></div></div><div class="panel-body">${grouped.size?[...grouped.values()].sort((a,b)=>b.mins-a.mins).map(x=>`<div style="margin:0 0 18px"><div style="display:flex;justify-content:space-between;gap:12px"><strong>${esc(x.name)}</strong><strong>${duration(x.mins)}</strong></div><div class="progress-track" style="margin-top:8px"><span class="progress-fill" style="display:block;width:${minutes?x.mins/minutes*100:0}%;height:100%"></span></div><small style="color:var(--muted)">${x.count} entries</small></div>`).join(''):'<p class="cell-subtitle">No time recorded this month.</p>'}</div></section>
