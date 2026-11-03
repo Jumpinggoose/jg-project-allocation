@@ -530,7 +530,7 @@ function deliveryCard(g,x){x=x||{minutes:0,cost:0};return `<div class="delivery-
 function moneyKpi(l,v,m,c=''){return `<article class="kpi-card ${c}"><div class="kpi-label">${esc(l)}</div><div class="kpi-value">${formatMoney(v)}</div><div class="kpi-meta">${esc(m)}</div></article>`;}
 function textKpi(l,v,m){return `<article class="kpi-card"><div class="kpi-label">${esc(l)}</div><div class="kpi-value">${esc(v)}</div><div class="kpi-meta">${esc(m)}</div></article>`;}
 
-function onChange(e){if(e.target.dataset.control==='founder-cost'){founderInputs[e.target.value]=e.target.checked;render();return;}if(e.target.dataset.control==='founder-month'){founderAdjustmentMonth=e.target.value;render();return;}if(e.target.dataset.control==='month'){selectedMonth=e.target.value;replaceProfitState(selectedSection);render();return;}if(e.target.dataset.control==='comp-employee'){openComp(e.target.value,false);}}
+function onChange(e){if(e.target.dataset.control==='founder-cost'){founderInputs[e.target.value]=e.target.checked;render();return;}if(e.target.dataset.control==='founder-month'){founderAdjustmentMonth=e.target.value;render();return;}if(e.target.dataset.control==='month'){selectedMonth=e.target.value;replaceProfitState(selectedSection);render();return;}if(e.target.dataset.control==='comp-employee'){openComp(e.target.value,false);}if(e.target.id==='finProject'){openFinance(e.target.value,false);return;}if(e.target.id==='finMonth'){populateFinanceForm();return;}}
 function onClick(e){
   const b=e.target.closest('[data-action]');if(!b)return;
   const a=b.dataset.action;
@@ -541,6 +541,7 @@ function onClick(e){
   if(a==='section-project-revenue') return navigateProfit('project-revenue');
   if(a==='finance') return openFinance('',true);
   if(a==='finance-project') return openFinance(b.dataset.id,true);
+  if(a==='finance-month'){document.getElementById('finMonth').value=b.dataset.month;populateFinanceForm();return;}
   if(a==='project-people') return openProjectPeople(b.dataset.id,true);
   if(a==='comp') return openComp('',true);
   if(a==='comp-person') return openComp(b.dataset.id,true);
@@ -554,15 +555,67 @@ function onClick(e){
 }
 
 
+function financeEntriesFor(projectId){return financials.filter(e=>e.project_id===projectId).slice().sort((a,b)=>String(b.entry_month).localeCompare(String(a.entry_month)));}
+function populateFinanceForm(){
+  const project=(appState.projects||[]).find(p=>p.id===document.getElementById('finProject')?.value);
+  const month=document.getElementById('finMonth')?.value;
+  if(!project||!month)return;
+  const existing=financeEntriesFor(project.id).find(e=>String(e.entry_month).slice(0,7)===month);
+  document.getElementById('finPond').value=existing?.ownership_pond||project.pond;
+  document.getElementById('finRevenue').value=existing?Number(existing.revenue||0):'';
+  document.getElementById('finExternal').value=existing?Number(existing.external_cost||0):'';
+  document.getElementById('finNotes').value=existing?.notes||'';
+  const hint=document.getElementById('finModeHint');
+  if(hint)hint.textContent=existing?'Editing an existing month: saving REPLACES this amount.':'New billing month: saving ADDS this amount to the project total.';
+  const button=document.querySelector('[data-action="save-finance"]');
+  if(button)button.textContent=existing?'Update billing month':'Add new billing month';
+}
+function appendFinanceHistory(projectId){
+  const entries=financeEntriesFor(projectId);
+  const section=document.createElement('section');section.className='panel';
+  const heading=document.createElement('div');heading.className='panel-header';
+  heading.innerHTML='<div><div class="section-eyebrow">Existing entries</div><h2 class="panel-title">Billing months already recorded</h2><p class="panel-subtitle">Use Edit to change an existing amount rather than add another month.</p></div>';
+  section.appendChild(heading);
+  const body=document.createElement('div');body.className='panel-body';
+  if(!entries.length){body.textContent='No billing months recorded for this project.';}
+  else entries.forEach(e=>{
+    const row=document.createElement('div');row.style.cssText='display:flex;flex-wrap:wrap;align-items:center;gap:12px;padding:12px 0;border-top:1px solid var(--line)';
+    const details=document.createElement('span');details.style.flex='1';
+    details.textContent=monthLabel(String(e.entry_month).slice(0,7))+' · '+formatMoney(e.revenue)+' revenue · '+formatMoney(e.external_cost)+' external cost';
+    const button=document.createElement('button');button.className='button button-secondary';button.type='button';button.textContent='Edit';
+    button.dataset.action='finance-month';button.dataset.month=String(e.entry_month).slice(0,7);
+    row.append(details,button);body.appendChild(row);
+  });
+  section.appendChild(body);document.querySelector('#profitRoot .stack-lg')?.appendChild(section);
+}
 function openFinance(projectId='',push=true){
   if(push) pushProfitState('project-revenue','finance',projectId);
   selectedSection='project-revenue';
   const projects=(appState.projects||[]).filter(p=>p.financialYear===appState.meta.currentFY&&p.type!=='Retainer'&&(p.financialClass||defaultFinancialClass(p.type))==='Revenue Generating');
   const project=projects.find(p=>p.id===projectId)||projects[0];
-  const month=selectedMonth==='ALL'?localDate().slice(0,7):selectedMonth;
-  root.innerHTML=`<div class="stack-lg"><section class="panel"><div class="panel-header"><div><div class="section-eyebrow">Management only</div><h2 class="panel-title">Project revenue / cost entry</h2><p class="panel-subtitle">For one-time projects and paid pitches. Retainer revenue is managed separately in Retainer Revenue.</p></div></div><div class="panel-body"><div class="form-grid"><div class="field span-2"><label>Project</label><select id="finProject">${projects.map(p=>`<option value="${p.id}" ${p.id===project?.id?'selected':''}>${esc(p.brand)} · ${esc(p.pond)}</option>`).join('')}</select></div><div class="field"><label>Month</label><input id="finMonth" type="month" value="${month}"></div><div class="field"><label>Revenue-owning Pond</label><select id="finPond"><option ${project?.pond==='POND 1'?'selected':''}>POND 1</option><option ${project?.pond==='POND 2'?'selected':''}>POND 2</option></select></div><div class="field"><label>Revenue (₹)</label><input id="finRevenue" type="number" min="0" step="1"></div><div class="field"><label>External cost (₹)</label><input id="finExternal" type="number" min="0" step="1"></div><div class="field span-2"><label>Notes</label><input id="finNotes" maxlength="220"></div></div><div class="worklog-edit-actions"><button class="button button-secondary" data-action="close-panel" type="button">Back</button><button class="button button-primary" data-action="save-finance" type="button">Save project revenue</button></div></div></section></div>`;
+  const existingEntries=financials.filter(e=>e.project_id===project?.id).slice().sort((a,b)=>String(b.entry_month).localeCompare(String(a.entry_month)));
+  const month=existingEntries[0]?.entry_month?.slice(0,7)||(selectedMonth==='ALL'?localDate().slice(0,7):selectedMonth);
+  root.innerHTML=`<div class="stack-lg"><section class="panel"><div class="panel-header"><div><div class="section-eyebrow">Management only</div><h2 class="panel-title">Edit project revenue / costs</h2><p class="panel-subtitle">For one-time projects and paid pitches. To edit revenue, choose an existing billing month. New months create additional revenue. Retainers are managed separately.</p></div></div><div class="panel-body"><div class="form-grid"><div class="field span-2"><label>Project</label><select id="finProject">${projects.map(p=>`<option value="${p.id}" ${p.id===project?.id?'selected':''}>${esc(p.brand)} · ${esc(p.pond)}</option>`).join('')}</select></div><div class="field"><label>Month</label><input id="finMonth" type="month" value="${month}"></div><div class="field"><label>Revenue-owning Pond</label><select id="finPond"><option ${project?.pond==='POND 1'?'selected':''}>POND 1</option><option ${project?.pond==='POND 2'?'selected':''}>POND 2</option></select></div><div class="field"><label>Revenue (₹)</label><input id="finRevenue" type="number" min="0" step="1"></div><div class="field"><label>External cost (₹)</label><input id="finExternal" type="number" min="0" step="1"></div><div class="field span-2"><label>Notes</label><input id="finNotes" maxlength="220"></div></div><div class="worklog-edit-actions"><button class="button button-secondary" data-action="close-panel" type="button">Back</button><button class="button button-primary" data-action="save-finance" type="button">Save project revenue</button></div></div><div class="notice compact-notice" id="finModeHint" style="margin-top:12px"></div></section></div>`;
+  populateFinanceForm();appendFinanceHistory(project.id);
 }
-async function saveFinance(){const project=(appState.projects||[]).find(p=>p.id===document.getElementById('finProject').value);const month=document.getElementById('finMonth').value;if(!project||!month)return toast('Choose a project and month.','warning');const payload={project_id:project.id,project_name:project.brand,ownership_pond:document.getElementById('finPond').value,entry_month:month+'-01',revenue:Number(document.getElementById('finRevenue').value||0),external_cost:Number(document.getElementById('finExternal').value||0),notes:document.getElementById('finNotes').value.trim(),updated_at:new Date().toISOString()};const r=await sb.from('project_financial_entries').upsert(payload,{onConflict:'project_id,entry_month'});if(r.error)return toast('Could not save project financials.','error');selectedSection='project-revenue';replaceProfitState('project-revenue');toast('Project revenue saved.');await loadData();}
+async function saveFinance(){
+  const project=(appState.projects||[]).find(p=>p.id===document.getElementById('finProject')?.value);
+  const month=document.getElementById('finMonth')?.value;
+  const revenueRaw=document.getElementById('finRevenue')?.value;
+  const externalRaw=document.getElementById('finExternal')?.value;
+  if(!project||!/^\d{4}-(0[1-9]|1[0-2])$/.test(month||''))return toast('Choose a project and valid billing month.','warning');
+  if(revenueRaw===''||externalRaw==='')return toast('Enter both revenue and external cost. Use 0 when applicable.','warning');
+  const revenue=Number(revenueRaw),external_cost=Number(externalRaw);
+  if(!Number.isFinite(revenue)||revenue<0||!Number.isFinite(external_cost)||external_cost<0)return toast('Enter valid non-negative amounts.','warning');
+  const existing=financeEntriesFor(project.id).find(e=>String(e.entry_month).slice(0,7)===month);
+  if(!existing&&financeEntriesFor(project.id).length&&!window.confirm('This NEW month will ADD to the existing project revenue. To edit an old amount, cancel and click Edit beside its billing month. Continue?'))return;
+  const payload={project_id:project.id,project_name:project.brand,ownership_pond:document.getElementById('finPond').value,entry_month:month+'-01',revenue,external_cost,notes:document.getElementById('finNotes').value.trim(),updated_at:new Date().toISOString()};
+  const r=await sb.from('project_financial_entries').upsert(payload,{onConflict:'project_id,entry_month'});
+  if(r.error)return toast('Could not save project financials.','error');
+  selectedSection='project-revenue';replaceProfitState('project-revenue');
+  toast(existing?'Billing month updated; previous value replaced.':'New billing month added.');
+  await loadData();
+}
 
 function openComp(employeeId='',push=true){
   if(push) pushProfitState('salaries','salary',employeeId);
