@@ -106,6 +106,7 @@
     const aliasMember=email==='saurabh@jumpinggoose.com'?'sourabh':(email==='accounts@jumpinggoose.com'?'bhagya':(email==='sirajul@jumpinggoose.com'?'siraj':''));
     let q=sb.from('user_access').select('member_id,display_name,access_level,title,active,employment_status,last_working_date');
     q=aliasMember?q.eq('member_id',aliasMember):q.eq('email',email);
+    const stateRequest=sb.from('app_state').select('data').eq('id',1).single();
     const ar=await q.maybeSingle();
     if(ar.error||!ar.data?.active||ar.data.employment_status==='Exited'){await sb.auth.signOut();return location.replace('/login.html');}
     access=ar.data;
@@ -126,7 +127,7 @@
     const initialUrl=new URL(location.href);initialUrl.searchParams.set('date',selectedDate);initialUrl.searchParams.set('mode',worklogMode);history.replaceState({date:selectedDate},'',initialUrl);
     document.getElementById('worklogRoot').addEventListener('click',handleClick);
     document.getElementById('worklogRoot').addEventListener('change',handleChange);
-    const sr=await sb.from('app_state').select('data').eq('id',1).single();
+    const sr=await stateRequest;
     if(sr.error)return message('Could not load project data.');
     appState=sr.data.data;
     await loadEntries();
