@@ -28,6 +28,7 @@ async function init(){
   const aliasMember=email==='accounts@jumpinggoose.com'?'bhagya':(email==='saurabh@jumpinggoose.com'?'sourabh':'');
   let q=sb.from('user_access').select('member_id,display_name,access_level,title,active,employment_status,last_working_date');
   q=aliasMember?q.eq('member_id',aliasMember):q.eq('email',email);
+  const stateRequest=sb.from('app_state').select('data').eq('id',1).single();
   const ar=await q.maybeSingle();
   if(ar.error||!ar.data?.active||ar.data.employment_status==='Exited')return location.replace('/worklog.html');
   access=ar.data;
@@ -40,7 +41,7 @@ async function init(){
   document.getElementById('historyBack').addEventListener('click',()=>history.back());
   document.getElementById('historyForward').addEventListener('click',()=>history.forward());
   window.addEventListener('popstate',restoreProfitState);
-  const sr=await sb.from('app_state').select('data').eq('id',1).single();
+  const sr=await stateRequest;
   if(sr.error)return toast('Could not load project data.','error');
   appState=sr.data.data;
   await loadData();
