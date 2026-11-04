@@ -86,7 +86,6 @@
   <div class="toast-region" id="toastRegion" aria-live="polite"></div>
 
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.3"></script>
-  <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
   <script src="supabase-config.js"></script>
   <script>
   'use strict';
@@ -266,11 +265,25 @@
   }
   function monthLabelExport(m){return new Date(m+'-01T12:00:00').toLocaleDateString('en-GB',{month:'long',year:'numeric'});}
   function excelSafe(v){const x=String(v??'');return /^[\s]*[=+@-]/.test(x)?"'"+x:x;}
+  let excelLoader = null;
+  async function loadExcelOnDemand(){
+    if(window.XLSX)return;
+    if(!excelLoader){
+      excelLoader=new Promise((resolve,reject)=>{
+        const script=document.createElement('script');
+        script.src='https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';
+        script.onload=()=>window.XLSX?resolve():reject(new Error('Excel library not available'));
+        script.onerror=()=>reject(new Error('Excel library download failed'));
+        document.head.appendChild(script);
+      }).catch(err=>{excelLoader=null;throw err;});
+    }
+    await excelLoader;
+  }
   async function exportWorklogs(){
     if(!canExportLogs||exportBusy)return;
-    if(!window.XLSX){window.alert('Excel library unavailable. Refresh and try again.');return;}
     exportBusy=true;render();
     try{
+      await loadExcelOnDemand();
       const fy=appState.meta.currentFY||'2026-27',y=Number(fy.slice(0,4));
       const start=exportMonth==='ALL'?y+'-04-01':exportMonth+'-01';
       const end=exportMonth==='ALL'?(y+1)+'-03-31':exportMonth+'-'+String(new Date(Number(exportMonth.slice(0,4)),Number(exportMonth.slice(5,7)),0).getDate()).padStart(2,'0');
