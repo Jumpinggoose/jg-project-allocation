@@ -107,6 +107,7 @@
     const aliasMember=email==='saurabh@jumpinggoose.com'?'sourabh':(email==='accounts@jumpinggoose.com'?'bhagya':(email==='sirajul@jumpinggoose.com'?'siraj':''));
     let q=sb.from('user_access').select('member_id,display_name,access_level,title,active,employment_status,last_working_date');
     q=aliasMember?q.eq('member_id',aliasMember):q.eq('email',email);
+    const stateRequest=sb.from('app_state').select('data').eq('id',1).single();
     const ar=await q.maybeSingle();
     if(ar.error||!ar.data?.active||ar.data.employment_status==='Exited'){await sb.auth.signOut();return location.replace('/login.html');}
     access=ar.data;
@@ -126,7 +127,7 @@
     document.getElementById('logsRoot').addEventListener('change',handleChange);
     document.getElementById('logsRoot').addEventListener('click',handleClick);
 
-    const sr=await sb.from('app_state').select('data').eq('id',1).single();
+    const sr=await stateRequest;
     if(sr.error)return message('Could not load project and employee data.');
     appState=sr.data.data;
 
