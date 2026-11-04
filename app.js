@@ -115,7 +115,7 @@ async function init() {
   window.history.replaceState({ view: ui.view }, '', initialUrl);
 
   if (storageMode === 'server') {
-    remotePollTimer = window.setInterval(pollServer, 12000);
+    remotePollTimer = window.setInterval(pollServer, 30000);
   }
 }
 
@@ -431,38 +431,39 @@ async function persistState(options = {}) {
   }
 }
 
+let isPollingServer = false;
 async function pollServer() {
-  if (storageMode !== 'server' || document.hidden || isSaving) return;
-
+  if (storageMode !== 'server' || document.hidden || isSaving || isPollingServer || remotePending) return;
+  isPollingServer = true;
   try {
+    // Check a small revision record before downloading the full shared project data.
+    const { data: version, error: versionError } = await supabaseClient
+      .from('app_state').select('revision').eq('id', 1).single();
+    if (versionError) throw versionError;
+    if (Number(version?.revision || 0) <= Number(state.revision || 0)) return;
+
     const { data: row, error } = await supabaseClient
-      .from('app_state')
-      .select('data, revision, updated_at')
-      .eq('id', 1)
-      .single();
-
+      .from('app_state').select('data, revision, updated_at').eq('id', 1).single();
     if (error) throw error;
-
-    const remoteRevision = Number(row?.revision || 0);
-    if (remoteRevision > Number(state.revision || 0)) {
-      const remoteData = normalizeState(row.data || DEFAULT_DATA);
-      remoteData.revision = remoteRevision;
-      remoteData.meta = remoteData.meta || {};
-      remoteData.meta.lastUpdated = row.updated_at || remoteData.meta.lastUpdated || null;
-
-      if (els.modal.open) {
-        remotePending = remoteData;
-        showToast('New shared changes are ready and will load after this form closes.', 'warning');
-      } else {
-        state = remoteData;
-        localBackup();
-        renderCurrentView();
-        updateSyncUI('saved', 'Updated from Supabase');
-      }
+    if (Number(row?.revision || 0) <= Number(state.revision || 0)) return;
+    const remoteData = normalizeState(row.data || DEFAULT_DATA);
+    remoteData.revision = Number(row.revision || 0);
+    remoteData.meta = remoteData.meta || {};
+    remoteData.meta.lastUpdated = row.updated_at || remoteData.meta.lastUpdated || null;
+    if (els.modal.open) {
+      remotePending = remoteData;
+      showToast('New shared changes are ready and will load after this form closes.', 'warning');
+    } else {
+      state = remoteData;
+      localBackup();
+      renderCurrentView();
+      updateSyncUI('saved', 'Updated from Supabase');
     }
   } catch (error) {
     console.error('Supabase poll failed.', error);
-    updateSyncUI('error', 'Working from local backup');
+    updateSyncUI('error', 'Unable to check for cloud updates');
+  } finally {
+    isPollingServer = false;
   }
 }
 
@@ -2034,11 +2035,22 @@ function exportTeamCsv() {
   showToast('Team capacity CSV exported.');
 }
 
-function exportFYReviewWorkbook(fy) {
-  if (!window.XLSX) {
-    showToast('Excel export library did not load. Refresh the page and try again.', 'error');
-    return;
-  }
+let excelLibraryPromise = null;
+function ensureExcelLibrary() {
+  if (window.XLSX) return Promise.resolve();
+  if (excelLibraryPromise) return excelLibraryPromise;
+  excelLibraryPromise = new Promise((resolve, reject) => {
+    const script = document.createElement('script');
+    script.src = 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';
+    script.onload = () => window.XLSX ? resolve() : reject(new Error('Excel library unavailable'));
+    script.onerror = () => reject(new Error('Excel library download failed'));
+    document.head.appendChild(script);
+  }).catch(error => { excelLibraryPromise = null; throw error; });
+  return excelLibraryPromise;
+}
+async function exportFYReviewWorkbook(fy) {
+  try { await ensureExcelLibrary(); }
+  catch (error) { showToast('Could not load Excel export. Please try again.', 'error'); return; }
   const projects = state.projects.filter((project) => project.financialYear === fy);
   const previousFY = ui.financialYear;
   ui.financialYear = fy;
