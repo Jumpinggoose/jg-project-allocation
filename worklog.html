@@ -36,6 +36,42 @@
     @media(max-width:1120px){.worklog-entry-grid{grid-template-columns:1fr 1fr 1fr}.worklog-project-field,.worklog-task-field,.worklog-internal-field{grid-column:auto}.worklog-add-wrap{grid-column:auto}.entry-card{grid-template-columns:1fr 1fr}.entry-card .entry-task,.entry-card .entry-actions{grid-column:1/-1}}
     @media(max-width:760px){.app-shell{display:block}.sidebar{position:relative;width:100%;height:auto}.sidebar-note{display:none}.worklog-summary{align-items:stretch;flex-direction:column}.worklog-summary-actions{align-items:stretch}.worklog-entry-grid{grid-template-columns:1fr}.worklog-project-field,.worklog-task-field,.worklog-internal-field,.worklog-add-wrap{grid-column:auto}.entry-card{grid-template-columns:1fr}.entry-card .entry-task,.entry-card .entry-actions{grid-column:auto}.entry-actions{justify-content:flex-start}}
   
+    /* Mobile-first convenience only; desktop layout and workflow remain unchanged. */
+    .worklog-mobile-menu{display:none}
+    @media(max-width:760px){
+      .worklog-page .app-shell{display:block;min-height:100dvh}
+      .worklog-page .sidebar{position:relative;top:auto;z-index:20;width:100%;height:auto;min-height:0;max-height:none;overflow:visible;box-sizing:border-box;padding:10px 14px;gap:0;display:flex;flex-direction:row;flex-wrap:wrap;align-items:center;justify-content:space-between}
+      .worklog-page .sidebar .brand-lockup{flex:1 1 auto;display:flex;flex-direction:row;align-items:center;gap:8px;border:0;padding:0;margin:0;min-width:0}
+      .worklog-page .sidebar .brand-lockup::before{width:72px;height:24px;flex:0 0 72px;background-size:contain}
+      .worklog-page .sidebar .brand-lockup .brand-subtitle{font-size:10px;margin:0}
+      .worklog-page .sidebar .sidebar-spacer,.worklog-page .sidebar .sync-card{display:none}
+      .worklog-page .worklog-mobile-menu{display:inline-flex;align-items:center;justify-content:center;gap:9px;border:1px solid #434047;border-radius:12px;background:#28262c;color:#fff;font:inherit;font-size:13px;font-weight:650;padding:9px 12px;min-height:40px;cursor:pointer}
+      .worklog-page .sidebar .nav-list{display:none;width:100%;flex:0 0 100%;padding:12px 0 3px;gap:5px}
+      .worklog-page .sidebar .nav-list.is-mobile-open{display:grid}
+      .worklog-page .sidebar .nav-list .nav-item{padding:11px 12px}
+      .worklog-page .topbar{position:relative;top:auto;min-height:0!important;display:flex!important;flex-wrap:wrap!important;align-items:center!important;padding:11px 14px!important;gap:9px!important}
+      .worklog-page .topbar .history-nav{order:2;margin-left:auto;padding:0}
+      .worklog-page .topbar .page-heading{order:1;flex:1 1 auto;min-width:0}
+      .worklog-page .topbar .page-heading .eyebrow,.worklog-page .topbar .page-heading p{display:none}
+      .worklog-page .topbar .page-heading h1{font-size:22px!important;margin:0;line-height:1.2}
+      .worklog-page .topbar .topbar-actions{order:3;width:auto!important;display:flex!important;flex:0 0 auto!important;margin:0}
+      .worklog-page .topbar .topbar-actions .button{width:auto!important;padding:8px 11px;min-height:36px;font-size:12px}
+      .worklog-page .view-container{padding:12px 12px 28px!important}
+      .worklog-page .worklog-summary{gap:8px}
+      .worklog-page .worklog-summary h2{font-size:19px}
+      .worklog-page .worklog-summary-actions .field{width:100%}
+      .worklog-page .worklog-summary-actions input{width:100%;min-height:42px;box-sizing:border-box}
+      .worklog-page .worklog-entry-grid{gap:12px}
+      .worklog-page .worklog-entry-grid input,.worklog-page .worklog-entry-grid select{min-height:42px}
+      .worklog-page .worklog-add-wrap .button{min-height:44px}
+      .worklog-page .entry-card{padding:13px 14px;gap:8px;min-width:0;white-space:normal;overflow-wrap:anywhere}
+      .worklog-page .entry-actions .button{min-height:38px}
+    }
+    @media(max-width:390px){
+      .worklog-page .topbar .history-nav{order:3;margin-left:0}
+      .worklog-page .topbar .topbar-actions{order:2}
+    }
+
     /* Work log compact desktop alignment */
     @media (min-width: 1121px) {
       .worklog-entry-grid{
@@ -48,14 +84,15 @@
     }
   </style>
 </head>
-<body>
+<body class="worklog-page">
   <div class="app-shell">
     <aside class="sidebar">
       <div class="brand-lockup">
         <div class="brand-mark">JG</div>
         <div><div class="brand-name">JUMPINGGOOSE</div><div class="brand-subtitle">Work Log</div></div>
       </div>
-      <nav class="nav-list">
+      <button class="worklog-mobile-menu" id="worklogMobileMenu" type="button" aria-controls="worklogSidebarNav" aria-expanded="false">Menu <span aria-hidden="true">☰</span></button>
+      <nav class="nav-list" id="worklogSidebarNav">
         <a class="nav-item is-active" href="/worklog.html"><span class="nav-icon">◷</span><span>My Work Log</span></a>
         <a class="nav-item" href="/?view=dashboard"><span class="nav-icon">▦</span><span>Dashboard</span></a>
         <a class="nav-item" href="/?view=pond1"><span class="nav-icon">①</span><span>Pond 1 Projects</span></a>
@@ -120,6 +157,12 @@
   'tuhin@jumpinggoose.com',
   'accounts@jumpinggoose.com',
   'theo@jumpinggoose.com'].includes(email));
+    const mobileMenu=document.getElementById('worklogMobileMenu');
+    const sidebarNav=document.getElementById('worklogSidebarNav');
+    mobileMenu.addEventListener('click',()=>{
+      const isOpen=sidebarNav.classList.toggle('is-mobile-open');
+      mobileMenu.setAttribute('aria-expanded',String(isOpen));
+    });
     document.getElementById('logoutButton').addEventListener('click',logout);
     document.getElementById('historyBack').addEventListener('click',()=>history.back());
     document.getElementById('historyForward').addEventListener('click',()=>history.forward());
