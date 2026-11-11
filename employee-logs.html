@@ -207,21 +207,41 @@
       </div>`;
   }
 
+  function memberTypeOnDate(member,date){
+    const history=Array.isArray(member?.typeHistory)?member.typeHistory:[];
+    const applicable=history.filter(h=>h.effectiveFrom<=date).sort((a,b)=>b.effectiveFrom.localeCompare(a.effectiveFrom))[0];
+    return applicable?.type||member?.type||'Employee';
+  }
+
   function renderOverview(members,filtered){
-    const rows=members.map(m=>{
-      const list=filtered.filter(e=>e.employee_id===m.id);
-      const total=list.reduce((sum,e)=>sum+Number(e.minutes||0),0);
-      const internal=list.filter(isInternal).reduce((sum,e)=>sum+Number(e.minutes||0),0);
-      const projects=new Set(list.filter(e=>!isInternal(e)).map(e=>e.project_id)).size;
-      const benchmark=monthlyHourBenchmark(m);
-      return {m,total,internal,projects,count:list.length,benchmark,remaining:Math.max(0,benchmark*60-total),extra:Math.max(0,total-benchmark*60)};
+    const rows=members.flatMap(m=>{
+      const all=filtered.filter(e=>e.employee_id===m.id);
+      const byType=new Map();
+      for(const e of all){
+        const type=memberTypeOnDate(m,e.work_date);
+        if(!byType.has(type))byType.set(type,[]);
+        byType.get(type).push(e);
+      }
+      if(!byType.size)byType.set(m.type||'Employee',[]);
+      return [...byType.entries()].map(([type,list])=>{
+        const total=list.reduce((sum,e)=>sum+Number(e.minutes||0),0);
+        const internal=list.filter(isInternal).reduce((sum,e)=>sum+Number(e.minutes||0),0);
+        const projects=new Set(list.filter(e=>!isInternal(e)).map(e=>e.project_id)).size;
+        // When a person changes type mid-month, avoid assigning the full benchmark
+        // to both employment categories. Their detailed view retains the combined total.
+        const transition=byType.size>1;
+        const benchmark=transition?null:monthlyHourBenchmark(m);
+        return {m,type,total,internal,projects,count:list.length,benchmark,
+          remaining:benchmark==null?null:Math.max(0,benchmark*60-total),
+          extra:benchmark==null?null:Math.max(0,total-benchmark*60)};
+      });
     });
-    const memberRows=items=>items.map(r=>'<tr class="logs-overview-row" data-employee-id="'+attr(r.m.id)+'"><td><strong>'+esc(r.m.name)+'</strong><div class="logs-muted">'+r.projects+' projects</div></td><td><strong>'+duration(r.total)+' / '+r.benchmark+'h</strong></td><td>'+duration(r.remaining)+'</td><td>'+duration(r.extra)+'</td><td>'+r.count+'</td></tr>').join('');
+    const memberRows=items=>items.map(r=>'<tr class="logs-overview-row" data-employee-id="'+attr(r.m.id)+'"><td><strong>'+esc(r.m.name)+'</strong><div class="logs-muted">'+r.projects+' projects'+(r.benchmark==null?' · Employment type changed in this period':'')+'</div></td><td><strong>'+duration(r.total)+(r.benchmark==null?'':' / '+r.benchmark+'h')+'</strong></td><td>'+(r.remaining==null?'—':duration(r.remaining))+'</td><td>'+(r.extra==null?'—':duration(r.extra))+'</td><td>'+r.count+'</td></tr>').join('');
     const section=(label,items)=>'<div class="pond-team-section"><div class="pond-team-heading"><strong>'+esc(label)+'</strong><span class="pill-count">'+items.length+'</span></div><div class="pond-log-overflow"><table class="logs-table pond-log-table"><thead><tr><th>Team member</th><th>Logged / target</th><th>Remaining</th><th>Extra</th><th>Entries</th></tr></thead><tbody>'+(memberRows(items)||'<tr><td colspan="5" class="logs-muted">No '+esc(label.toLowerCase())+' in this group.</td></tr>')+'</tbody></table></div></div>';
     const card=(name,items)=>{
-      const employees=items.filter(r=>String(r.m.type||'Employee').toLowerCase()==='employee');
-      const interns=items.filter(r=>String(r.m.type||'').toLowerCase()==='intern');
-      const others=items.filter(r=>!['employee','intern'].includes(String(r.m.type||'Employee').toLowerCase()));
+      const employees=items.filter(r=>String(r.type||'Employee').toLowerCase()==='employee');
+      const interns=items.filter(r=>String(r.type||'').toLowerCase()==='intern');
+      const others=items.filter(r=>!['employee','intern'].includes(String(r.type||'Employee').toLowerCase()));
       return '<section class="panel"><div class="panel-header"><div><div class="section-eyebrow">Team activity</div><h2 class="panel-title">'+esc(name)+'</h2><p class="panel-subtitle">Click a member to view their detailed log.</p></div><span class="pill-count">'+items.length+'</span></div><div class="panel-body flush">'+section('Employees',employees)+section('Interns',interns)+(others.length?section('Freelancers / Other',others):'')+'</div></section>';
     };
     const grouped=name=>rows.filter(r=>(r.m.group||'POOL').toUpperCase()===name);
@@ -235,10 +255,12 @@
     const activityMap=aggregate(list,e=>e.activity_type);
     const total=list.reduce((s,e)=>s+Number(e.minutes||0),0);
     const internal=list.filter(isInternal).reduce((s,e)=>s+Number(e.minutes||0),0);
+    const typeBreakdown=[...new Set(list.map(e=>memberTypeOnDate(member,e.work_date)))];
+    const typeLabel=typeBreakdown.length>1?typeBreakdown.join(' + '):typeBreakdown[0]||member.type||'Employee';
 
     return `
       <section class="panel">
-        <div class="panel-header"><div><div class="section-eyebrow">Employee detail</div><h2 class="panel-title">${esc(member.name)}</h2><p class="panel-subtitle">${esc(member.group||'')} · ${esc(member.type||'Employee')} · ${duration(total-internal)} project · ${duration(internal)} internal</p></div><button class="button button-secondary" type="button" data-employee-id="ALL">Back to all employees</button></div>
+        <div class="panel-header"><div><div class="section-eyebrow">Employee detail</div><h2 class="panel-title">${esc(member.name)}</h2><p class="panel-subtitle">${esc(member.group||'')} · ${esc(typeLabel)} · ${duration(total-internal)} project · ${duration(internal)} internal</p></div><button class="button button-secondary" type="button" data-employee-id="ALL">Back to all employees</button></div>
       </section>
 
       <section class="logs-split">
