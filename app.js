@@ -1707,6 +1707,11 @@ function openMemberModal({ member = null, group = null } = {}) {
           <label for="memberType">Member type</label>
           <select id="memberType">${MEMBER_TYPES.map((item) => `<option value="${item}" ${draft.type === item ? 'selected' : ''}>${item}</option>`).join('')}</select>
         </div>
+        <div class="field" id="memberTypeEffectiveField" ${isEdit?'':'hidden'}>
+          <label for="memberTypeEffectiveFrom">Type change effective from</label>
+          <input id="memberTypeEffectiveFrom" type="date" value="${localDate()}">
+          <div class="field-help">Used only when changing member type. Older work logs keep the previous type; do not mark the person Exited if they will continue freelancing.</div>
+        </div>
         <div class="field">
           <label for="memberWeeklyCapacity">Weekly capacity (hours)</label>
           <input id="memberWeeklyCapacity" type="number" min="1" max="168" step="0.5" value="${escapeAttr(String(draft.weeklyCapacity ?? DEFAULT_WEEKLY_CAPACITY))}">
@@ -1744,6 +1749,13 @@ function openMemberModal({ member = null, group = null } = {}) {
   };
   statusSelect.addEventListener('change', updateLifecycleNotice);
   updateLifecycleNotice();
+  const typeSelect=document.getElementById('memberType');
+  const typeDateField=document.getElementById('memberTypeEffectiveField');
+  if(typeDateField && isEdit){
+    const updateTypeDate=()=>{typeDateField.hidden=typeSelect.value===member.type;};
+    typeSelect.addEventListener('change',updateTypeDate);
+    updateTypeDate();
+  }
 
   document.getElementById('saveMemberButton').addEventListener('click', () => saveMemberFromModal(member?.id || null));
 }
@@ -1776,11 +1788,24 @@ async function saveMemberFromModal(memberId) {
 
   const existingIndex = memberId ? state.members.findIndex((item) => item.id === memberId) : -1;
   const previous = existingIndex >= 0 ? state.members[existingIndex] : null;
+  const typeChanged=Boolean(previous && previous.type !== memberType);
+  const typeEffectiveFrom=document.getElementById('memberTypeEffectiveFrom')?.value || '';
+  let typeHistory=Array.isArray(previous?.typeHistory) ? previous.typeHistory.map(p=>({...p})) : [];
+  if(typeChanged){
+    if(!/^\\d{4}-\\d{2}-\\d{2}$/.test(typeEffectiveFrom) || typeEffectiveFrom>localDate())
+      return showModalError(errorEl,'Select a valid type-change date, no later than today.');
+    if(!typeHistory.length)typeHistory=[{type:previous.type,effectiveFrom:'1900-01-01'}];
+    const latest=typeHistory.slice().sort((a,b)=>b.effectiveFrom.localeCompare(a.effectiveFrom))[0];
+    if(typeEffectiveFrom<=latest.effectiveFrom)
+      return showModalError(errorEl,'The new type must start after the previous type period. Existing history cannot be overwritten.');
+    typeHistory.push({type:memberType,effectiveFrom:typeEffectiveFrom});
+  }
   const member = {
     id: existingIndex >= 0 ? previous.id : uniqueMemberId(name),
     name,
     group: document.getElementById('memberGroup').value,
-    type: document.getElementById('memberType').value,
+    type: memberType,
+    typeHistory,
     weeklyCapacity: Math.max(1, Number(document.getElementById('memberWeeklyCapacity').value) || DEFAULT_WEEKLY_CAPACITY),
     email,
     accessLevel,
@@ -2621,6 +2646,7 @@ function normalizeState(input) {
     name: String(member.name || '').trim(),
     group: GROUPS.includes(member.group) ? member.group : 'POOL',
     type: MEMBER_TYPES.includes(member.type) ? member.type : 'Employee',
+    typeHistory: Array.isArray(member.typeHistory) ? member.typeHistory.filter(p=>p && MEMBER_TYPES.includes(p.type) && /^\\d{4}-\\d{2}-\\d{2}$/.test(p.effectiveFrom||'')).map(p=>({type:p.type,effectiveFrom:p.effectiveFrom})).sort((a,b)=>a.effectiveFrom.localeCompare(b.effectiveFrom)) : [],
     weeklyCapacity: Math.max(1, Number(member.weeklyCapacity || DEFAULT_WEEKLY_CAPACITY)),
     email: String(member.email || '').trim().toLowerCase(),
     accessLevel: ['employee','project_manager','management'].includes(member.accessLevel) ? member.accessLevel : 'employee',
