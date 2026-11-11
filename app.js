@@ -1792,7 +1792,7 @@ async function saveMemberFromModal(memberId) {
   const typeEffectiveFrom=document.getElementById('memberTypeEffectiveFrom')?.value || '';
   let typeHistory=Array.isArray(previous?.typeHistory) ? previous.typeHistory.map(p=>({...p})) : [];
   if(typeChanged){
-    if(!/^\\d{4}-\\d{2}-\\d{2}$/.test(typeEffectiveFrom) || typeEffectiveFrom>localDate())
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(typeEffectiveFrom) || typeEffectiveFrom>localDate())
       return showModalError(errorEl,'Select a valid type-change date, no later than today.');
     if(!typeHistory.length)typeHistory=[{type:previous.type,effectiveFrom:'1900-01-01'}];
     const latest=typeHistory.slice().sort((a,b)=>b.effectiveFrom.localeCompare(a.effectiveFrom))[0];
@@ -2646,7 +2646,7 @@ function normalizeState(input) {
     name: String(member.name || '').trim(),
     group: GROUPS.includes(member.group) ? member.group : 'POOL',
     type: MEMBER_TYPES.includes(member.type) ? member.type : 'Employee',
-    typeHistory: Array.isArray(member.typeHistory) ? member.typeHistory.filter(p=>p && MEMBER_TYPES.includes(p.type) && /^\\d{4}-\\d{2}-\\d{2}$/.test(p.effectiveFrom||'')).map(p=>({type:p.type,effectiveFrom:p.effectiveFrom})).sort((a,b)=>a.effectiveFrom.localeCompare(b.effectiveFrom)) : [],
+    typeHistory: Array.isArray(member.typeHistory) ? member.typeHistory.filter(p=>p && MEMBER_TYPES.includes(p.type) && /^\d{4}-\d{2}-\d{2}$/.test(p.effectiveFrom||'')).map(p=>({type:p.type,effectiveFrom:p.effectiveFrom})).sort((a,b)=>a.effectiveFrom.localeCompare(b.effectiveFrom)) : [],
     weeklyCapacity: Math.max(1, Number(member.weeklyCapacity || DEFAULT_WEEKLY_CAPACITY)),
     email: String(member.email || '').trim().toLowerCase(),
     accessLevel: ['employee','project_manager','management'].includes(member.accessLevel) ? member.accessLevel : 'employee',
