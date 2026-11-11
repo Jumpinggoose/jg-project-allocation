@@ -1660,6 +1660,11 @@ function getMemberLiveAllocations(memberId) {
   return rows.sort((a, b) => b.hours - a.hours || a.project.brand.localeCompare(b.project.brand));
 }
 
+function localDate() {
+  const now = new Date();
+  return [now.getFullYear(), String(now.getMonth()+1).padStart(2,'0'), String(now.getDate()).padStart(2,'0')].join('-');
+}
+
 function openMemberModal({ member = null, group = null } = {}) {
   const isEdit = Boolean(member);
   const draft = member ? deepClone(member) : {
