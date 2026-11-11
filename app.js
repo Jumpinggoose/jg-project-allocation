@@ -1818,7 +1818,7 @@ async function saveMemberFromModal(memberId) {
     const oldType=document.getElementById('memberPreviousType')?.value;
     if(!MEMBER_TYPES.includes(oldType) || oldType===memberType)
       return showModalError(errorEl,'Choose different previous and current member types.');
-    if(!/^\\d{4}-\\d{2}-\\d{2}$/.test(typeEffectiveFrom) || typeEffectiveFrom>localDate() || typeEffectiveFrom<'2000-01-01')
+    if(!/^\d{4}-\d{2}-\d{2}$/.test(typeEffectiveFrom) || typeEffectiveFrom>localDate() || typeEffectiveFrom<'2000-01-01')
       return showModalError(errorEl,'Enter a valid correction date (no later than today).');
     if(!window.confirm('Replace the historical member-type timeline for '+name+'? Existing work logs, salary history and projects will not be edited.'))
       return;
