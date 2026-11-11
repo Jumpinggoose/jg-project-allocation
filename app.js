@@ -1717,6 +1717,16 @@ function openMemberModal({ member = null, group = null } = {}) {
           <input id="memberTypeEffectiveFrom" type="date" value="${localDate()}">
           <div class="field-help">Used only when changing member type. Older work logs keep the previous type; do not mark the person Exited if they will continue freelancing.</div>
         </div>
+        ${isEdit && userIsAdmin() ? `
+          <div class="field span-2">
+            <label style="display:flex;align-items:center;gap:10px"><input id="memberCorrectTypeHistory" type="checkbox" style="width:auto"> Correct previous member-type history</label>
+            <div class="field-help">For a type change saved with the wrong date or direction. Replaces only the member-type history, not salaries, work logs or assignments.</div>
+          </div>
+          <div class="field" id="memberPreviousTypeField" hidden>
+            <label for="memberPreviousType">Previous type</label>
+            <select id="memberPreviousType">${MEMBER_TYPES.map(item=>`<option value="${item}" ${item==='Employee'?'selected':''}>${item}</option>`).join('')}</select>
+          </div>
+        ` : ''}
         <div class="field">
           <label for="memberWeeklyCapacity">Weekly capacity (hours)</label>
           <input id="memberWeeklyCapacity" type="number" min="1" max="168" step="0.5" value="${escapeAttr(String(draft.weeklyCapacity ?? DEFAULT_WEEKLY_CAPACITY))}">
@@ -1756,9 +1766,16 @@ function openMemberModal({ member = null, group = null } = {}) {
   updateLifecycleNotice();
   const typeSelect=document.getElementById('memberType');
   const typeDateField=document.getElementById('memberTypeEffectiveField');
+  const correction=document.getElementById('memberCorrectTypeHistory');
+  const oldTypeField=document.getElementById('memberPreviousTypeField');
   if(typeDateField && isEdit){
-    const updateTypeDate=()=>{typeDateField.hidden=typeSelect.value===member.type;};
+    const updateTypeDate=()=>{
+      const needsDate=typeSelect.value!==member.type || Boolean(correction?.checked);
+      typeDateField.hidden=!needsDate;
+      if(oldTypeField)oldTypeField.hidden=!correction?.checked;
+    };
     typeSelect.addEventListener('change',updateTypeDate);
+    correction?.addEventListener('change',updateTypeDate);
     updateTypeDate();
   }
 
@@ -1794,9 +1811,19 @@ async function saveMemberFromModal(memberId) {
   const existingIndex = memberId ? state.members.findIndex((item) => item.id === memberId) : -1;
   const previous = existingIndex >= 0 ? state.members[existingIndex] : null;
   const typeChanged=Boolean(previous && previous.type !== memberType);
+  const correctingHistory=Boolean(previous && userIsAdmin() && document.getElementById('memberCorrectTypeHistory')?.checked);
   const typeEffectiveFrom=document.getElementById('memberTypeEffectiveFrom')?.value || '';
   let typeHistory=Array.isArray(previous?.typeHistory) ? previous.typeHistory.map(p=>({...p})) : [];
-  if(typeChanged){
+  if(correctingHistory){
+    const oldType=document.getElementById('memberPreviousType')?.value;
+    if(!MEMBER_TYPES.includes(oldType) || oldType===memberType)
+      return showModalError(errorEl,'Choose different previous and current member types.');
+    if(!/^\\d{4}-\\d{2}-\\d{2}$/.test(typeEffectiveFrom) || typeEffectiveFrom>localDate() || typeEffectiveFrom<'2000-01-01')
+      return showModalError(errorEl,'Enter a valid correction date (no later than today).');
+    if(!window.confirm('Replace the historical member-type timeline for '+name+'? Existing work logs, salary history and projects will not be edited.'))
+      return;
+    typeHistory=[{type:oldType,effectiveFrom:'1900-01-01'},{type:memberType,effectiveFrom:typeEffectiveFrom}];
+  } else if(typeChanged){
     if(!/^\d{4}-\d{2}-\d{2}$/.test(typeEffectiveFrom) || typeEffectiveFrom>localDate())
       return showModalError(errorEl,'Select a valid type-change date, no later than today.');
     if(!typeHistory.length)typeHistory=[{type:previous.type,effectiveFrom:'1900-01-01'}];
