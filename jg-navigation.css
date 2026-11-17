@@ -1,0 +1,37 @@
+/* Shared JG sidebar. All pages use the same responsive navigation dimensions. */
+.sidebar:has(.jg-workspace-nav){background:#18191D!important;border-right:1px solid #33343A!important;box-sizing:border-box;overflow-y:auto;scrollbar-width:thin;scrollbar-color:#46474F transparent}
+.sidebar:has(.jg-workspace-nav) .brand-lockup{padding-bottom:13px!important;margin-bottom:7px!important}
+.sidebar:has(.jg-workspace-nav) .brand-subtitle{font-size:11px!important}
+.sidebar .jg-workspace-nav{display:flex;flex-direction:column;align-items:stretch;gap:1px!important;flex:0 0 auto}
+.sidebar .jg-workspace-nav .jg-nav-group-label{font-size:10px;letter-spacing:.085em;color:#A1A2AB;font-weight:700;margin:9px 9px 3px;padding-top:12px;border-top:1px solid #393A41;line-height:1.3}
+.sidebar .jg-workspace-nav .jg-nav-group-label:first-child{margin-top:0}
+.sidebar .jg-workspace-nav .nav-item,.sidebar .jg-workspace-nav .jg-nav-folder-toggle{display:flex;flex:0 0 auto;gap:11px;align-items:center;box-sizing:border-box;width:100%;min-height:35px;padding:7px 10px!important;margin:0;border:1px solid transparent;border-radius:10px!important;color:#EBE9EE;background:transparent;font-size:12.5px!important;font-weight:550;line-height:1.3;text-align:left;text-decoration:none;white-space:normal;cursor:pointer;font-family:inherit}
+.sidebar .jg-workspace-nav .nav-item:hover,.sidebar .jg-workspace-nav .jg-nav-folder-toggle:hover{background:#2A2B30}
+.sidebar .jg-workspace-nav .nav-item.is-active{background:rgba(255,0,114,.14)!important;color:#FFF!important;border-color:rgba(255,0,114,.2)!important;box-shadow:inset 2px 0 #FF0072}
+.sidebar .jg-workspace-nav .nav-icon{font-size:16px!important;flex:0 0 19px;min-width:19px;text-align:center;color:#B9BAC2}
+.sidebar .jg-workspace-nav .jg-nav-chevron{margin-left:auto;font-size:16px;color:#A4A4AD;transition:transform .16s}
+.sidebar .jg-workspace-nav .jg-nav-folder-toggle[aria-expanded=true] .jg-nav-chevron{transform:rotate(180deg)}
+.sidebar .jg-workspace-nav .jg-nav-folder-links{display:grid;gap:1px;margin-left:15px;padding-left:8px;border-left:1px solid #414149}
+.sidebar .jg-workspace-nav .jg-nav-folder-links[hidden],.sidebar .jg-workspace-nav [hidden]{display:none!important}
+.sidebar .jg-workspace-nav .jg-nav-folder-links .nav-item{min-height:32px;padding:6px 9px!important;font-size:12px!important}
+.sidebar .jg-workspace-nav .jg-nav-coming{opacity:.38;cursor:default!important}
+.sidebar .jg-workspace-nav .jg-nav-coming:hover{background:transparent}
+.sidebar:has(.jg-workspace-nav) .sidebar-note{display:none!important}
+.sidebar:has(.jg-workspace-nav) .sidebar-spacer{min-height:8px!important}
+.sidebar:has(.jg-workspace-nav) .sync-card{margin-top:10px!important;padding:10px!important;border-radius:12px!important}
+@media(max-height:790px) and (min-width:761px){
+ .sidebar .jg-workspace-nav .jg-nav-group-label{margin:5px 9px 1px;padding-top:8px}
+ .sidebar .jg-workspace-nav .nav-item,.sidebar .jg-workspace-nav .jg-nav-folder-toggle{min-height:30px;padding:5px 9px!important;font-size:12px!important}
+ .sidebar .jg-workspace-nav .jg-nav-folder-links .nav-item{min-height:29px;padding:4px 8px!important}
+}
+@media(max-width:760px){
+ .sidebar:has(.jg-workspace-nav){height:auto!important;max-height:none!important;min-height:0!important;overflow:visible!important}
+ .sidebar:has(.jg-workspace-nav) .brand-lockup{padding-bottom:5px!important;margin-bottom:5px!important}
+ .sidebar .jg-workspace-nav{max-width:100%;overflow-x:auto;scrollbar-width:thin}
+ .hr-page .sidebar .jg-workspace-nav{display:flex!important;flex-direction:row!important;flex-wrap:nowrap!important;overflow-x:auto;gap:3px!important;padding:2px 0 6px}
+ .hr-page .sidebar .jg-workspace-nav .nav-item,.hr-page .sidebar .jg-workspace-nav .jg-nav-folder-toggle{width:auto!important;white-space:nowrap;flex:0 0 auto;font-size:11px!important;min-height:35px}
+ .hr-page .sidebar .jg-workspace-nav .jg-nav-group-label,.hr-page .sidebar .jg-workspace-nav .jg-nav-coming,.hr-page .sidebar .jg-workspace-nav .jg-nav-folder-links{display:none!important}
+ .hr-page .sidebar .jg-workspace-nav .jg-nav-folder{flex:0 0 auto}
+ .worklog-page .sidebar .jg-workspace-nav:not(.is-mobile-open){display:none!important}
+ .worklog-page .sidebar .jg-workspace-nav.is-mobile-open{display:grid!important;overflow:visible}
+}
