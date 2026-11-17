@@ -16,7 +16,7 @@
       .jg-notification-button svg{width:19px;height:19px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
       .jg-notification-count{position:absolute;top:-5px;right:-6px;min-width:19px;height:19px;border-radius:12px;background:#ff0072;color:white;font-size:10px;display:grid;place-items:center;font-weight:800;padding:0 4px}
       .jg-notification-count[hidden],.jg-notification-panel[hidden]{display:none!important}
-      .jg-notification-panel{position:absolute;top:calc(100% + 10px);right:0;width:min(360px,calc(100vw - 24px));max-height:min(480px,75vh);overflow:auto;background:#222027;border:1px solid #4c434f;border-radius:17px;box-shadow:0 24px 58px #0009;color:#f7f1f7;z-index:90}
+      .jg-notification-panel{position:fixed;top:0;left:0;width:min(360px,calc(100vw - 24px));max-height:min(480px,75vh);overflow:auto;background:#222027;border:1px solid #4c434f;border-radius:17px;box-shadow:0 24px 58px #0009;color:#f7f1f7;z-index:1000}
       .jg-notification-head{position:sticky;top:0;display:flex;justify-content:space-between;align-items:center;padding:15px 16px;background:#25212a;border-bottom:1px solid #403a45;z-index:1}
       .jg-notification-head strong{font-size:14px}.jg-notification-head button{border:0;background:none;color:#ff8aba;font:inherit;font-size:12px;cursor:pointer}
       .jg-notification-item{display:block;width:100%;text-align:left;border:0;border-bottom:1px solid #39343d;background:transparent;color:inherit;padding:13px 16px;cursor:pointer}
@@ -25,7 +25,7 @@
       .jg-notification-item span{display:block;color:#bab2c1;font-size:12px;line-height:1.45}
       .jg-notification-item small{display:block;color:#9e98a4;font-size:11px;margin-top:6px}
       .jg-notification-empty{padding:22px 16px;text-align:center;color:#bab2c1;font-size:13px}
-      @media(max-width:760px){.jg-notifications{margin-left:auto}.jg-notification-panel{position:fixed;top:64px;right:12px;max-height:70vh}}
+      @media(max-width:760px){.jg-notifications{margin-left:auto}.jg-notification-panel{max-height:70vh}}
     `;
     document.head.appendChild(st);
   }
@@ -44,6 +44,29 @@
     const {error}=await client.from('jg_notification_reads').upsert(missing.map(notification_key=>({user_id:user.id,notification_key})),{onConflict:'user_id,notification_key'});
     if(error){missing.forEach(k=>reads.delete(k));render();console.warn('Notification read status could not be saved',error.message);}
   }
+  function positionPanel(){
+    if(!panel||!button||panel.hidden)return;
+    const rect=button.getBoundingClientRect();
+    const width=Math.min(360,window.innerWidth-24);
+    const sidebar=document.querySelector('.sidebar');
+    const sidebarRect=sidebar?.getBoundingClientRect();
+    const occupied=sidebarRect&&sidebarRect.right>0&&sidebarRect.left<window.innerWidth&&sidebarRect.width<window.innerWidth*.65;
+    const minLeft=occupied&&window.innerWidth>=760?Math.max(12,sidebarRect.right+12):12;
+    const available=window.innerWidth-minLeft-12;
+    const usableWidth=Math.max(180,Math.min(width,available));
+    panel.style.width=usableWidth+'px';
+    panel.style.left=Math.max(minLeft,Math.min(rect.right-usableWidth,window.innerWidth-usableWidth-12))+'px';
+    const spaceBelow=window.innerHeight-rect.bottom-14;
+    const maxHeight=Math.min(480,Math.max(160,window.innerHeight-24));
+    if(spaceBelow<190&&rect.top>spaceBelow){
+      panel.style.maxHeight=Math.min(maxHeight,Math.max(140,rect.top-24))+'px';
+      panel.style.top='auto';panel.style.bottom=(window.innerHeight-rect.top+8)+'px';
+    }else{
+      panel.style.bottom='auto';
+      panel.style.top=Math.max(12,Math.min(rect.bottom+8,window.innerHeight-160))+'px';
+      panel.style.maxHeight=Math.min(maxHeight,Math.max(140,window.innerHeight-rect.bottom-20))+'px';
+    }
+  }
   function createBell(){
     const topbar=document.querySelector('.topbar');if(!topbar)return false;
     addStyles();
@@ -52,10 +75,15 @@
     const actions=topbar.querySelector('.topbar-actions');
     if(actions)actions.prepend(shell);else topbar.appendChild(shell);
     button=shell.querySelector('.jg-notification-button');panel=shell.querySelector('.jg-notification-panel');count=shell.querySelector('.jg-notification-count');content=shell.querySelector('.jg-notification-content');
-    button.addEventListener('click',()=>{panel.hidden=!panel.hidden;button.setAttribute('aria-expanded',String(!panel.hidden));if(!panel.hidden)refresh();});
-    shell.querySelector('.jg-notification-read-all').addEventListener('click',()=>markRead(items.map(i=>i.key)));
-    shell.addEventListener('click',async e=>{const target=e.target.closest('[data-notification-key]');if(!target)return;const item=items.find(i=>i.key===target.dataset.notificationKey);if(!item)return;await markRead([item.key]);window.location.href=item.href;});
-    document.addEventListener('click',e=>{if(!shell.contains(e.target)){panel.hidden=true;button.setAttribute('aria-expanded','false');}});
+    // Portal outside topbar's stacking context so sidebar cannot cover the dropdown.
+    document.body.appendChild(panel);
+    button.addEventListener('click',()=>{panel.hidden=!panel.hidden;button.setAttribute('aria-expanded',String(!panel.hidden));if(!panel.hidden){positionPanel();refresh();}});
+    panel.querySelector('.jg-notification-read-all').addEventListener('click',()=>markRead(items.map(i=>i.key)));
+    panel.addEventListener('click',async e=>{const target=e.target.closest('[data-notification-key]');if(!target)return;const item=items.find(i=>i.key===target.dataset.notificationKey);if(!item)return;await markRead([item.key]);window.location.href=item.href;});
+    document.addEventListener('click',e=>{if(!shell.contains(e.target)&&!panel.contains(e.target)){panel.hidden=true;button.setAttribute('aria-expanded','false');}});
+    window.addEventListener('resize',positionPanel);
+    window.addEventListener('scroll',positionPanel,true);
+    document.addEventListener('keydown',e=>{if(e.key==='Escape'&&!panel.hidden){panel.hidden=true;button.setAttribute('aria-expanded','false');button.focus();}});
     return true;
   }
   async function refresh(){
