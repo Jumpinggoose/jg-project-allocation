@@ -113,3 +113,17 @@
   .worklog-page .sidebar .jg-workspace-nav:not(.is-mobile-open) { display:none!important; }
   .worklog-page .sidebar .jg-workspace-nav.is-mobile-open { display:flex!important; }
 }
+
+/* Smooth same-origin page changes without a blank paint between documents.
+   Older browsers retain regular navigation; reduced motion stays instant. */
+@view-transition {
+  navigation: auto;
+}
+@media (prefers-reduced-motion: no-preference) {
+  ::view-transition-old(root) { animation: 90ms ease-out both fade-out; }
+  ::view-transition-new(root) { animation: 130ms ease-in both fade-in; }
+}
+@media (prefers-reduced-motion: reduce) {
+  ::view-transition-old(root),
+  ::view-transition-new(root) { animation-duration: 0.01ms!important; }
+}
