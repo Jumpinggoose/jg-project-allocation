@@ -483,9 +483,13 @@ function updateSyncUI(status, detail = '') {
 }
 
 function setView(view, clearSearch = false) {
-  if (sessionUser?.role === 'employee' && !['dashboard','pond1','pond2','worklog'].includes(view)) {
+  if (sessionUser?.role === 'employee' && !['dashboard','pond1','pond2','worklog','hr'].includes(view)) {
     showToast('Your account has view-only access to JG projects.', 'warning');
     view = 'dashboard';
+  }
+  if (view === 'hr') {
+    window.location.href = '/hr.html';
+    return;
   }
   if (view === 'worklog') {
     window.location.href = '/worklog.html';
