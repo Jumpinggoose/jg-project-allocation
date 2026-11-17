@@ -22,43 +22,29 @@
         </div>
       </div>
 
-      <nav class="nav-list">
-        <button class="nav-item" type="button" data-view="hr"><span class="nav-icon">▦</span><span>Calendar & Leave</span></button>
-        <button class="nav-item" type="button" data-view="worklog">
-          <span class="nav-icon" aria-hidden="true">◷</span>
-          <span>My Work Log</span>
-        </button>
-        <button class="nav-item is-active" type="button" data-view="dashboard">
-          <span class="nav-icon" aria-hidden="true">▦</span>
-          <span>Dashboard</span>
-        </button>
-        <button class="nav-item" type="button" data-view="pond1">
-          <span class="nav-icon" aria-hidden="true">①</span>
-          <span>Pond 1 Projects</span>
-        </button>
-        <button class="nav-item" type="button" data-view="pond2">
-          <span class="nav-icon" aria-hidden="true">②</span>
-          <span>Pond 2 Projects</span>
-        </button>
-        <button class="nav-item" type="button" data-view="team">
-          <span class="nav-icon" aria-hidden="true">◎</span>
-          <span>Team Overview</span>
-        </button>
-        <button class="nav-item" type="button" data-view="employee-logs" hidden>
-          <span class="nav-icon" aria-hidden="true">≡</span>
-          <span>Employee Logs</span>
-        </button>
-        <button class="nav-item" type="button" data-view="profitability" hidden>
-          <span class="nav-icon" aria-hidden="true">₹</span>
-          <span>Profitability</span>
-        </button>
-        <button class="nav-item" type="button" data-view="setup" hidden>
-          <span class="nav-icon" aria-hidden="true">⚙</span>
-          <span>Admin Panel</span>
-        </button>
-      </nav>
-
-      <div class="sidebar-spacer"></div>
+      <nav class="nav-list jg-workspace-nav" aria-label="Workspace navigation">
+        <div class="jg-nav-group-label">MY WORKSPACE</div>
+        <button class="nav-item" type="button" data-view="worklog"><span class="nav-icon" aria-hidden="true">◷</span><span>My Work Log</span></button>
+        <button class="nav-item" type="button" data-view="hr"><span class="nav-icon" aria-hidden="true">▦</span><span>Calendar & Holidays</span></button>
+        <button class="nav-item" type="button" data-view="hr-leave"><span class="nav-icon" aria-hidden="true">▣</span><span>My Leave</span></button>
+        <div class="nav-item jg-nav-coming" aria-disabled="true"><span class="nav-icon" aria-hidden="true">◉</span><span>My Attendance & WFH <small>Later</small></span></div>
+        <div class="nav-item jg-nav-coming" aria-disabled="true"><span class="nav-icon" aria-hidden="true">♙</span><span>My Profile <small>Later</small></span></div>
+        <div class="jg-nav-group-label jg-nav-management" data-management-section>MANAGEMENT</div>
+        <button class="nav-item is-active" type="button" data-view="dashboard"><span class="nav-icon" aria-hidden="true">▦</span><span>Dashboard</span></button>
+        <div class="jg-nav-folder" data-pond-folder>
+          <button class="jg-nav-folder-toggle" type="button" id="jgPondToggle" aria-expanded="false" aria-controls="jgPondLinks"><span class="nav-icon" aria-hidden="true">▤</span><span>Pond Projects</span><span class="jg-nav-chevron" aria-hidden="true">⌄</span></button>
+          <div class="jg-nav-folder-links" id="jgPondLinks" hidden>
+            <button class="nav-item" type="button" data-view="pond1"><span class="nav-icon" aria-hidden="true">①</span><span>Pond 1 Projects</span></button>
+            <button class="nav-item" type="button" data-view="pond2"><span class="nav-icon" aria-hidden="true">②</span><span>Pond 2 Projects</span></button>
+          </div>
+        </div>
+        <button class="nav-item" type="button" data-view="team"><span class="nav-icon" aria-hidden="true">◎</span><span>Team Overview</span></button>
+        <button class="nav-item" type="button" data-view="hr-team"><span class="nav-icon" aria-hidden="true">▦</span><span>Team Availability</span></button>
+        <button class="nav-item" type="button" data-view="hr-approvals"><span class="nav-icon" aria-hidden="true">☷</span><span>Leave Approvals</span></button>
+        <button class="nav-item" type="button" data-view="employee-logs" hidden><span class="nav-icon" aria-hidden="true">≡</span><span>Employee Logs</span></button>
+        <button class="nav-item" type="button" data-view="profitability" hidden><span class="nav-icon" aria-hidden="true">◴</span><span>Profitability</span></button>
+        <button class="nav-item" type="button" data-view="setup" hidden><span class="nav-icon" aria-hidden="true">⚙</span><span>Admin Panel</span></button>
+      </nav>      <div class="sidebar-spacer"></div>
 
       <div class="sidebar-note">
         <div class="sidebar-note-title">Allocation weights</div>
@@ -139,6 +125,27 @@
     </div>
   </template>
 
+  <style>
+    /* Workspace sidebar aligned with the approved dark JG reference. */
+    .sidebar:has(.jg-workspace-nav){background:#18191D!important;border-right:1px solid #34353A!important}
+    .sidebar:has(.jg-workspace-nav) .brand-lockup{padding-bottom:22px!important}
+    .sidebar:has(.jg-workspace-nav) .nav-list{gap:4px}
+    .jg-workspace-nav .jg-nav-group-label{color:#A5A6AD;letter-spacing:.075em;font-size:11px;font-weight:650;margin:13px 13px 8px;padding-top:19px;border-top:1px solid #3D3E44}
+    .jg-workspace-nav .jg-nav-group-label:first-child{margin-top:0}
+    .jg-workspace-nav .nav-item,.jg-workspace-nav .jg-nav-folder-toggle{display:flex;align-items:center;gap:13px;min-height:43px;border-radius:13px;padding:10px 13px;color:#E8E7EB;background:transparent;font-weight:550;text-align:left;width:100%;border:0;font:inherit;cursor:pointer;box-sizing:border-box}
+    .jg-workspace-nav .nav-item:hover,.jg-workspace-nav .jg-nav-folder-toggle:hover{background:#292A2F}
+    .jg-workspace-nav .nav-item.is-active{background:rgba(255,0,114,.13)!important;box-shadow:inset 3px 0 #FF0072;color:#FFF}
+    .jg-workspace-nav .nav-icon{font-size:20px;min-width:23px;text-align:center;color:#B9BAC2}
+    .jg-workspace-nav .jg-nav-folder-toggle{font-size:inherit}
+    .jg-workspace-nav .jg-nav-chevron{margin-left:auto;font-size:18px;color:#A4A4AD;transition:transform .2s}
+    .jg-workspace-nav .jg-nav-folder-toggle[aria-expanded="true"] .jg-nav-chevron{transform:rotate(180deg)}
+    .jg-workspace-nav .jg-nav-folder-links{margin-left:18px;padding-left:8px;border-left:1px solid #414149;display:grid;gap:3px}
+    .jg-workspace-nav .jg-nav-folder-links[hidden]{display:none}
+    .jg-workspace-nav .jg-nav-coming{opacity:.43;cursor:default}
+    .jg-workspace-nav .jg-nav-coming:hover{background:transparent}
+    .jg-workspace-nav .jg-nav-coming small{font-size:10px;margin-left:3px}
+    .jg-workspace-nav [hidden]{display:none!important}
+  </style>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.3"></script>
   <script src="supabase-config.js"></script>
   <script src="app.js" defer></script>
