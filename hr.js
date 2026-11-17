@@ -127,7 +127,7 @@ const holiday='<form id="holidayForm" class="hr-form"><label>Date<input name="da
 const yearHolidays=holidays.filter(h=>h.holiday_date.slice(0,4)===String(year)).sort((a,b)=>a.holiday_date.localeCompare(b.holiday_date)).map(h=>'<div class="hr-row hr-list-item"><span><strong>'+esc(h.holiday_name)+'</strong><div class="hr-muted">'+fmt(h.holiday_date)+' · '+esc(h.location)+'</div></span><button class="hr-action secondary" data-remove-holiday="'+h.id+'">Remove</button></div>').join('');
 const assignment='<div class="hr-scroll"><table class="hr-table"><thead><tr><th>Employee</th><th>Reporting team</th><th>Reports to</th><th></th></tr></thead><tbody>'+members.filter(m=>m.type!=='Intern').sort((a,b)=>a.name.localeCompare(b.name)).map(m=>{
 const r=reporting.find(x=>x.member_id===m.id);return '<tr><td><strong>'+esc(m.name)+'</strong></td><td><select data-team="'+esc(m.id)+'">'+select(['POND 1','POND 2','POOL'],r?.team||m.group)+'</select></td><td><select data-manager="'+esc(m.id)+'"><option value="">No manager</option>'+members.filter(x=>x.id!==m.id&&x.type!=='Intern').map(x=>option(x.id,r?.manager_member_id)).join('')+'</select></td><td><button class="hr-action secondary" data-save-report="'+esc(m.id)+'">Save</button></td></tr>';
-}).join('')+'</tbody></table></div><p class="hr-muted">Reporting teams are independent of existing project-allocation Ponds. Bhagya has default HR-wide approval access. Interns are excluded for now.</p>';
+}).join('')+'</tbody></table></div><p class="hr-muted">Reporting teams are independent of existing project-allocation Ponds. HR-wide approval access remains enabled for authorized users. Interns are excluded for now.</p>';
 const scheduled=holidays.filter(h=>h.holiday_date.slice(0,4)===String(year)&&h.holiday_type!=='Optional'&&h.location==='All').length;
 const estimatedTotal=Number(p?.earned_days??18)+Number(p?.sick_days??6)+Number(p?.compassion_days??5)+scheduled;
 const holidaySummary='<p class="hr-muted">Public/company holidays entered for '+year+': <strong>'+scheduled+'</strong>. Indicative total including conditional compassion leave: <strong>'+estimatedTotal+'</strong> days. The provisional '+(p?.provisional_holiday_days??17)+' holiday estimate is not counted until actual holiday dates are added.</p>';
@@ -139,7 +139,7 @@ function render(){
 if(!['calendar','leave','availability','approvals','settings'].includes(tab)||(tab==='approvals'&&!canApprove)||(tab==='settings'&&!hrAdmin))tab='calendar';
  const mapped={calendar:'hr',leave:'hr-leave',availability:'hr-team',approvals:'hr-approvals',settings:'hr-settings'};
  document.querySelectorAll('.jg-workspace-nav [data-view]').forEach(item=>item.classList.toggle('is-active',item.dataset.view===mapped[tab]));
-root.innerHTML=nav()+'<div id="hrFlash" hidden></div><div class="hr-row"><div class="hr-muted">Calendar year <strong>'+year+'</strong> · HR: Bhagya (default)</div><div class="hr-pills"><button class="hr-action secondary" data-year="-1">‹ Year</button><button class="hr-action secondary" data-year="1">Year ›</button></div></div>'+
+root.innerHTML=nav()+'<div id="hrFlash" hidden></div><div class="hr-row"><div class="hr-muted">Calendar year <strong>'+year+'</strong></div><div class="hr-pills"><button class="hr-action secondary" data-year="-1">‹ Year</button><button class="hr-action secondary" data-year="1">Year ›</button></div></div>'+
 (tab==='calendar'?calendar():tab==='leave'?leave():tab==='availability'?availability():tab==='approvals'?approvals():settings());
 }
 async function writeRequest(form){
