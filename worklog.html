@@ -160,6 +160,7 @@
   'tuhin@jumpinggoose.com',
   'accounts@jumpinggoose.com',
   'theo@jumpinggoose.com'].includes(email));
+    window.JGNav?.setAccess({level:access.access_level,memberId:access.member_id,email});
     const mobileMenu=document.getElementById('worklogMobileMenu');
     const sidebarNav=document.getElementById('worklogSidebarNav');
     mobileMenu.addEventListener('click',()=>{
