@@ -150,9 +150,18 @@ function cacheElements() {
 }
 
 function bindStaticEvents() {
-  document.querySelectorAll('.nav-item').forEach((button) => {
+  document.querySelectorAll('button.nav-item[data-view]').forEach((button) => {
     button.addEventListener('click', () => setView(button.dataset.view, true));
   });
+  const pondToggle = document.getElementById('jgPondToggle');
+  const pondLinks = document.getElementById('jgPondLinks');
+  if (pondToggle && pondLinks) {
+    pondToggle.addEventListener('click', () => {
+      const isOpen = pondToggle.getAttribute('aria-expanded') !== 'true';
+      pondToggle.setAttribute('aria-expanded', String(isOpen));
+      pondLinks.hidden = !isOpen;
+    });
+  }
 
   els.mobileMenu.addEventListener('click', openMobileNav);
   els.mobileBackdrop.addEventListener('click', closeMobileNav);
@@ -487,8 +496,9 @@ function setView(view, clearSearch = false) {
     showToast('Your account has view-only access to JG projects.', 'warning');
     view = 'dashboard';
   }
-  if (view === 'hr') {
-    window.location.href = '/hr.html';
+  const hrRoutes = { hr: 'calendar', 'hr-leave': 'leave', 'hr-team': 'availability', 'hr-approvals': 'approvals' };
+  if (Object.prototype.hasOwnProperty.call(hrRoutes, view)) {
+    window.location.href = '/hr.html?tab=' + encodeURIComponent(hrRoutes[view]);
     return;
   }
   if (view === 'worklog') {
@@ -565,6 +575,18 @@ function renderCurrentView() {
   'theo@jumpinggoose.com'].includes(String(sessionUser?.email || '').toLowerCase());
   const teamNav = document.querySelector('[data-view="team"]');
   if (teamNav) teamNav.hidden = sessionUser?.role === 'employee';
+  const teamAvailabilityNav = document.querySelector('[data-view="hr-team"]');
+  if (teamAvailabilityNav) teamAvailabilityNav.hidden = sessionUser?.role === 'employee';
+  const approvalsNav = document.querySelector('[data-view="hr-approvals"]');
+  if (approvalsNav) approvalsNav.hidden = sessionUser?.role === 'employee' && !['bhagya','theo','supriya','midhun'].includes(sessionUser?.memberId);
+  const managementHeading = document.querySelector('[data-management-section]');
+  if (managementHeading) managementHeading.hidden = sessionUser?.role === 'employee';
+  const folderToggle = document.getElementById('jgPondToggle');
+  const folderLinks = document.getElementById('jgPondLinks');
+  if(folderToggle && folderLinks && ['pond1','pond2'].includes(ui.view)) {
+    folderToggle.setAttribute('aria-expanded','true');
+    folderLinks.hidden=false;
+  }
   if (els.dataButton) els.dataButton.hidden = sessionUser?.role === 'employee';
   els.globalSearch.placeholder = ui.view === 'team' || ui.view === 'setup'
     ? 'Search team members'
