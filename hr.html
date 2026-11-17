@@ -48,6 +48,48 @@
 @media(max-width:900px){.hr-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.hr-two{grid-template-columns:1fr}}
 @media(max-width:760px){.hr-page .app-shell{display:block}.hr-page .sidebar{position:relative;height:auto;width:100%;padding:12px 15px}.hr-page .sidebar .nav-list{display:flex;flex-wrap:nowrap;gap:7px;max-width:100%;overflow-x:auto;margin-top:9px;padding:1px 0 6px}.hr-page .sidebar .nav-item{flex:0 0 auto;white-space:nowrap;padding:8px 10px;font-size:12px}.hr-page .sidebar .sync-card,.hr-page .sidebar-spacer{display:none}.hr-page .sidebar .brand-lockup{padding:0;border:0}.hr-page .main-area .topbar{padding:14px!important;min-height:0!important}.hr-main{padding:14px}.hr-grid{grid-template-columns:1fr 1fr}.hr-card{padding:14px}.hr-day{min-height:56px;padding:4px}.hr-day .event{font-size:9px}.hr-tabs button{padding:10px;font-size:12px}}
 @media(max-width:400px){.hr-grid{grid-template-columns:1fr}.hr-day{min-height:48px}}
+
+/* JG rounded design system: calm dark layers, generous space, accent only on actions. */
+.hr-page{--hr-radius:22px}
+.hr-page .sidebar{background:#18191D!important}
+.hr-page .sidebar .nav-item{border-radius:13px!important}
+.hr-page .main-area{background:#111214!important}
+.hr-page .hr-header{border-bottom:1px solid #37383D!important;background:#1A1B1E!important}
+.hr-page .hr-main{padding:26px 28px 55px}
+.hr-page .hr-wrap{gap:22px}
+.hr-page .hr-card{border-radius:var(--hr-radius)!important;background:#1F2024;border:1px solid #393A40;padding:24px;box-shadow:0 12px 30px rgba(0,0,0,.09)}
+.hr-page .hr-card h2,.hr-page .hr-card h3{letter-spacing:-.02em;line-height:1.25}
+.hr-page .hr-tabs{background:#1D1E22;border:1px solid #35363C;padding:9px;gap:7px;border-radius:19px;max-width:max-content}
+.hr-page .hr-tabs button{border-radius:13px!important;border:1px solid transparent;background:transparent;min-height:43px;padding:11px 16px;transition:background .18s ease,color .18s ease}
+.hr-page .hr-tabs button:hover{background:#303137}
+.hr-page .hr-tabs button.is-active{background:#CB347D!important;border-color:#CB347D!important;box-shadow:0 4px 15px rgba(205,51,124,.2)}
+.hr-page .hr-day{border-radius:15px!important;background:#25262B;border:1px solid #3B3D44;padding:10px;min-height:88px;transition:border-color .18s}
+.hr-page .hr-day.today{border:1.5px solid #E04797;background:#2D252E}
+.hr-page .hr-day .event{border-radius:8px!important;padding:6px 7px;margin-top:6px}
+.hr-page .hr-form{gap:16px}
+.hr-page .hr-form input,.hr-page .hr-form select,.hr-page .hr-form textarea,.hr-page .hr-table select{border-radius:13px!important;background:#292A2F;border:1px solid #484950;padding:12px 14px;min-height:44px}
+.hr-page .hr-form input:focus,.hr-page .hr-form select:focus,.hr-page .hr-form textarea:focus,.hr-page .hr-table select:focus{outline:2px solid rgba(255,0,114,.45);outline-offset:1px}
+.hr-page .hr-form button,.hr-page .hr-action{border-radius:13px!important;min-height:42px;padding:11px 16px}
+.hr-page .hr-action.secondary{border:1px solid #4A4B52}
+.hr-page .hr-list-item{padding:14px 0}
+.hr-page .hr-pill{border-radius:999px}
+.hr-page .hr-message{border-radius:14px}
+.hr-page .hr-two,.hr-page .hr-grid{gap:18px}
+.hr-page .hr-stat{font-size:31px}
+.hr-page .hr-calendar{gap:7px}
+.hr-page .hr-scroll{border-radius:15px}
+.hr-page .hr-table th{background:#26272C}
+@media(max-width:760px){
+ .hr-page .hr-main{padding:14px 12px 28px}
+ .hr-page .hr-wrap{gap:15px}
+ .hr-page .hr-card{padding:16px;border-radius:18px!important}
+ .hr-page .hr-day{min-height:58px;padding:5px;border-radius:10px!important}
+ .hr-page .hr-calendar{gap:4px}
+ .hr-page .hr-day .event{border-radius:5px!important;padding:4px 3px;font-size:9px}
+ .hr-page .hr-tabs{max-width:100%;overflow-x:auto;flex-wrap:nowrap}
+ .hr-page .hr-tabs button{white-space:nowrap;padding:10px 12px}
+}
+
 </style></head><body class="hr-page"><div class="app-shell">
 <aside class="sidebar">
  <div class="brand-lockup"><div class="brand-mark">JG</div><div><div class="brand-name">JUMPINGGOOSE</div><div class="brand-subtitle">People & Leave</div></div></div>
