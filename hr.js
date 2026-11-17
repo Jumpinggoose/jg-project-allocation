@@ -69,7 +69,8 @@ const events=[...holiday.map(h=>'<span class="event holiday">'+esc(h.holiday_nam
 if(away.length>3)events.push('<span class="hr-muted">+'+(away.length-3)+' away</span>');
 cells.push('<div class="hr-day '+(!valid?'outside ':'')+(date===localDate()?'today':'')+'"><strong>'+(valid?d:'')+'</strong>'+events.join('')+'</div>');
 }
-const navigation='<div class="hr-row"><div><h2 style="margin:0">'+esc(calendarMonths())+'</h2><div class="hr-muted">Calendar year, separate from financial-year reporting</div></div><div class="hr-pills"><button class="hr-action secondary" data-month="-1">‹ Previous</button><button class="hr-action secondary" data-month="1">Next ›</button></div></div>';
+const count=holidays.filter(h=>h.holiday_date.slice(0,4)===String(year)&&h.holiday_type!=='Optional'&&h.location==='All').length;
+const navigation='<div class="hr-row"><div><h2 style="margin:0">'+esc(calendarMonths())+'</h2><div class="hr-muted">Calendar year · '+count+' published company/public holidays · annual list editable by HR</div></div><div class="hr-pills"><button class="hr-action secondary" data-month="-1">‹ Previous</button><button class="hr-action secondary" data-month="1">Next ›</button></div></div>';
 return section('Holiday & Leave Calendar',navigation+'<div class="hr-calendar" style="margin-top:16px">'+cells.join('')+'</div><p class="hr-muted">Holidays will be entered by management. Approved leave appears as “Away”; personal reasons remain private.</p>');
 }
 function leave(){
@@ -82,13 +83,14 @@ return cards+'<div class="hr-two">'+section('Request Leave / WFH',form)+section(
 }
 function availability(){
 const date=localDate();const active=members.filter(m=>m.active!==false&&m.type!=='Intern');
+const companyHoliday=holidays.find(h=>h.holiday_date===date&&h.location==='All'&&h.holiday_type!=='Optional');
 const table=active.map(m=>{
 const r=reporting.find(x=>x.member_id===m.id),away=blocks.find(b=>b.member_id===m.id&&b.start_date<=date&&b.end_date>=date);
 return {name:m.name,team:r?.team||m.group,manager:r?.manager_member_id,away};
 }).sort((a,b)=>a.team.localeCompare(b.team)||a.name.localeCompare(b.name));
 const by=['POND 1','POND 2','POOL'].map(g=>{
-const items=table.filter(x=>x.team===g);const absent=items.filter(x=>x.away).length;
-return '<section class="hr-card"><h3>'+g+'</h3><div class="hr-stat">'+(items.length-absent)+' / '+items.length+'</div><div class="hr-muted">Available today</div><div class="hr-list">'+items.map(x=>'<div class="hr-row hr-list-item"><span>'+esc(x.name)+'<div class="hr-muted">Reports to '+esc(person(x.manager)||'Pond lead')+'</div></span>'+statusPill(x.away?'Away':'Available')+'</div>').join('')+'</div></section>';
+const items=table.filter(x=>x.team===g);const absent=companyHoliday?items.length:items.filter(x=>x.away).length;
+return '<section class="hr-card"><h3>'+g+'</h3><div class="hr-stat">'+(items.length-absent)+' / '+items.length+'</div><div class="hr-muted">Available today</div><div class="hr-list">'+items.map(x=>'<div class="hr-row hr-list-item"><span>'+esc(x.name)+'<div class="hr-muted">Reports to '+esc(person(x.manager)||'Pond lead')+'</div></span>'+statusPill(companyHoliday?'Holiday':x.away?'Away':'Available')+'</div>').join('')+'</div></section>';
 }).join('');
 return '<div class="hr-grid">'+by+'</div><p class="hr-muted">Availability reflects approved leave only. Attendance, WFH status and adjusted monthly capacity are not yet connected.</p>';
 }
@@ -108,7 +110,10 @@ const yearHolidays=holidays.filter(h=>h.holiday_date.slice(0,4)===String(year)).
 const assignment='<div class="hr-scroll"><table class="hr-table"><thead><tr><th>Employee</th><th>Reporting team</th><th>Reports to</th><th></th></tr></thead><tbody>'+members.filter(m=>m.type!=='Intern').sort((a,b)=>a.name.localeCompare(b.name)).map(m=>{
 const r=reporting.find(x=>x.member_id===m.id);return '<tr><td><strong>'+esc(m.name)+'</strong></td><td><select data-team="'+esc(m.id)+'">'+select(['POND 1','POND 2','POOL'],r?.team||m.group)+'</select></td><td><select data-manager="'+esc(m.id)+'"><option value="">No manager</option>'+members.filter(x=>x.id!==m.id&&x.type!=='Intern').map(x=>option(x.id,r?.manager_member_id)).join('')+'</select></td><td><button class="hr-action secondary" data-save-report="'+esc(m.id)+'">Save</button></td></tr>';
 }).join('')+'</tbody></table></div><p class="hr-muted">Reporting teams are independent of existing project-allocation Ponds. Bhagya has default HR-wide approval access. Interns are excluded for now.</p>';
-const policySection='<div class="hr-two">'+section('Annual Leave Policy',policy)+section('Add Holiday',holiday+'<h3 style="margin-top:20px">Holidays for '+year+'</h3><div class="hr-list">'+(yearHolidays||'<p class="hr-muted">No holiday dates entered yet.</p>')+'</div>')+'</div>';
+const scheduled=holidays.filter(h=>h.holiday_date.slice(0,4)===String(year)&&h.holiday_type!=='Optional'&&h.location==='All').length;
+const estimatedTotal=Number(p?.earned_days??18)+Number(p?.sick_days??6)+Number(p?.compassion_days??5)+scheduled;
+const holidaySummary='<p class="hr-muted">Public/company holidays entered for '+year+': <strong>'+scheduled+'</strong>. Indicative total including conditional compassion leave: <strong>'+estimatedTotal+'</strong> days. The provisional '+(p?.provisional_holiday_days??17)+' holiday estimate is not counted until actual holiday dates are added.</p>';
+const policySection='<div class="hr-two">'+section('Annual Leave Policy',policy)+section('Add Holiday',holiday+holidaySummary+'<h3 style="margin-top:20px">Holidays for '+year+'</h3><div class="hr-list">'+(yearHolidays||'<p class="hr-muted">No holiday dates entered yet.</p>')+'</div>')+'</div>';
 const adjustment='<form id="openingForm" class="hr-form"><label>Employee<select name="member">'+members.filter(m=>m.type!=='Intern').map(m=>option(m.id,'')).join('')+'</select></label><div class="hr-two"><label>Earned leave adjustment<input name="earned" type="number" step=".5" value="0"></label><label>Sick leave adjustment<input name="sick" type="number" step=".5" value="0"></label></div><label>Adjustment note<input name="notes" maxlength="300"></label><button type="submit">Save opening / adjustment</button></form><p class="hr-muted">Use after reconciling Keka balances. Values are adjustments to the quarterly earned/sick credits, not extra annual entitlements.</p>';
 return policySection+section('Reporting Managers & Teams',assignment)+section('Opening Balances / Corrections',adjustment);
 }
