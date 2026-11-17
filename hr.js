@@ -141,7 +141,7 @@ root.innerHTML=nav()+'<div id="hrFlash" hidden></div><div class="hr-row"><div cl
 async function writeRequest(form){
 const f=new FormData(form),type=f.get('type'),start=String(f.get('start')),end=String(f.get('end')),reason=String(f.get('reason')||'').trim(),halfDay=f.get('half_day')==='on';
 if(!['Earned Leave','Sick Leave','Compassion Leave'].includes(type))throw Error('Unsupported leave type. Contact HR.');
-if(halfDay&&start!==end)throw Error('Half day applies to a single workday.');
+if(halfDay&&(start!==end||daysRange(start,end)!==1))throw Error('Half-day leave must fall on one working day, not a weekend or published holiday.');
 const days=halfDay?0.5:daysRange(start,end);
 if(!start||!end||end<start||start.slice(0,4)!==end.slice(0,4)||start.slice(0,4)!==String(year))throw Error('Select dates within the same calendar year.');
 if(!currentPolicy())throw Error('Leave policy for this year has not yet been configured by HR.');
