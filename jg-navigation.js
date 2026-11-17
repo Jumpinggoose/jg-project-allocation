@@ -77,6 +77,7 @@
     if(setup)setup.hidden=!isAdmin;
   }
   window.JGNav={setAccess,install};
-  if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install);
-  else install();
+  // Script loads after the sidebar markup on every page. Install synchronously
+  // so the canonical menu is in place before deferred page initialization.
+  install();
 })();
