@@ -42,12 +42,14 @@
   function install(){
     const nav=document.querySelector('aside.sidebar nav.nav-list');
     if(!nav)return;
-    nav.innerHTML=items.map(item=>{
+    if (nav.dataset.jgCanonical !== 'true') {
+      nav.innerHTML=items.map(item=>{
       if(item.type==='heading')return '<div class="jg-nav-group-label"'+(item.management?' data-management-section':'')+'>'+item.label+'</div>';
       if(item.type==='pond')return pond();
       if(item.later)return '<div class="nav-item jg-nav-coming" aria-disabled="true"><span class="nav-icon" aria-hidden="true">'+item.icon+'</span><span>'+attr(item.label)+'</span></div>';
       return link(item);
-    }).join('');
+      }).join('');
+    }
     nav.classList.add('jg-workspace-nav');
     if(path.includes('worklog')) nav.id='worklogSidebarNav';
     nav.setAttribute('aria-label','Workspace navigation');
