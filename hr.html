@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#111214"><title>People & Leave · JUMPINGGOOSE</title>
+<link rel="icon" href="icon.svg" type="image/svg+xml"><link rel="stylesheet" href="styles.css"><link rel="stylesheet" href="jg-dark-pink.css">
+<style>
+.hr-wrap{max-width:1480px;margin:auto;display:grid;gap:18px}
+.hr-tabs{display:flex;flex-wrap:wrap;gap:9px;margin-bottom:4px}
+.hr-tabs button{border:1px solid #414249;background:#25262A;border-radius:12px;padding:12px 16px;color:#F3F2F6;font-weight:650;cursor:pointer}
+.hr-tabs button.is-active{background:#C52E7A;border-color:#C52E7A;color:white}
+.hr-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px}
+.hr-two{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px}
+.hr-card{background:#202126;border:1px solid #37383D;border-radius:18px;padding:20px;min-width:0}
+.hr-card h2,.hr-card h3{margin:0 0 12px}
+.hr-card p{color:#B9B9C2;line-height:1.55}
+.hr-muted{color:#A8A8B2;font-size:12px}
+.hr-form{display:grid;gap:13px}
+.hr-form label{display:grid;gap:6px;font-size:12px;font-weight:700;color:#DBDAE0}
+.hr-form input,.hr-form select,.hr-form textarea{width:100%;min-width:0;box-sizing:border-box;background:#292A30;color:white;border:1px solid #48484E;border-radius:10px;padding:11px 12px;font:inherit}
+.hr-form textarea{min-height:74px}
+.hr-form button,.hr-action{border:0;border-radius:10px;padding:11px 14px;background:#DB3487;color:white;font-weight:700;cursor:pointer}
+.hr-action.secondary{background:#35363C;color:#EEE}
+.hr-action:disabled{opacity:.5;cursor:wait}
+.hr-row{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap}
+.hr-stat{font-size:27px;font-weight:750;color:#FAF8FC}
+.hr-pills{display:flex;gap:7px;flex-wrap:wrap}
+.hr-pill{font-size:11px;border-radius:20px;background:#34353B;padding:5px 9px;color:#E9E6ED}
+.hr-pill.approved{background:#193E37;color:#B3E4D8}
+.hr-pill.rejected{background:#4D2731;color:#F3BBC7}
+.hr-pill.pending{background:#49392A;color:#FFE0AE}
+.hr-list{display:grid;gap:10px}
+.hr-list-item{padding:12px 0;border-bottom:1px solid #39393F}
+.hr-list-item:last-child{border-bottom:0}
+.hr-calendar{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:5px}
+.hr-day{min-height:80px;background:#26272B;border:1px solid #35363C;border-radius:10px;padding:7px;overflow:hidden}
+.hr-day.outside{opacity:.24}.hr-day.today{border-color:#DB3487}
+.hr-day strong{font-size:12px}
+.hr-day .event{display:block;margin-top:4px;font-size:10px;line-height:1.25;padding:4px;border-radius:5px;background:#514057;overflow-wrap:anywhere}
+.hr-day .holiday{background:#64512E}.hr-day .away{background:#263C51}
+.hr-table{width:100%;border-collapse:collapse}.hr-table th,.hr-table td{padding:11px;text-align:left;border-bottom:1px solid #393A40;font-size:12px;vertical-align:middle}
+.hr-table select{max-width:185px;background:#292A30;border:1px solid #47474E;color:white;border-radius:8px;padding:9px}
+.hr-scroll{overflow-x:auto}.hr-message{padding:12px 15px;border-radius:12px;background:#38313B;color:#F6DFEA}
+.hr-message.error{background:#52272F;color:#FFD5D6}
+.hr-header{min-height:88px!important}
+.hr-header .page-heading h1{font-size:clamp(26px,2.8vw,39px)}
+.hr-main{padding:22px 26px 50px}
+.hr-brand-link{color:#F1AFD2;font-size:12px}
+@media(max-width:900px){.hr-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.hr-two{grid-template-columns:1fr}}
+@media(max-width:760px){.hr-page .app-shell{display:block}.hr-page .sidebar{position:relative;height:auto;width:100%;padding:12px 15px}.hr-page .sidebar .nav-list{display:none}.hr-page .sidebar .sync-card,.hr-page .sidebar-spacer{display:none}.hr-page .sidebar .brand-lockup{padding:0;border:0}.hr-page .main-area .topbar{padding:14px!important;min-height:0!important}.hr-main{padding:14px}.hr-grid{grid-template-columns:1fr 1fr}.hr-card{padding:14px}.hr-day{min-height:56px;padding:4px}.hr-day .event{font-size:9px}.hr-tabs button{padding:10px;font-size:12px}}
+@media(max-width:400px){.hr-grid{grid-template-columns:1fr}.hr-day{min-height:48px}}
+</style></head><body class="hr-page"><div class="app-shell">
+<aside class="sidebar">
+ <div class="brand-lockup"><div class="brand-mark">JG</div><div><div class="brand-name">JUMPINGGOOSE</div><div class="brand-subtitle">People & Leave</div></div></div>
+ <nav class="nav-list">
+ <a class="nav-item" href="/worklog.html"><span class="nav-icon">◷</span>My Work Log</a>
+ <a class="nav-item is-active" href="/hr.html"><span class="nav-icon">▦</span>Calendar & Leave</a>
+ <a class="nav-item" href="/?view=dashboard"><span class="nav-icon">▤</span>Dashboard</a>
+ <a class="nav-item" href="/?view=pond1"><span class="nav-icon">①</span>Pond 1 Projects</a>
+ <a class="nav-item" href="/?view=pond2"><span class="nav-icon">②</span>Pond 2 Projects</a>
+ <a class="nav-item" data-management-nav href="/?view=team" hidden><span class="nav-icon">◎</span>Team Overview</a>
+ <a class="nav-item" data-management-nav href="/?view=setup" hidden><span class="nav-icon">⚙</span>Admin Panel</a>
+ <a class="nav-item" id="hrEmployeeLogs" href="/employee-logs.html" hidden><span class="nav-icon">≡</span>Employee Logs</a>
+ <a class="nav-item" id="hrProfitability" href="/profitability.html" hidden><span class="nav-icon">₹</span>Profitability</a>
+ </nav><div class="sidebar-spacer"></div><div class="sync-card"><span class="sync-dot is-online"></span><div><strong id="hrUser">Loading...</strong><small>HR Workspace</small></div></div>
+</aside><main class="main-area"><header class="topbar hr-header">
+<div class="page-heading"><div class="eyebrow">JUMPINGGOOSE · PEOPLE</div><h1>Calendar & Leave</h1><p>Holidays, requests, leave balances and team availability</p></div>
+<div class="topbar-actions"><button class="button button-secondary" id="hrLogout" type="button">Log out</button></div>
+</header><section class="hr-main"><div id="hrRoot" class="hr-wrap"><div class="hr-card">Loading people and leave...</div></div></section>
+</main></div><script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.3"></script><script src="supabase-config.js"></script><script src="hr.js" defer></script></body></html>
