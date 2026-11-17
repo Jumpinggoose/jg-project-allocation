@@ -51,6 +51,7 @@
     nav.classList.add('jg-workspace-nav');
     if(path.includes('worklog')) nav.id='worklogSidebarNav';
     nav.setAttribute('aria-label','Workspace navigation');
+    restoreVisibility();
     // Dashboard has its existing pond toggle listener in app.js.
     if(!dashboard){
       const toggle=nav.querySelector('#jgPondToggle'),panel=nav.querySelector('#jgPondLinks');
@@ -60,22 +61,47 @@
       });
     }
   }
+  // Restore cosmetic menu visibility before the browser paints a newly loaded page.
+  // Actual access control remains in the page's authenticated Supabase checks.
+  const ACCESS_CACHE_KEY = 'jg-nav-visibility-v1';
+  function applyVisibility(flags) {
+    if (!flags || typeof flags !== 'object') return;
+    const {canManage, isAdmin, allowedFinance, canApprove} = flags;
+    document.querySelectorAll('.jg-workspace-nav [data-management-nav]').forEach(el => {el.hidden = !canManage;});
+    const ids = {employeeLogsLink:canManage,profitLink:allowedFinance,hrEmployeeLogs:canManage,hrProfitability:allowedFinance};
+    Object.entries(ids).forEach(([id,visible]) => {const el=document.getElementById(id);if(el)el.hidden=!visible;});
+    const show = (view,visible) => {
+      const el=document.querySelector('.jg-workspace-nav [data-view="'+view+'"]');
+      if (el) el.hidden=!visible;
+    };
+    show('hr-approvals',isAdmin||canApprove);
+    show('hr-team',canManage);
+    show('setup',isAdmin);
+    const heading=document.querySelector('.jg-workspace-nav [data-management-section]');
+    if (heading) heading.hidden=!canManage;
+  }
+  function restoreVisibility() {
+    try {
+      const cached=JSON.parse(sessionStorage.getItem(ACCESS_CACHE_KEY)||'null');
+      if (cached && typeof cached.canManage==='boolean' &&
+        typeof cached.isAdmin==='boolean' && typeof cached.allowedFinance==='boolean' &&
+        typeof cached.canApprove==='boolean') applyVisibility(cached);
+    } catch (_) { /* Storage can be unavailable; fall back to permissions fetch. */ }
+  }
   function setAccess({level='employee',memberId='',email='',canApprove=false}={}){
     const isAdmin=level==='management'||memberId==='bhagya';
     const canManage=isAdmin||level==='project_manager';
     const allowedFinance=isAdmin&&['piyush@jumpinggoose.com','tuhin@jumpinggoose.com','accounts@jumpinggoose.com','theo@jumpinggoose.com'].includes(String(email).toLowerCase());
-    document.querySelectorAll('.jg-workspace-nav [data-management-nav]').forEach(e=>e.hidden=!canManage);
-    const ids={'employeeLogsLink':canManage,'profitLink':allowedFinance,'hrEmployeeLogs':canManage,'hrProfitability':allowedFinance};
-    Object.entries(ids).forEach(([id,allow])=>{const e=document.getElementById(id);if(e)e.hidden=!allow;});
-    const approvals=document.querySelector('.jg-workspace-nav [data-view="hr-approvals"],.jg-workspace-nav a[href*="tab=approvals"]');
-    if(approvals)approvals.hidden=!(isAdmin||canApprove);
-    const availability=document.querySelector('.jg-workspace-nav [data-view="hr-team"],.jg-workspace-nav a[href*="tab=availability"]');
-    if(availability)availability.hidden=!canManage;
-    const setup=document.querySelector('.jg-workspace-nav [data-view="setup"],.jg-workspace-nav a[href="/?view=setup"]');
-    const heading=document.querySelector('.jg-workspace-nav [data-management-section]');
-    if(heading) heading.hidden=!canManage;
-    if(setup)setup.hidden=!isAdmin;
+    const flags={isAdmin,canManage,allowedFinance,canApprove:Boolean(canApprove)};
+    applyVisibility(flags);
+    try { sessionStorage.setItem(ACCESS_CACHE_KEY,JSON.stringify(flags)); } catch (_) {}
+
   }
+  document.addEventListener('click',event=>{
+    if (event.target.closest('#logoutButton,#hrLogout,[data-action="logout"]')) {
+      try { sessionStorage.removeItem(ACCESS_CACHE_KEY); } catch (_) {}
+    }
+  },true);
   window.JGNav={setAccess,install};
   // Script loads after the sidebar markup on every page. Install synchronously
   // so the canonical menu is in place before deferred page initialization.
