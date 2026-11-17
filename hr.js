@@ -2,7 +2,7 @@
 const hcfg=window.JG_SUPABASE;
 const hsb=window.supabase.createClient(hcfg.url,hcfg.publishableKey);
 const root=document.getElementById('hrRoot');
-let me=null,access=null,appState=null,members=[],reporting=[],policies=[],holidays=[],requests=[],blocks=[],openings=[],tab='calendar',year=new Date().getFullYear(),month=new Date().getMonth()+1,hrAdmin=false,canApprove=false;
+let me=null,access=null,appState=null,members=[],reporting=[],policies=[],holidays=[],requests=[],blocks=[],openings=[],tab=new URLSearchParams(location.search).get('tab')||'calendar',year=new Date().getFullYear(),month=new Date().getMonth()+1,hrAdmin=false,canApprove=false;
 const names=new Map();
 function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function localDate(){const d=new Date();return [d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-');}
@@ -135,6 +135,7 @@ const adjustment='<form id="openingForm" class="hr-form"><label>Employee<select 
 return policySection+section('Reporting Managers & Teams',assignment)+section('Opening Balances / Corrections',adjustment);
 }
 function render(){
+if(!['calendar','leave','availability','approvals','settings'].includes(tab)||(tab==='approvals'&&!canApprove)||(tab==='settings'&&!hrAdmin))tab='calendar';
 root.innerHTML=nav()+'<div id="hrFlash" hidden></div><div class="hr-row"><div class="hr-muted">Calendar year <strong>'+year+'</strong> · HR: Bhagya (default)</div><div class="hr-pills"><button class="hr-action secondary" data-year="-1">‹ Year</button><button class="hr-action secondary" data-year="1">Year ›</button></div></div>'+
 (tab==='calendar'?calendar():tab==='leave'?leave():tab==='availability'?availability():tab==='approvals'?approvals():settings());
 }
@@ -183,7 +184,7 @@ if(r.error)throw r.error;await refresh();message('Reporting line saved for '+per
 async function openingSave(form){const f=new FormData(form);const id=String(f.get('member'));const r=await hsb.from('hr_leave_opening').upsert({member_id:id,calendar_year:year,earned_adjustment:Number(f.get('earned')||0),sick_adjustment:Number(f.get('sick')||0),notes:String(f.get('notes')||'')},{onConflict:'member_id,calendar_year'});if(r.error)throw r.error;await refresh();message('Leave balance adjustment saved.');}
 root.addEventListener('click',async e=>{
 const el=e.target.closest('button');if(!el)return;
-if(el.dataset.tab){tab=el.dataset.tab;render();return;}
+if(el.dataset.tab){tab=el.dataset.tab;const u=new URL(location.href);u.searchParams.set('tab',tab);history.replaceState(null,'',u);render();return;}
 if(el.dataset.month){month+=Number(el.dataset.month);if(month===0){month=12;year--;}if(month===13){month=1;year++;}render();return;}
 if(el.dataset.year){year+=Number(el.dataset.year);render();return;}
 el.disabled=true;
