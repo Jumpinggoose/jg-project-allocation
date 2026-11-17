@@ -255,6 +255,7 @@ async function loadSession() {
       lastWorkingDate: access.last_working_date || ''
     };
 
+    window.JGNav?.setAccess({level:access.access_level,memberId:access.member_id,email});
     const roleLabel = sessionUser.role === 'admin' ? 'Management' : (sessionUser.role === 'editor' ? 'Project Manager' : 'Employee · View Only');
     const lifecycleLabel = sessionUser.employmentStatus === 'Notice Period'
       ? ` · Notice Period${sessionUser.lastWorkingDate ? ` · LWD ${formatDate(sessionUser.lastWorkingDate)}` : ''}`
