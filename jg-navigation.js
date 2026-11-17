@@ -27,10 +27,10 @@
   function link(item){
     const isActive=active===item.id;
     const attrs=(item.manager?' data-management-nav':'')+(item.manager||item.approver||item.finance||item.admin?' hidden':'');
-    const id=item.id==='employee-logs'?' id="employeeLogsLink"':item.id==='profitability'?' id="profitLink"':'';
+    const id=item.id==='employee-logs'?' id="'+(path.includes('/hr.html')?'hrEmployeeLogs':'employeeLogsLink')+'"':item.id==='profitability'?' id="'+(path.includes('/hr.html')?'hrProfitability':'profitLink')+'"':'';
     const label='<span class="nav-icon" aria-hidden="true">'+item.icon+'</span><span>'+attr(item.label)+'</span>';
     if(dashboard) return '<button class="nav-item'+(isActive?' is-active':'')+'" type="button" data-view="'+item.id+'"'+attrs+id+'>'+label+'</button>';
-    return '<a class="nav-item'+(isActive?' is-active':'')+'" href="'+item.url+'"'+attrs+id+'>'+label+'</a>';
+    return '<a class="nav-item'+(isActive?' is-active':'')+'" data-view="'+item.id+'" href="'+item.url+'"'+attrs+id+'>'+label+'</a>';
   }
   function pond(){
     const opened=active==='pond1'||active==='pond2';
@@ -49,6 +49,7 @@
       return link(item);
     }).join('');
     nav.classList.add('jg-workspace-nav');
+    if(path.includes('worklog')) nav.id='worklogSidebarNav';
     nav.setAttribute('aria-label','Workspace navigation');
     // Dashboard has its existing pond toggle listener in app.js.
     if(!dashboard){
@@ -64,13 +65,15 @@
     const canManage=isAdmin||level==='project_manager';
     const allowedFinance=isAdmin&&['piyush@jumpinggoose.com','tuhin@jumpinggoose.com','accounts@jumpinggoose.com','theo@jumpinggoose.com'].includes(String(email).toLowerCase());
     document.querySelectorAll('.jg-workspace-nav [data-management-nav]').forEach(e=>e.hidden=!canManage);
-    const ids={'employeeLogsLink':canManage,'profitLink':allowedFinance};
+    const ids={'employeeLogsLink':canManage,'profitLink':allowedFinance,'hrEmployeeLogs':canManage,'hrProfitability':allowedFinance};
     Object.entries(ids).forEach(([id,allow])=>{const e=document.getElementById(id);if(e)e.hidden=!allow;});
     const approvals=document.querySelector('.jg-workspace-nav [data-view="hr-approvals"],.jg-workspace-nav a[href*="tab=approvals"]');
     if(approvals)approvals.hidden=!(isAdmin||canApprove);
     const availability=document.querySelector('.jg-workspace-nav [data-view="hr-team"],.jg-workspace-nav a[href*="tab=availability"]');
     if(availability)availability.hidden=!canManage;
     const setup=document.querySelector('.jg-workspace-nav [data-view="setup"],.jg-workspace-nav a[href="/?view=setup"]');
+    const heading=document.querySelector('.jg-workspace-nav [data-management-section]');
+    if(heading) heading.hidden=!canManage;
     if(setup)setup.hidden=!isAdmin;
   }
   window.JGNav={setAccess,install};
