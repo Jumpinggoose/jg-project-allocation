@@ -107,3 +107,9 @@
   .sidebar .jg-workspace-nav .jg-nav-folder-toggle,
   .sidebar .jg-workspace-nav .jg-nav-chevron { transition:none!important; }
 }
+
+/* Work Log keeps its mobile menu collapsed until explicitly opened. */
+@media (max-width:760px) {
+  .worklog-page .sidebar .jg-workspace-nav:not(.is-mobile-open) { display:none!important; }
+  .worklog-page .sidebar .jg-workspace-nav.is-mobile-open { display:flex!important; }
+}
