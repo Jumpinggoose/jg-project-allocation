@@ -137,6 +137,8 @@ return policySection+section('Reporting Managers & Teams',assignment)+section('O
 }
 function render(){
 if(!['calendar','leave','availability','approvals','settings'].includes(tab)||(tab==='approvals'&&!canApprove)||(tab==='settings'&&!hrAdmin))tab='calendar';
+ const mapped={calendar:'hr',leave:'hr-leave',availability:'hr-team',approvals:'hr-approvals',settings:'hr-settings'};
+ document.querySelectorAll('.jg-workspace-nav [data-view]').forEach(item=>item.classList.toggle('is-active',item.dataset.view===mapped[tab]));
 root.innerHTML=nav()+'<div id="hrFlash" hidden></div><div class="hr-row"><div class="hr-muted">Calendar year <strong>'+year+'</strong> · HR: Bhagya (default)</div><div class="hr-pills"><button class="hr-action secondary" data-year="-1">‹ Year</button><button class="hr-action secondary" data-year="1">Year ›</button></div></div>'+
 (tab==='calendar'?calendar():tab==='leave'?leave():tab==='availability'?availability():tab==='approvals'?approvals():settings());
 }
