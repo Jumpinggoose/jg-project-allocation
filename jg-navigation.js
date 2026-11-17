@@ -83,7 +83,7 @@
   function restoreVisibility() {
     try {
       const cached=JSON.parse(sessionStorage.getItem(ACCESS_CACHE_KEY)||'null');
-      if (cached && ['boolean'].every(t=>typeof cached.canManage===t) &&
+      if (cached && typeof cached.canManage==='boolean' &&
         typeof cached.isAdmin==='boolean' && typeof cached.allowedFinance==='boolean' &&
         typeof cached.canApprove==='boolean') applyVisibility(cached);
     } catch (_) { /* Storage can be unavailable; fall back to permissions fetch. */ }
