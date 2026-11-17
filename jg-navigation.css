@@ -35,3 +35,75 @@
  .worklog-page .sidebar .jg-workspace-nav:not(.is-mobile-open){display:none!important}
  .worklog-page .sidebar .jg-workspace-nav.is-mobile-open{display:grid!important;overflow:visible}
 }
+
+/* Navigation stability: identical dimensions and interaction on every view.
+   Keep these overrides last so page-specific styles cannot reflow the menu. */
+@media (min-width:761px) {
+  .app-shell { grid-template-columns:var(--sidebar-width,260px) minmax(0,1fr); }
+  .sidebar:has(.jg-workspace-nav) {
+    width:var(--sidebar-width,260px);
+    min-width:var(--sidebar-width,260px);
+    max-width:var(--sidebar-width,260px);
+    height:100dvh;
+    position:sticky;
+    top:0;
+    scrollbar-gutter:stable;
+    overflow-x:hidden;
+  }
+}
+.sidebar .jg-workspace-nav { min-width:0; }
+.sidebar .jg-workspace-nav .nav-item,
+.sidebar .jg-workspace-nav .jg-nav-folder-toggle {
+  position:relative;
+  transform:none!important;
+  font-weight:550!important;
+  transition:background-color 150ms ease,color 150ms ease,border-color 150ms ease,box-shadow 150ms ease;
+}
+.sidebar .jg-workspace-nav .nav-item:active,
+.sidebar .jg-workspace-nav .jg-nav-folder-toggle:active { transform:none!important; }
+.sidebar .jg-workspace-nav .nav-item.is-active { font-weight:550!important; }
+.sidebar .jg-workspace-nav .nav-icon {
+  width:19px!important;
+  height:19px!important;
+  line-height:1!important;
+  flex:0 0 19px!important;
+}
+.sidebar .jg-workspace-nav .nav-item > span:nth-child(2),
+.sidebar .jg-workspace-nav .jg-nav-folder-toggle > span:nth-child(2) {
+  min-width:0;
+}
+.sidebar .jg-workspace-nav .jg-nav-folder-links[hidden],
+.sidebar .jg-workspace-nav [hidden] { display:none!important; }
+@media (max-width:760px) {
+  /* HR and Work Log must not replace/hide the canonical menu layout. */
+  .hr-page .sidebar .jg-workspace-nav,
+  .worklog-page .sidebar .jg-workspace-nav,
+  .worklog-page .sidebar .jg-workspace-nav.is-mobile-open {
+    display:flex!important;
+    flex-direction:column!important;
+    flex-wrap:nowrap!important;
+    overflow-x:visible!important;
+    gap:1px!important;
+    padding:0;
+  }
+  .hr-page .sidebar .jg-workspace-nav .nav-item,
+  .hr-page .sidebar .jg-workspace-nav .jg-nav-folder-toggle {
+    width:100%!important;
+    white-space:normal!important;
+    flex:0 0 auto;
+    font-size:12.5px!important;
+  }
+  .hr-page .sidebar .jg-workspace-nav .jg-nav-group-label,
+  .hr-page .sidebar .jg-workspace-nav .jg-nav-coming {
+    display:flex!important;
+  }
+  .hr-page .sidebar .jg-workspace-nav .jg-nav-group-label { display:block!important; }
+  .hr-page .sidebar .jg-workspace-nav .jg-nav-folder-links:not([hidden]) {
+    display:grid!important;
+  }
+}
+@media (prefers-reduced-motion:reduce) {
+  .sidebar .jg-workspace-nav .nav-item,
+  .sidebar .jg-workspace-nav .jg-nav-folder-toggle,
+  .sidebar .jg-workspace-nav .jg-nav-chevron { transition:none!important; }
+}
