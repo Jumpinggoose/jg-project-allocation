@@ -34,6 +34,7 @@ async function init(){
   access=ar.data;
   if(email==='accounts@jumpinggoose.com')access={...access,access_level:'management',title:'Accounts / Management'};
   if(access.access_level!=='management')return location.replace('/worklog.html');
+  window.JGNav?.setAccess({level:access.access_level,memberId:access.member_id,email});
   document.getElementById('profitUser').textContent=access.display_name+' · '+(access.title||'Management');
   document.getElementById('logoutButton').addEventListener('click',logout);
   root.addEventListener('click',onClick);
