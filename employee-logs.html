@@ -124,6 +124,7 @@
   'tuhin@jumpinggoose.com',
   'accounts@jumpinggoose.com',
   'theo@jumpinggoose.com'].includes(email));
+    window.JGNav?.setAccess({level:access.access_level,memberId:access.member_id,email});
     document.getElementById('logoutButton').addEventListener('click',logout);
     document.getElementById('historyBack').addEventListener('click',()=>history.back());
     document.getElementById('historyForward').addEventListener('click',()=>history.forward());
