@@ -15,7 +15,21 @@ function group(id){return reporting.find(r=>r.member_id===id)?.team||member(id)?
 function option(id,current){return '<option value="'+esc(id)+'" '+(String(id)===String(current)?'selected':'')+'>'+esc(person(id))+'</option>';}
 function message(m,error=false){const el=document.getElementById('hrFlash');if(el){el.textContent=m;el.hidden=false;el.className='hr-message'+(error?' error':'');el.scrollIntoView({block:'nearest'});}else window.alert(m);}
 function fmt(d){if(!d)return '—';const t=new Date(d+'T12:00:00');return Number.isNaN(t.getTime())?d:t.toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'});}
-function daysRange(a,b){if(!a||!b||b<a)return 0;let n=0;for(let t=new Date(a+'T12:00:00');t<=new Date(b+'T12:00:00');t.setDate(t.getDate()+1)){if(t.getDay()!==0&&t.getDay()!==6)n++;if(n>365)return n;}return n;}
+function daysRange(a,b){
+ if(!a||!b||b<a)return 0;
+ const all=[],holidayDates=new Set(holidays.filter(h=>h.location==='All'&&h.holiday_type!=='Optional').map(h=>h.holiday_date));
+ for(let t=new Date(a+'T12:00:00');t<=new Date(b+'T12:00:00')&&all.length<=366;t.setDate(t.getDate()+1)){
+   const day=localISO(t),isWorking=t.getDay()!==0&&t.getDay()!==6&&!holidayDates.has(day);
+   all.push({day,isWorking});
+ }
+ const work=all.map((x,i)=>x.isWorking?i:null).filter(i=>i!==null);
+ if(!work.length)return 0;
+ if(currentPolicy()?.sandwich_rule && work.length>1){
+   return work[work.length-1]-work[0]+1;
+ }
+ return work.length;
+}
+function localISO(d){return [d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-');}
 function statusPill(s){return '<span class="hr-pill '+esc(String(s).toLowerCase())+'">'+esc(s)+'</span>';}
 function select(items,current){return items.map(x=>'<option value="'+esc(x)+'" '+(String(x)===String(current)?'selected':'')+'>'+esc(x)+'</option>').join('');}
 function currentPolicy(){return policies.find(x=>x.calendar_year===year)||null;}
@@ -130,6 +144,7 @@ if(!['Earned Leave','Sick Leave','Compassion Leave'].includes(type))throw Error(
 if(halfDay&&start!==end)throw Error('Half day applies to a single workday.');
 const days=halfDay?0.5:daysRange(start,end);
 if(!start||!end||end<start||start.slice(0,4)!==end.slice(0,4)||start.slice(0,4)!==String(year))throw Error('Select dates within the same calendar year.');
+if(!currentPolicy())throw Error('Leave policy for this year has not yet been configured by HR.');
 if(!days||days>45)throw Error('Select a valid working-day period (up to 45 weekdays).');
 if(roleType(access.member_id)==='Intern'||roleType(access.member_id)==='Freelancer')throw Error('Leave entitlements for interns and freelancers require HR confirmation.');
 if(type==='Happy Period WFH'&&days!==1)throw Error('Happy Period WFH is limited to one working day.');
