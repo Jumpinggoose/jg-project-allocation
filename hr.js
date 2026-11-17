@@ -68,6 +68,7 @@ try{
  if(sr.error)throw sr.error;
  appState=sr.data.data;members=(appState.members||[]).filter(m=>m.name);members.forEach(m=>names.set(m.id,m.name));
  await queryData();canApprove=hrAdmin||isManager(access.member_id);
+ window.JGNav?.setAccess({level:access.access_level,memberId:access.member_id,email,canApprove});
  render();
 }catch(err){console.error(err);root.innerHTML='<section class="hr-card"><h2>Unable to load People & Leave</h2><p>'+esc(err.message||'Please try again.')+'</p></section>';}}
 function nav(){const items=[['calendar','Calendar'],['leave','My Leave'],['availability','Team Availability']];if(canApprove)items.push(['approvals','Approvals']);if(hrAdmin)items.push(['settings','HR Settings']);return '<div class="hr-tabs">'+items.map(([id,n])=>'<button type="button" data-tab="'+id+'" class="'+(tab===id?'is-active':'')+'">'+n+'</button>').join('')+'</div>';}
