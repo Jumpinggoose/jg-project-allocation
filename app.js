@@ -1736,7 +1736,7 @@ function openMemberModal({ member = null, group = null } = {}) {
           <select id="memberGroup">${GROUPS.map((item) => `<option value="${item}" ${draft.group === item ? 'selected' : ''}>${item}</option>`).join('')}</select>
         </div>
         <div class="field span-2">
-          <div class="field-help">Reporting manager and HR team can be assigned in <a href="/hr.html" target="_blank" rel="noopener">People &amp; Leave → HR Settings</a> after saving this employee. Bhagya is the default HR administrator.</div>
+          <div class="field-help">Reporting manager and HR team can be assigned in <a href="/hr.html" target="_blank" rel="noopener">People &amp; Leave → HR Settings</a> after saving this employee.</div>
         </div>
         <div class="field">
           <label for="memberType">Member type</label>
