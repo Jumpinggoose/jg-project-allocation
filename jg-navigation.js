@@ -79,7 +79,7 @@
     };
     show('hr-approvals',isAdmin||canApprove);
     show('hr-team',canManage);
-    show('directory',isAdmin);
+    show('directory',Boolean(flags.isManagement));
     show('setup',isAdmin);
     const heading=document.querySelector('.jg-workspace-nav [data-management-section]');
     if (heading) heading.hidden=!canManage;
@@ -89,14 +89,14 @@
       const cached=JSON.parse(sessionStorage.getItem(ACCESS_CACHE_KEY)||'null');
       if (cached && typeof cached.canManage==='boolean' &&
         typeof cached.isAdmin==='boolean' && typeof cached.allowedFinance==='boolean' &&
-        typeof cached.canApprove==='boolean') applyVisibility(cached);
+        typeof cached.canApprove==='boolean' && typeof cached.isManagement==='boolean') applyVisibility(cached);
     } catch (_) { /* Storage can be unavailable; fall back to permissions fetch. */ }
   }
   function setAccess({level='employee',memberId='',email='',canApprove=false}={}){
     const isAdmin=level==='management'||memberId==='bhagya';
     const canManage=isAdmin||level==='project_manager';
     const allowedFinance=isAdmin&&['piyush@jumpinggoose.com','tuhin@jumpinggoose.com','accounts@jumpinggoose.com','theo@jumpinggoose.com'].includes(String(email).toLowerCase());
-    const flags={isAdmin,canManage,allowedFinance,canApprove:Boolean(canApprove)};
+    const flags={isAdmin,canManage,allowedFinance,canApprove:Boolean(canApprove),isManagement:level==='management'};
     applyVisibility(flags);
     try { sessionStorage.setItem(ACCESS_CACHE_KEY,JSON.stringify(flags)); } catch (_) {}
 
