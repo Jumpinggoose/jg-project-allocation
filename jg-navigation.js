@@ -5,14 +5,14 @@
   const path = location.pathname;
   const tab = new URLSearchParams(location.search).get('tab') || 'calendar';
   const view = new URLSearchParams(location.search).get('view') || 'dashboard';
-  const active = dashboard ? view : path.includes('worklog') ? 'worklog' : path.includes('employee-logs') ? 'employee-logs' : path.includes('profitability') ? 'profitability' : path.includes('hr.html') ? ({calendar:'hr',leave:'hr-leave',availability:'hr-team',approvals:'hr-approvals',settings:'hr-settings'}[tab] || 'hr') : '';
+  const active = dashboard ? view : path.includes('worklog') ? 'worklog' : path.includes('employee-logs') ? 'employee-logs' : path.includes('profitability') ? 'profitability' : path.includes('attendance.html') ? 'attendance' : path.includes('profile.html') ? 'profile' : path.includes('hr.html') ? ({calendar:'hr',leave:'hr-leave',availability:'hr-team',approvals:'hr-approvals',settings:'hr-settings'}[tab] || 'hr') : '';
   const items = [
     {type:'heading',label:'MY WORKSPACE'},
     {id:'worklog',label:'My Work Log',icon:'◷',url:'/worklog.html'},
     {id:'hr',label:'Calendar & Holidays',icon:'▦',url:'/hr.html?tab=calendar'},
     {id:'hr-leave',label:'My Leave',icon:'▣',url:'/hr.html?tab=leave'},
-    {id:'attendance',label:'My Attendance & WFH',icon:'◉',later:true},
-    {id:'profile',label:'My Profile',icon:'♙',later:true},
+    {id:'attendance',label:'My Attendance & WFH',icon:'◉',url:'/attendance.html'},
+    {id:'profile',label:'My Profile',icon:'♙',url:'/profile.html'},
     {type:'heading',label:'MANAGEMENT',management:true},
     {id:'dashboard',label:'Dashboard',icon:'▦',url:'/?view=dashboard'},
     {type:'pond'},
