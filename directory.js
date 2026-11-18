@@ -19,7 +19,7 @@
       sb.from('hr_reporting').select('member_id,manager_member_id,team'),
       sb.from('app_state').select('data').eq('id',1).maybeSingle()
     ]);
-    for(const r of [staff,org])if(r.error)throw r.error;
+    for(const r of [staff,org,app])if(r.error)throw r.error;
     employees=staff.data||[];reporting=org.data||[];stateMembers=app.data?.data?.members||[];
   }
   function list(){
