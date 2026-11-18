@@ -44,3 +44,52 @@
 @media(max-width:1080px){.jg-person-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.jg-person-two{grid-template-columns:1fr}}
 @media(max-width:640px){.jg-person-wrap{gap:14px}.jg-person-grid{grid-template-columns:1fr;gap:12px}.jg-person-two{gap:14px}.jg-person-card{padding:18px;border-radius:20px}.jg-person-grid>.jg-person-card{min-height:110px}.jg-person-hero{gap:13px;align-items:flex-start}.jg-person-avatar{width:58px;height:58px;flex-basis:58px;border-radius:18px;font-size:21px}.jg-person-hero h2{font-size:21px}.jg-person-line{align-items:flex-start;gap:12px}.jg-person-line strong{max-width:58%}.jg-person-form button{width:100%}.jg-person-big{font-size:32px}}
 @media(prefers-reduced-motion:reduce){.jg-person-form button,.jg-person-button,.jg-person-form input,.jg-person-form select,.jg-person-form textarea{transition:none}}
+
+
+/* Override the legacy global square-geometry !important rule in styles.css.
+   All of these are deliberately scoped to personal workspace and directory pages. */
+body.jg-rounded-workspace .jg-person-card { border-radius:24px!important; }
+body.jg-rounded-workspace .jg-person-grid>.jg-person-card { border-radius:22px!important; }
+body.jg-rounded-workspace .jg-person-avatar { border-radius:22px!important; }
+body.jg-rounded-workspace .jg-person-scroll { border-radius:17px!important; overflow:hidden; }
+body.jg-rounded-workspace :is(.jg-person-form input,.jg-person-form select,.jg-person-form textarea) { border-radius:13px!important; }
+body.jg-rounded-workspace :is(.jg-person-button,.jg-person-form button,.dir-button) { border-radius:12px!important; }
+body.jg-rounded-workspace :is(.jg-person-notice,.jg-person-message) { border-radius:15px!important; }
+body.jg-rounded-workspace .jg-person-pill { border-radius:999px!important; }
+body.jg-rounded-workspace :is(.history-button,.icon-button,.button,.nav-item,.jg-nav-folder-toggle) { border-radius:12px!important; }
+body.jg-rounded-workspace .brand-mark { border-radius:16px!important; }
+body.jg-rounded-workspace :is(.sync-card,.jg-notification-button) { border-radius:14px!important; }
+body.jg-rounded-workspace .jg-person-table thead th:first-child {border-top-left-radius:16px!important}
+body.jg-rounded-workspace .jg-person-table thead th:last-child {border-top-right-radius:16px!important}
+body.jg-rounded-workspace .jg-person-table tbody tr:last-child td:first-child {border-bottom-left-radius:16px!important}
+body.jg-rounded-workspace .jg-person-table tbody tr:last-child td:last-child {border-bottom-right-radius:16px!important}
+body.jg-rounded-workspace .jg-person-table {min-width:0}
+body.jg-rounded-workspace .jg-person-scroll {overflow-x:auto}
+body.jg-rounded-workspace .jg-person-actions .jg-person-button {flex-shrink:0}
+.jg-dir-toolbar{display:flex;gap:12px;align-items:center;justify-content:space-between;flex-wrap:wrap}
+.jg-dir-toolbar input,.jg-dir-toolbar select,.jg-dir-editor input,.jg-dir-editor select{background:#2c2733;color:#f8f5fb;border:1px solid #514858;padding:12px 14px;min-height:44px;font:inherit;font-size:13px;box-sizing:border-box;outline:none}
+body.jg-rounded-workspace .jg-dir-toolbar input,body.jg-rounded-workspace .jg-dir-toolbar select,body.jg-rounded-workspace .jg-dir-editor input,body.jg-rounded-workspace .jg-dir-editor select{border-radius:13px!important}
+.jg-dir-toolbar input:focus,.jg-dir-toolbar select:focus,.jg-dir-editor input:focus,.jg-dir-editor select:focus{border-color:#f36aab;box-shadow:0 0 0 3px #ff007218}
+.jg-dir-search{flex:1 1 270px}
+.jg-dir-toolbar select{min-width:140px}
+.jg-dir-list{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:15px}
+.jg-dir-person{background:linear-gradient(155deg,#292430,#221f29);border:1px solid #423849;padding:19px;cursor:pointer;color:inherit;text-align:left;min-width:0;display:flex;flex-direction:column;gap:11px}
+body.jg-rounded-workspace .jg-dir-person{border-radius:20px!important}
+.jg-dir-person:hover,.jg-dir-person:focus-visible{border-color:#a25683;background:#302635;outline:none}
+.jg-dir-top{display:flex;align-items:center;gap:12px}
+.jg-dir-initials{width:44px;height:44px;flex:0 0 44px;display:grid;place-items:center;background:#503149;color:#ffd7e9;font-weight:800}
+body.jg-rounded-workspace .jg-dir-initials{border-radius:14px!important}
+.jg-dir-name{font-weight:750;font-size:15px}
+.jg-dir-meta{font-size:12px;color:#bcb1c3;line-height:1.5;overflow-wrap:anywhere}
+.jg-dir-details{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.jg-dir-details>div{min-width:0}
+.jg-dir-details small{font-size:11px;color:#aaa0b2;display:block;margin-bottom:4px}
+.jg-dir-details strong{font-size:12px;font-weight:650;overflow-wrap:anywhere}
+.jg-dir-editor{display:grid;gap:16px}
+.jg-dir-fields{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:15px}
+.jg-dir-fields label{display:grid;gap:7px;font-size:12px;color:#c8bbcf;font-weight:650}
+.jg-dir-fields .wide{grid-column:1/-1}
+.jg-dir-editor .jg-person-actions{justify-content:flex-end}
+.jg-dir-subtle{color:#b8aebf;font-size:12px;line-height:1.6}
+@media(max-width:1150px){.jg-dir-list{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:690px){body.jg-rounded-workspace .jg-person-card{border-radius:20px!important}.jg-dir-list{grid-template-columns:1fr}.jg-dir-fields{grid-template-columns:1fr}.jg-dir-toolbar input,.jg-dir-toolbar select{width:100%}.jg-dir-toolbar{align-items:stretch}}
