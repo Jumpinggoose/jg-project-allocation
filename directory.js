@@ -10,7 +10,7 @@
   const showError=m=>{root.innerHTML='<div class="jg-person-notice">'+esc(m)+'</div>';};
   const managerName=id=>employees.find(e=>e.member_id===id)?.display_name||stateMembers.find(e=>e.id===id)?.name||id||'Unassigned';
   const managerFor=id=>reporting.find(r=>r.member_id===id)?.manager_member_id||'';
-  const teamFor=e=>reporting.find(r=>r.member_id===e.member_id)?.team||stateMembers.find(m=>m.id===e.member_id)?.group||'POOL';
+  const teamFor=e=>stateMembers.find(m=>m.id===e.member_id)?.group||reporting.find(r=>r.member_id===e.member_id)?.team||'POOL';
   const statusFor=e=>e.employment_status|| (e.active?'Active':'Exited');
   const matches=e=>(groupFilter==='All'||teamFor(e)===groupFilter)&&(statusFilter==='All'||statusFor(e)===statusFilter)&&[e.display_name,e.member_id,e.title,e.email].join(' ').toLowerCase().includes(search.toLowerCase());
   async function load(){
@@ -52,11 +52,11 @@
       '<label>Work email<input value="'+esc(e.email||'')+'" disabled></label>'+
       '<label>Designation<input name="title" maxlength="100" placeholder="e.g. Visual Designer" value="'+esc(e.title==='Employee'?'':e.title||'')+'"></label>'+
       '<label>Official joining date<input type="date" name="joiningDate" value="'+esc(e.joining_date||'')+'"></label>'+
-      '<label>HR reporting team<select name="team">'+groups.map(t=>'<option value="'+t+'"'+(team===t?' selected':'')+'>'+t+'</option>').join('')+'</select></label>'+
+      '<label>Project Pond<input value="'+esc(team)+'" disabled><span class="jg-dir-subtle">Change Pond in Admin Panel → Team Setup to keep project allocations consistent.</span></label>'+ 
       '<label>Reporting manager<select name="manager">'+managerOpts+'</select></label>'+
       '<label>Employment status<input disabled value="'+esc(statusFor(e))+'"></label>'+
       '<label>App access<input disabled value="'+esc(e.access_level||'employee')+'"></label>'+
-      '</div><div class="jg-dir-subtle">HR reporting team and manager are updated here. Project-allocation Pond, name, Google email, employment status, permissions, compensation and employee exit actions remain in Admin Panel. This directory does not change them.</div><div id="directoryEditMessage" role="status"></div><div class="jg-person-actions"><button type="submit" class="jg-person-button">Save employee details</button></div></form></section>';
+      '</div><div class="jg-dir-subtle">Reporting manager is updated here. Change the Pond in Admin Panel → Team Setup; name, Google email, employment status, permissions, compensation and employee exit actions also remain there. This directory does not change them.</div><div id="directoryEditMessage" role="status"></div><div class="jg-person-actions"><button type="submit" class="jg-person-button">Save employee details</button></div></form></section>';
     document.getElementById('directoryEditor').innerHTML=html;
     document.getElementById('directoryEditCard').scrollIntoView({behavior:'smooth',block:'nearest'});
   }
@@ -65,7 +65,7 @@
     const button=form.querySelector('[type=submit]');button.disabled=true;
     const msg=document.getElementById('directoryEditMessage');
     try{
-      const f=new FormData(form),title=String(f.get('title')||'').trim(),date=String(f.get('joiningDate')||''),team=String(f.get('team')),manager=String(f.get('manager')||'');
+      const f=new FormData(form),title=String(f.get('title')||'').trim(),date=String(f.get('joiningDate')||''),team=teamFor(employees.find(x=>x.member_id===selected)),manager=String(f.get('manager')||'');
       if(title.length>100||(!title&&employees.find(x=>x.member_id===selected)?.title==='Employee'))throw Error('Please enter a designation.');
       if(date&&(!/^\d{4}-\d{2}-\d{2}$/.test(date)||date>new Date().toLocaleDateString('en-CA',{timeZone:'Asia/Kolkata'})))throw Error('Enter a valid joining date.');
       if(!groups.includes(team)||manager===selected)throw Error('Invalid team or reporting manager.');
