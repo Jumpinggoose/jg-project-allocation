@@ -92,7 +92,7 @@ function leave(){
 const p=currentPolicy();
 const boxes=[['Earned Leave',balance(access.member_id,'Earned Leave')],['Sick Leave',balance(access.member_id,'Sick Leave')],['Compassion Leave',Math.max(0,Number(p?.compassion_days||0)-totalFor(access.member_id,'Compassion Leave'))]];
 const cards='<div class="hr-grid">'+boxes.map(([n,v])=>'<div class="hr-card"><div class="hr-muted">'+n+' · indicative balance</div><div class="hr-stat">'+v+' days</div></div>').join('')+'</div>';
-const form='<form id="leaveForm" class="hr-form"><label>Leave type<select name="type" required>'+['Earned Leave','Sick Leave','Compassion Leave'].map(v=>'<option>'+v+'</option>').join('')+'</select></label><div class="hr-two"><label>From<input name="start" type="date" required></label><label>To<input name="end" type="date" required></label></div><label><span><input type="checkbox" name="half_day" style="width:auto"> Half day (single day only)</span></label><label>Reason (visible only to authorised approvers)<textarea name="reason" maxlength="1000" placeholder="Brief explanation, if required"></textarea></label><div class="hr-muted">Dates are calculated on weekdays for the initial request. HR will review holidays, sandwich rules, eligibility and supporting documentation. Happy Period WFH will be enabled once individual eligibility is configured. In-app requests are pending official confirmation as an approved submission channel.</div><button type="submit">Submit request</button></form>';
+const form='<form id="leaveForm" class="hr-form"><label>Leave type<select name="type" required>'+['Earned Leave','Sick Leave','Compassion Leave'].map(v=>'<option>'+v+'</option>').join('')+'</select></label><div class="hr-two"><label>From<input name="start" type="date" required></label><label>To<input name="end" type="date" required></label></div><label>Reason (visible only to authorised approvers)<textarea name="reason" maxlength="1000" placeholder="Brief explanation, if required"></textarea></label><div class="hr-muted">Dates are calculated on weekdays for the initial request. HR will review holidays, sandwich rules, eligibility and supporting documentation. Happy Period WFH will be enabled once individual eligibility is configured. In-app requests are pending official confirmation as an approved submission channel.</div><button type="submit">Submit request</button></form>';
 const history=myRequests().map(r=>'<div class="hr-list-item"><div class="hr-row"><strong>'+esc(r.leave_type)+'</strong>'+statusPill(r.status)+'</div><div class="hr-muted">'+fmt(r.start_date)+' to '+fmt(r.end_date)+' · '+r.days+' days'+(r.decided_by?' · Reviewed by '+esc(person(r.decided_by)):'')+'</div></div>').join('')||'<p class="hr-muted">No leave requests yet.</p>';
 return cards+'<div class="hr-two">'+section('Request Leave',form)+section('My Leave History','<div class="hr-list">'+history+'</div>')+'</div>'+
  section('JUMPINGGOOSE Leave Policy · '+year,
@@ -143,10 +143,9 @@ root.innerHTML=nav()+'<div id="hrFlash" hidden></div><div class="hr-row"><div cl
 (tab==='calendar'?calendar():tab==='leave'?leave():tab==='availability'?availability():tab==='approvals'?approvals():settings());
 }
 async function writeRequest(form){
-const f=new FormData(form),type=f.get('type'),start=String(f.get('start')),end=String(f.get('end')),reason=String(f.get('reason')||'').trim(),halfDay=f.get('half_day')==='on';
+const f=new FormData(form),type=f.get('type'),start=String(f.get('start')),end=String(f.get('end')),reason=String(f.get('reason')||'').trim();
 if(!['Earned Leave','Sick Leave','Compassion Leave'].includes(type))throw Error('Unsupported leave type. Contact HR.');
-if(halfDay&&(start!==end||daysRange(start,end)!==1))throw Error('Half-day leave must fall on one working day, not a weekend or published holiday.');
-const days=halfDay?0.5:daysRange(start,end);
+const days=daysRange(start,end);
 if(!start||!end||end<start||start.slice(0,4)!==end.slice(0,4)||start.slice(0,4)!==String(year))throw Error('Select dates within the same calendar year.');
 if(!currentPolicy())throw Error('Leave policy for this year has not yet been configured by HR.');
 if(!days||days>45)throw Error('Select a valid working-day period (up to 45 weekdays).');
