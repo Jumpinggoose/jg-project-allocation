@@ -92,7 +92,7 @@
       document.getElementById('historyBack').addEventListener('click',()=>history.back());
       document.getElementById('historyForward').addEventListener('click',()=>history.forward());
       await refresh();
-      window.JGNav?.setAccess({level:access.access_level,memberId:access.member_id,email});
+      window.JGNav?.setAccess({level:access.access_level,memberId:access.member_id,email,canApprove:supervisor()});
     }catch(e){console.error(e);root.innerHTML='<div class="jg-person-notice">Unable to load attendance. '+esc(e.message||'Please refresh.')+'</div>';}
   }
   if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
