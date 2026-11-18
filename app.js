@@ -1703,6 +1703,8 @@ function openMemberModal({ member = null, group = null } = {}) {
     weeklyCapacity: DEFAULT_WEEKLY_CAPACITY,
     employmentStatus: 'Active',
     lastWorkingDate: '',
+    joiningDate: '',
+    designation: '',
     email: '',
     accessLevel: 'employee'
   };
@@ -1711,7 +1713,7 @@ function openMemberModal({ member = null, group = null } = {}) {
   openModal({
     eyebrow: isEdit ? 'Update employee lifecycle' : 'New team member',
     title: isEdit ? `Edit ${member.name}` : 'Add team member',
-    description: 'Use Notice Period and Last Working Date for resignations. Exited employees are removed from future allocation and app access, while historical projects, work logs and cost data remain preserved.',
+    description: 'Maintain official employee details, dates, reporting structure and access. Existing projects, time logs and historical costing are preserved.',
     body: `
       <div class="form-grid">
         <div class="field span-2">
@@ -1722,6 +1724,16 @@ function openMemberModal({ member = null, group = null } = {}) {
           <label for="memberEmail">Google account email</label>
           <input id="memberEmail" type="email" maxlength="160" value="${escapeAttr(draft.email || '')}" placeholder="name@jumpinggoose.com or intern@gmail.com">
           <div class="field-help">Enter the team member’s Google account email to grant access. They can then open the Project Log and select “Continue with Google” to sign in. Leave blank if they should not have app access.</div>
+        </div>
+        <div class="field">
+          <label for="memberDesignation">Designation / job title</label>
+          <input id="memberDesignation" type="text" maxlength="100" value="${escapeAttr(draft.designation || '')}" placeholder="e.g. Visual Designer, Design Manager">
+          <div class="field-help">Job title is separate from app permissions. If empty on an existing account, the current title is preserved until you enter one.</div>
+        </div>
+        <div class="field">
+          <label for="memberJoiningDate">Date of joining${isEdit?'':' *'}</label>
+          <input id="memberJoiningDate" type="date" ${isEdit?'':'required'} value="${escapeAttr(draft.joiningDate || '')}">
+          <div class="field-help">Recorded as the official joining date, not the date the login was created.</div>
         </div>
         <div class="field">
           <label for="memberAccessLevel">App access</label>
@@ -1824,6 +1836,12 @@ async function saveMemberFromModal(memberId) {
   const email = document.getElementById('memberEmail').value.trim().toLowerCase();
   const accessLevel = document.getElementById('memberAccessLevel').value;
   const memberType = document.getElementById('memberType').value;
+  const designation = document.getElementById('memberDesignation').value.trim();
+  const joiningDate = document.getElementById('memberJoiningDate').value;
+  if (joiningDate && (!/^\d{4}-\d{2}-\d{2}$/.test(joiningDate) || joiningDate > localDate())) {
+    return showModalError(errorEl, 'Enter a valid joining date that is not in the future.');
+  }
+  if (!memberId && !joiningDate) return showModalError(errorEl, 'Date of joining is required for a new employee.');
   if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     return showModalError(errorEl, 'Enter a valid Google account email address.');
   }
@@ -1865,6 +1883,8 @@ async function saveMemberFromModal(memberId) {
   const member = {
     id: existingIndex >= 0 ? previous.id : uniqueMemberId(name),
     name,
+    designation,
+    joiningDate,
     group: document.getElementById('memberGroup').value,
     type: memberType,
     typeHistory,
@@ -1914,7 +1934,7 @@ async function syncEmployeeAccess(member) {
 
   const { data: existingRows, error: lookupError } = await supabaseClient
     .from('user_access')
-    .select('email,member_id,access_level,title,head_group')
+    .select('email,member_id,access_level,title,head_group,joining_date')
     .eq('member_id', member.id)
     .limit(1);
   if (lookupError) throw lookupError;
@@ -1927,11 +1947,8 @@ async function syncEmployeeAccess(member) {
       member_id: member.id,
       display_name: member.name,
       access_level: member.accessLevel || existing?.access_level || 'employee',
-      title: member.accessLevel === 'management'
-        ? (existing?.title && existing.title !== 'Employee' ? existing.title : 'Management')
-        : member.accessLevel === 'project_manager'
-          ? 'Project Manager'
-          : member.type || 'Employee',
+      title: member.designation || existing?.title || member.type || 'Employee',
+      joining_date: member.joiningDate || existing?.joining_date || null,
       head_group: member.accessLevel === 'management' ? (existing?.head_group || null) : null,
       active: activeAccess,
       employment_status: member.employmentStatus,
@@ -1958,6 +1975,8 @@ async function syncEmployeeAccess(member) {
       .from('user_access')
       .update({
         display_name: member.name,
+        title: member.designation || existing?.title || member.type || 'Employee',
+        joining_date: member.joiningDate || existing?.joining_date || null,
         active: false,
         employment_status: member.employmentStatus === 'Exited' ? 'Exited' : 'Active',
         last_working_date: member.lastWorkingDate || null,
