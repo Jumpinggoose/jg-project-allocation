@@ -27,7 +27,7 @@
       const manager=mine?.manager_member_id||'';
       const team=mine?.team||access.head_group||(members.find(x=>x.id===access.member_id)?.group)||'';
       const initials=(access.display_name||name(access.member_id)||'JG').split(/\s+/).slice(0,2).map(x=>x[0]||'').join('').toUpperCase();
-      window.JGNav?.setAccess({level:access.access_level,memberId:access.member_id,email});
+      window.JGNav?.setAccess({level:access.access_level,memberId:access.member_id,email,canApprove:reporting.some(r=>r.manager_member_id===access.member_id)});
       document.getElementById('personUser').textContent=access.display_name||name(access.member_id);
       root.innerHTML=
         '<div class="jg-person-card"><div class="jg-person-hero"><div class="jg-person-avatar">'+esc(initials)+'</div><div><h2>'+esc(access.display_name||name(access.member_id))+'</h2><p>'+esc(access.title||'Team Member')+'</p><span class="jg-person-pill">Active account</span></div></div></div>'+
