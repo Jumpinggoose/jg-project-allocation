@@ -90,14 +90,16 @@
     if(refreshing||!client||!user)return;
     refreshing=true;
     try {
-      const [accessRes,requestRes,reportRes,readRes]=await Promise.all([
+      const [accessRes,requestRes,reportRes,readRes,wfhRes]=await Promise.all([
         client.from('user_access').select('member_id,access_level,email').limit(100),
         client.from('hr_leave_requests').select('id,member_id,leave_type,start_date,end_date,status,created_at,decided_at').order('created_at',{ascending:false}).limit(200),
         client.from('hr_reporting').select('member_id,manager_member_id'),
-        client.from('jg_notification_reads').select('notification_key').eq('user_id',user.id)
+        client.from('jg_notification_reads').select('notification_key').eq('user_id',user.id),
+        client.from('jg_wfh_requests').select('id,member_id,start_date,end_date,status,created_at').order('created_at',{ascending:false}).limit(200)
       ]);
       if(requestRes.error)throw requestRes.error;
       if(readRes.error)throw readRes.error;
+      if(wfhRes.error)console.warn('WFH notifications could not load',wfhRes.error.message);
       const access=(accessRes.data||[]).find(a=>String(a.email||'').toLowerCase()===String(user.email||'').toLowerCase())
         ||(accessRes.data||[]).find(a=>a.member_id===({'accounts@jumpinggoose.com':'bhagya','saurabh@jumpinggoose.com':'sourabh','sirajul@jumpinggoose.com':'siraj'}[String(user.email||'').toLowerCase()]));
       const member=access?.member_id;
@@ -113,6 +115,15 @@
         if(r.status==='Pending'&&r.member_id!==member&&(admin||direct.has(r.member_id))){
           // HR's leave SELECT RLS also protects the underlying request visibility.
           items.push({key:'leave-request:'+r.id,title:'New leave request',detail:r.member_id+' · '+r.leave_type+' · '+range,date:fmt(r.created_at),sort:r.created_at,href:'/hr.html?tab=approvals'});
+        }
+      }
+      for(const w of wfhRes.data||[]){
+        const range=fmt(w.start_date)+(w.end_date!==w.start_date?' – '+fmt(w.end_date):'');
+        if(w.member_id===member&&['Approved','Rejected'].includes(w.status)){
+          items.push({key:'wfh-decision:'+w.id+':'+w.status,title:'WFH request '+w.status.toLowerCase(),detail:range,date:fmt(w.created_at),sort:w.created_at,href:'/attendance.html'});
+        }
+        if(w.status==='Pending'&&w.member_id!==member&&(admin||direct.has(w.member_id))){
+          items.push({key:'wfh-request:'+w.id,title:'New WFH request',detail:w.member_id+' · '+range,date:fmt(w.created_at),sort:w.created_at,href:'/attendance.html'});
         }
       }
       items.sort((a,b)=>String(b.sort).localeCompare(String(a.sort)));
