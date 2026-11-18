@@ -20,6 +20,7 @@
         sb.from('app_state').select('data').eq('id',1).maybeSingle()
       ]);
       if(report.error)throw report.error;
+      if(app.error)throw app.error;
       const members=app.data?.data?.members||[];
       const name=id=>(members.find(x=>x.id===id)?.name)||id||'Not assigned';
       const reporting=report.data||[];
