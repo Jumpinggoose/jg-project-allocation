@@ -108,7 +108,7 @@
       const a=result.data;
       if(!a?.active||a.employment_status==='Exited')return location.replace('/login.html');
       // The database RLS is the actual security boundary, not this page check.
-      if(a.access_level!=='management'&&a.member_id!=='bhagya'){showError('Employee Directory is available to HR and authorized management accounts only.');return;}
+      if(a.access_level!=='management'){showError('Employee Directory is available to HR and authorized management accounts only.');return;}
       document.getElementById('personUser').textContent=a.display_name||'Management';
       window.JGNav?.setAccess({level:a.access_level,memberId:a.member_id,email});
       document.getElementById('logoutButton').addEventListener('click',async()=>{await sb.auth.signOut();location.replace('/login.html');});
