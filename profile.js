@@ -25,7 +25,7 @@
       const reporting=report.data||[];
       const mine=reporting.find(x=>x.member_id===access.member_id);
       const manager=mine?.manager_member_id||'';
-      const team=mine?.team||access.head_group||(members.find(x=>x.id===access.member_id)?.group)||'';
+      const team=(members.find(x=>x.id===access.member_id)?.group)||mine?.team||access.head_group||'';
       const joinDate=access.joining_date||members.find(x=>x.id===access.member_id)?.joiningDate||'';
       const joined=joinDate?new Date(joinDate+'T12:00:00').toLocaleDateString('en-IN',{day:'numeric',month:'long',year:'numeric'}):'Not recorded';
       const initials=(access.display_name||name(access.member_id)||'JG').split(/\s+/).slice(0,2).map(x=>x[0]||'').join('').toUpperCase();
