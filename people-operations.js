@@ -42,7 +42,7 @@
   const before=assets.find(x=>x.id===editing);
   const result=editing?await sb.from('hr_assets').update(payload).eq('id',editing).select('id').single():await sb.from('hr_assets').insert(payload).select('id').single();
   if(result.error)throw result.error;
-  const action=!before?'Created':before.status==='Assigned'&&status!=='Assigned'?'Returned':before.status!=='Assigned'&&status==='Assigned'?'Assigned':status==='Retired'?'Retired':status==='Lost'?'Lost':'Updated';
+  const action=!before?'Created':before.status==='Assigned'&&status!=='Assigned'?'Returned':(status==='Assigned'&&before.assigned_member_id!==assigned)?'Assigned':status==='Retired'?'Retired':status==='Lost'?'Lost':'Updated';
   const hist=await sb.from('hr_asset_history').insert({asset_id:result.data.id,action,member_id:status==='Assigned'?assigned:before?.assigned_member_id||null,notes:payload.notes});
   if(hist.error)throw Error('Asset saved, but history could not be recorded: '+hist.error.message);
   editing=null;search='';await reload();render();message('Asset saved and activity recorded.');
@@ -66,7 +66,7 @@
  }
  root.addEventListener('click',async e=>{
   const btn=e.target.closest('button');if(!btn)return;
-  if(btn.dataset.tab){tab=btn.dataset.tab;search='';editing=null;history.replaceState(null,'','?tab='+tab);render();return;}
+  if(btn.dataset.tab){tab=btn.dataset.tab;search='';editing=null;window.history.replaceState(null,'','?tab='+tab);render();return;}
   if(btn.dataset.editAsset){editing=btn.dataset.editAsset;render();return;}
   if(btn.id==='opsCancel'){editing=null;render();return;}
   if(btn.dataset.returnAsset){try{await returnAsset(btn.dataset.returnAsset);}catch(err){message(err.message,true);}}
