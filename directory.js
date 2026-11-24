@@ -5,7 +5,7 @@
   const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c]));
   const fmt=d=>d?new Date(d+'T12:00:00').toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric'}):'Not entered';
   const groups=['POND 1','POND 2','POOL'];
-  let employees=[],reporting=[],stateMembers=[],selected=null,search='',groupFilter='All',statusFilter='Active',busy=false;
+  let employees=[],reporting=[],stateMembers=[],selected=null,search='',groupFilter='All',statusFilter='Active',busy=false,profileTab='overview',profileBusy=false,profileData={assets:[],tasks:[],attendance:[],leaves:[],logs:[]},profileMonth=new Date().toLocaleDateString('en-CA',{timeZone:'Asia/Kolkata'}).slice(0,7);
   const line=(k,v)=>'<div><small>'+esc(k)+'</small><strong>'+esc(v||'Not entered')+'</strong></div>';
   const showError=m=>{root.innerHTML='<div class="jg-person-notice">'+esc(m)+'</div>';};
   const managerName=id=>employees.find(e=>e.member_id===id)?.display_name||stateMembers.find(e=>e.id===id)?.name||id||'Unassigned';
@@ -34,6 +34,53 @@
     const incomplete=employees.filter(e=>!e.joining_date||!e.title||e.title==='Employee').length;
     root.innerHTML='<div id="directoryFlash" hidden></div><div class="jg-person-grid"><section class="jg-person-card"><span class="jg-person-muted">Employee records</span><div class="jg-person-big">'+employees.length+'</div></section><section class="jg-person-card"><span class="jg-person-muted">Active employees</span><div class="jg-person-big">'+active+'</div></section><section class="jg-person-card"><span class="jg-person-muted">Profiles to complete</span><div class="jg-person-big">'+incomplete+'</div></section></div>'+
       '<section class="jg-person-card"><div class="jg-dir-toolbar"><div><h2 style="margin:0 0 4px">Employee Directory</h2><p class="jg-dir-subtle" style="margin:0">Review staff details and update designations, joining dates and HR reporting.</p></div><a class="jg-person-button" href="/?view=setup" style="text-decoration:none">+ Add Employee</a></div><p class="jg-dir-subtle">Add an employee through Admin Panel first so Google access, projects and history stay synchronized. Return here to assign their HR reporting team and manager.</p><div class="jg-dir-toolbar"><input id="directorySearch" class="jg-dir-search" type="search" placeholder="Search name, email or designation" value="'+esc(search)+'" aria-label="Search employees"><select id="directoryTeam" aria-label="Filter team">'+['All',...groups].map(t=>'<option value="'+t+'"'+(groupFilter===t?' selected':'')+'>'+t+'</option>').join('')+'</select><select id="directoryStatus" aria-label="Filter employment status">'+['Active','Notice Period','Exited','All'].map(t=>'<option value="'+t+'"'+(statusFilter===t?' selected':'')+'>'+t+'</option>').join('')+'</select></div></section><div id="directoryList">'+list()+'</div><div id="directoryEditor"></div>';
+  }
+
+  const detailLine=(label,value)=>'<div class="jg-person-line"><span class="jg-person-muted">'+esc(label)+'</span><strong>'+esc(value??'Not recorded')+'</strong></div>';
+  const monthDate=d=>String(d||'').slice(0,7)===profileMonth;
+  async function fetchProfile(id){
+    profileBusy=true;
+    const start=profileMonth+'-01',end=new Date(Number(profileMonth.slice(0,4)),Number(profileMonth.slice(5,7)),0).toLocaleDateString('en-CA',{timeZone:'Asia/Kolkata'});
+    const [assets,tasks,attendance,leaves,logs]=await Promise.all([
+      sb.from('hr_assets').select('asset_tag,asset_type,description,status,assigned_on,condition').eq('assigned_member_id',id).eq('status','Assigned').order('asset_tag'),
+      sb.from('hr_lifecycle_tasks').select('task_title,lifecycle_type,status,due_on').eq('member_id',id).order('created_at',{ascending:false}),
+      sb.from('jg_attendance').select('attendance_date,work_mode,check_in_at,check_out_at').eq('member_id',id).gte('attendance_date',start).lte('attendance_date',end),
+      sb.from('hr_leave_requests').select('leave_type,start_date,end_date,days,status').eq('member_id',id).lte('start_date',end).gte('end_date',start),
+      sb.from('time_entries').select('work_date,minutes').eq('employee_id',id).gte('work_date',start).lte('work_date',end)
+    ]);
+    const errors=[assets,tasks,attendance,leaves,logs].filter(x=>x.error).map(x=>x.error.message);
+    profileData={assets:assets.data||[],tasks:tasks.data||[],attendance:attendance.data||[],leaves:leaves.data||[],logs:logs.data||[],errors};
+    profileBusy=false;
+  }
+  function profilePanel(id){
+    const e=employees.find(x=>x.member_id===id);if(!e)return '';
+    const p=profileData;
+    const tabs=[['overview','Overview'],['assets','Assets'],['attendance','Attendance'],['tasks','HR Tasks']];
+    const toolbar='<div class="jg-dir-profile-tabs" role="tablist" aria-label="Employee details">'+tabs.map(([key,label])=>'<button type="button" data-profile-tab="'+key+'" aria-selected="'+(profileTab===key)+'">'+label+'</button>').join('')+'</div>';
+    let body='';
+    if(profileTab==='overview'){
+      body='<div class="jg-person-two"><section class="jg-person-card"><h2>Employee details</h2>'+detailLine('Name',e.display_name)+detailLine('Work email',e.email)+detailLine('Designation',e.title)+detailLine('Joined',fmt(e.joining_date))+detailLine('Status',statusFor(e))+'</section><section class="jg-person-card"><h2>Team & reporting</h2>'+detailLine('Pond / Pool',teamFor(e))+detailLine('Reporting manager',managerName(managerFor(id)))+detailLine('App access',e.access_level)+detailLine('Employee reference',e.member_id)+'</section></div>';
+    }else if(profileTab==='assets'){
+      body='<section class="jg-person-card"><h2>Assigned equipment ('+p.assets.length+')</h2><p class="jg-person-muted">Currently assigned company assets. Returns and reassignments are managed in People Operations.</p>'+(p.assets.map(a=>'<div class="jg-person-line"><div><strong>'+esc(a.asset_tag)+'</strong><div class="jg-person-muted">'+esc(a.asset_type+' · '+a.description)+'</div></div><div class="jg-person-muted">'+esc(a.condition)+' · '+esc(fmt(a.assigned_on))+'</div></div>').join('')||'<p class="jg-person-empty">No equipment currently assigned.</p>')+'<a class="jg-person-button secondary" href="/people-operations.html?tab=assets">Manage assets</a></section>';
+    }else if(profileTab==='attendance'){
+      const days=new Set(p.attendance.map(x=>x.attendance_date)).size,wfh=new Set(p.attendance.filter(x=>/wfh|home|remote/i.test(x.work_mode||'')).map(x=>x.attendance_date)).size;
+      const logDays=new Set(p.logs.filter(x=>Number(x.minutes)>0).map(x=>x.work_date)).size,hours=(p.logs.reduce((sum,x)=>sum+(Number(x.minutes)||0),0)/60).toFixed(1);
+      const approved=p.leaves.filter(x=>String(x.status).toLowerCase()==='approved');
+      body='<section class="jg-person-card"><div class="jg-dir-toolbar"><div><h2>Monthly attendance overview</h2><p class="jg-person-muted">Recorded check-ins, approved leave and Work Logs, not a payroll attendance calculation.</p></div><label class="jg-person-muted">Month <input id="directoryProfileMonth" type="month" value="'+esc(profileMonth)+'"></label></div><div class="jg-person-grid">'+
+      '<div><div class="jg-person-muted">Recorded attendance days</div><div class="jg-person-big">'+days+'</div></div><div><div class="jg-person-muted">WFH check-in days</div><div class="jg-person-big">'+wfh+'</div></div><div><div class="jg-person-muted">Days with Work Logs</div><div class="jg-person-big">'+logDays+'</div></div></div>'+
+      detailLine('Logged hours',hours)+detailLine('Approved leave requests overlapping month',approved.length)+'<p class="jg-person-muted">A date with no check-in is not automatically considered absent. Approved leave requests may span months.</p></section>';
+    }else{
+      const open=p.tasks.filter(t=>!['Completed','Not applicable'].includes(t.status)).length;
+      body='<section class="jg-person-card"><h2>Onboarding & exit tasks</h2><p class="jg-person-muted">'+open+' open of '+p.tasks.length+' recorded tasks.</p>'+(p.tasks.map(t=>'<div class="jg-person-line"><div><strong>'+esc(t.task_title)+'</strong><div class="jg-person-muted">'+esc(t.lifecycle_type)+' · Due '+esc(fmt(t.due_on))+'</div></div><span class="jg-person-pill">'+esc(t.status)+'</span></div>').join('')||'<p class="jg-person-empty">No lifecycle tasks recorded.</p>')+'<a class="jg-person-button secondary" href="/people-operations.html?tab=lifecycle">Manage checklists</a></section>';
+    }
+    return '<section id="directoryProfile" class="jg-dir-profile"><div class="jg-dir-toolbar"><div><h2 style="margin-bottom:5px">'+esc(e.display_name||id)+'</h2><p class="jg-person-muted">Employee overview and related HR records</p></div><div class="jg-person-actions"><button class="jg-person-button secondary" id="directoryEditDetails" type="button">Edit details</button><button class="jg-person-button secondary" id="directoryCloseProfile" type="button">Close</button></div></div>'+toolbar+(p.errors?.length?'<div class="jg-person-notice">Some records could not be loaded: '+esc(p.errors.join('; '))+'</div>':'')+body+'</section>';
+  }
+  async function openProfile(id){
+    selected=id;profileTab='overview';
+    const area=document.getElementById('directoryEditor');
+    area.innerHTML='<section class="jg-person-card">Loading employee profile…</section>';
+    await fetchProfile(id);
+    if(selected===id){area.innerHTML=profilePanel(id);area.scrollIntoView({behavior:'smooth',block:'nearest'});}
   }
   function editor(id){
     const e=employees.find(x=>x.member_id===id);
@@ -89,11 +136,15 @@
   }
   root.addEventListener('input',e=>{if(e.target.id==='directorySearch'){search=e.target.value;document.getElementById('directoryList').innerHTML=list();}});
   root.addEventListener('change',e=>{
+    if(e.target.id==='directoryProfileMonth'&&selected){profileMonth=e.target.value;fetchProfile(selected).then(()=>{if(selected)document.getElementById('directoryEditor').innerHTML=profilePanel(selected);}).catch(err=>showError(err.message));return;}
     if(e.target.id==='directoryTeam'){groupFilter=e.target.value;document.getElementById('directoryList').innerHTML=list();}
     if(e.target.id==='directoryStatus'){statusFilter=e.target.value;document.getElementById('directoryList').innerHTML=list();}
   });
   root.addEventListener('click',e=>{
-    const card=e.target.closest('[data-member]');if(card)editor(card.dataset.member);
+    const card=e.target.closest('[data-member]');if(card){openProfile(card.dataset.member).catch(err=>showError('Unable to open profile. '+err.message));return;}
+    const t=e.target.closest('[data-profile-tab]');if(t&&selected){profileTab=t.dataset.profileTab;document.getElementById('directoryEditor').innerHTML=profilePanel(selected);return;}
+    if(e.target.id==='directoryEditDetails'&&selected){editor(selected);return;}
+    if(e.target.id==='directoryCloseProfile'){selected=null;document.getElementById('directoryEditor').innerHTML='';return;}
     if(e.target.id==='directoryClose'){selected=null;document.getElementById('directoryEditor').innerHTML='';}
   });
   root.addEventListener('submit',e=>{if(e.target.id==='directoryEditForm'){e.preventDefault();save(e.target);}});
