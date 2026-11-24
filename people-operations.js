@@ -10,6 +10,17 @@
  const member=id=>staff.find(x=>x.member_id===id)?.display_name||id||'—';
  const options=(value,arr)=>arr.map(([v,t])=>'<option value="'+esc(v)+'"'+(v===value?' selected':'')+'>'+esc(t)+'</option>').join('');
  const people=value=>options(value,[['','Unassigned'],...staff.filter(x=>x.active).map(x=>[x.member_id,x.display_name||x.member_id])]);
+ // Asset tags are permanent identifiers. Increment the highest existing number for each category.
+ const assetTypes=[['Laptop','LAP'],['Desktop','DES'],['Monitor','MON'],['Keyboard','KEY'],['Mouse','MOU'],['Tablet','TAB'],['Phone','PHN'],['Camera','CAM'],['Hard Drive / SSD','SSD'],['Headphones','HDP'],['Printer','PRN'],['Accessories','ACC'],['Other','OTH']];
+ const assetCode=type=>assetTypes.find(([name])=>name===type)?.[1]||String(type||'').toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,3)||'OTH';
+ function nextAssetTag(type){
+  if(!type)return '';
+  const prefix='JG-'+assetCode(type)+'-';
+  const values=assets.filter(a=>String(a.asset_tag||'').startsWith(prefix)).map(a=>Number(String(a.asset_tag).slice(prefix.length))).filter(Number.isSafeInteger);
+  return prefix+String(Math.max(0,...values)+1).padStart(3,'0');
+ }
+ const assetTypeOptions=value=>options(value,[['','Select asset type'],...assetTypes.map(([name])=>[name,name]),...(value&&!assetTypes.some(x=>x[0]===value)?[[value,value]]:[])]);
+
  function filters(rows){const q=search.trim().toLowerCase();return q?rows.filter(x=>Object.values(x).join(' ').toLowerCase().includes(q)||member(x.assigned_member_id||x.member_id).toLowerCase().includes(q)):rows;}
  async function reload(){
   const [a,b,c,d]=await Promise.all([
@@ -25,7 +36,7 @@
  function assetsView(){
   const rows=filters(assets),active=assets.filter(x=>x.status==='Assigned').length;
   const record=assets.find(x=>x.id===editing)||{};
-  return '<div class="jg-person-grid">'+stat('Total assets',assets.length)+stat('Assigned',active)+stat('Available',assets.filter(x=>x.status==='Available').length)+'</div><div class="ops-layout"><section class="jg-person-card"><div class="ops-toolbar"><div><h2>Asset inventory</h2><div class="ops-subtle">Track equipment and who is responsible for it.</div></div><input class="ops-search" id="opsSearch" type="search" placeholder="Search assets" value="'+esc(search)+'"></div><div class="ops-table-wrap"><table class="ops-table"><thead><tr><th>Asset</th><th>Details</th><th>Status</th><th>Assigned to</th><th>Actions</th></tr></thead><tbody>'+ (rows.map(x=>'<tr><td><strong>'+esc(x.asset_tag)+'</strong><div class="ops-small">'+esc(x.asset_type)+'</div></td><td>'+esc(x.description)+'<div class="ops-small">'+esc([x.brand,x.model].filter(Boolean).join(' · '))+'</div></td><td>'+esc(x.status)+'</td><td>'+esc(member(x.assigned_member_id))+'</td><td><div class="ops-actions"><button type="button" data-edit-asset="'+esc(x.id)+'">Edit</button>'+(x.status==='Assigned'?'<button type="button" data-return-asset="'+esc(x.id)+'">Return</button>':'')+'</div></td></tr>').join('')||'<tr><td colspan="5">No assets found.</td></tr>')+'</tbody></table></div><h2 style="margin-top:24px">Recent activity</h2><div class="ops-table-wrap"><table class="ops-table"><thead><tr><th>Asset</th><th>Action</th><th>Employee</th><th>Date</th></tr></thead><tbody>'+history.slice(0,15).map(h=>'<tr><td>'+esc(assets.find(a=>a.id===h.asset_id)?.asset_tag||'Unknown')+'</td><td>'+esc(h.action)+'</td><td>'+esc(member(h.member_id))+'</td><td>'+esc(fmt(h.action_date))+'</td></tr>').join('')+'</tbody></table></div></section><section class="jg-person-card"><h2>'+(editing?'Update asset':'Add an asset')+'</h2><form class="ops-form" id="assetForm"><label>Asset tag *<input name="asset_tag" required maxlength="60" value="'+esc(record.asset_tag||'')+'"></label><label>Type *<input name="asset_type" required maxlength="80" placeholder="Laptop" value="'+esc(record.asset_type||'')+'"></label><label class="ops-full">Description *<input name="description" required maxlength="250" value="'+esc(record.description||'')+'"></label><label>Brand<input name="brand" maxlength="80" value="'+esc(record.brand||'')+'"></label><label>Model<input name="model" maxlength="80" value="'+esc(record.model||'')+'"></label><label>Serial number<input name="serial_number" maxlength="120" value="'+esc(record.serial_number||'')+'"></label><label>Acquired on<input name="acquired_on" type="date" value="'+esc(record.acquired_on||'')+'"></label><label>Condition<select name="condition">'+options(record.condition||'Good',['New','Good','Needs repair','Damaged','Retired'].map(x=>[x,x]))+'</select></label><label>Status<select name="status">'+options(record.status||'Available',['Available','Assigned','Maintenance','Retired','Lost'].map(x=>[x,x]))+'</select></label><label>Assigned to<select name="assigned_member_id">'+people(record.assigned_member_id||'')+'</select></label><label>Assigned on<input type="date" name="assigned_on" value="'+esc(record.assigned_on||'')+'"></label><label class="ops-full">Notes<textarea name="notes" maxlength="1000">'+esc(record.notes||'')+'</textarea></label><div class="ops-actions ops-full"><button type="submit">Save asset</button>'+(editing?'<button type="button" id="opsCancel">Cancel</button>':'')+'</div></form></section></div>';
+  return '<div class="jg-person-grid">'+stat('Total assets',assets.length)+stat('Assigned',active)+stat('Available',assets.filter(x=>x.status==='Available').length)+'</div><div class="ops-layout"><section class="jg-person-card"><div class="ops-toolbar"><div><h2>Asset inventory</h2><div class="ops-subtle">Track equipment and who is responsible for it.</div></div><input class="ops-search" id="opsSearch" type="search" placeholder="Search assets" value="'+esc(search)+'"></div><div class="ops-table-wrap"><table class="ops-table"><thead><tr><th>Asset</th><th>Details</th><th>Status</th><th>Assigned to</th><th>Actions</th></tr></thead><tbody>'+ (rows.map(x=>'<tr><td><strong>'+esc(x.asset_tag)+'</strong><div class="ops-small">'+esc(x.asset_type)+'</div></td><td>'+esc(x.description)+'<div class="ops-small">'+esc([x.brand,x.model].filter(Boolean).join(' · '))+'</div></td><td>'+esc(x.status)+'</td><td>'+esc(member(x.assigned_member_id))+'</td><td><div class="ops-actions"><button type="button" data-edit-asset="'+esc(x.id)+'">Edit</button>'+(x.status==='Assigned'?'<button type="button" data-return-asset="'+esc(x.id)+'">Return</button>':'')+'</div></td></tr>').join('')||'<tr><td colspan="5">No assets found.</td></tr>')+'</tbody></table></div><h2 style="margin-top:24px">Recent activity</h2><div class="ops-table-wrap"><table class="ops-table"><thead><tr><th>Asset</th><th>Action</th><th>Employee</th><th>Date</th></tr></thead><tbody>'+history.slice(0,15).map(h=>'<tr><td>'+esc(assets.find(a=>a.id===h.asset_id)?.asset_tag||'Unknown')+'</td><td>'+esc(h.action)+'</td><td>'+esc(member(h.member_id))+'</td><td>'+esc(fmt(h.action_date))+'</td></tr>').join('')+'</tbody></table></div></section><section class="jg-person-card"><h2>'+(editing?'Update asset':'Add an asset')+'</h2><form class="ops-form" id="assetForm"><label>Asset tag (automatically generated)<input name="asset_tag" required readonly maxlength="60" placeholder="Select an asset type" value="'+esc(editing?record.asset_tag||'':'')+'"><span class="ops-subtle">Unique per category. Assigned automatically when an asset is added.</span></label><label>Type *<select name="asset_type" required>'+assetTypeOptions(record.asset_type||'')+'</select></label><label class="ops-full">Description *<input name="description" required maxlength="250" value="'+esc(record.description||'')+'"></label><label>Brand<input name="brand" maxlength="80" value="'+esc(record.brand||'')+'"></label><label>Model<input name="model" maxlength="80" value="'+esc(record.model||'')+'"></label><label>Serial number<input name="serial_number" maxlength="120" value="'+esc(record.serial_number||'')+'"></label><label>Acquired on<input name="acquired_on" type="date" value="'+esc(record.acquired_on||'')+'"></label><label>Condition<select name="condition">'+options(record.condition||'Good',['New','Good','Needs repair','Damaged','Retired'].map(x=>[x,x]))+'</select></label><label>Status<select name="status">'+options(record.status||'Available',['Available','Assigned','Maintenance','Retired','Lost'].map(x=>[x,x]))+'</select></label><label>Assigned to<select name="assigned_member_id">'+people(record.assigned_member_id||'')+'</select></label><label>Assigned on<input type="date" name="assigned_on" value="'+esc(record.assigned_on||'')+'"></label><label class="ops-full">Notes<textarea name="notes" maxlength="1000">'+esc(record.notes||'')+'</textarea></label><div class="ops-actions ops-full"><button type="submit">Save asset</button>'+(editing?'<button type="button" id="opsCancel">Cancel</button>':'')+'</div></form></section></div>';
  }
  function lifecycleView(){
   const pending=tasks.filter(x=>x.status==='Pending'||x.status==='In progress').length;
@@ -40,7 +51,24 @@
   if(status==='Assigned'&&!assigned)throw Error('Select an employee for an assigned asset.');
   const payload={asset_tag:String(f.get('asset_tag')).trim(),asset_type:String(f.get('asset_type')).trim(),description:String(f.get('description')).trim(),brand:String(f.get('brand')||'').trim()||null,model:String(f.get('model')||'').trim()||null,serial_number:String(f.get('serial_number')||'').trim()||null,acquired_on:f.get('acquired_on')||null,condition:f.get('condition'),status,assigned_member_id:status==='Assigned'?assigned:null,assigned_on:status==='Assigned'?(f.get('assigned_on')||date()):null,notes:String(f.get('notes')||'').trim()||null,updated_at:new Date().toISOString()};
   const before=assets.find(x=>x.id===editing);
-  const result=editing?await sb.from('hr_assets').update(payload).eq('id',editing).select('id').single():await sb.from('hr_assets').insert(payload).select('id').single();
+  let result;
+  if(editing){
+   // Never change a previously issued tag, even when updating an asset's type.
+   payload.asset_tag=before.asset_tag;
+   result=await sb.from('hr_assets').update(payload).eq('id',editing).select('id').single();
+  }else{
+   // The unique constraint protects concurrent saves. Refresh and retry if another
+   // manager saved the displayed number first.
+   for(let attempt=0;attempt<4;attempt++){
+    const fresh=await sb.from('hr_assets').select('asset_tag,asset_type');
+    if(fresh.error)throw fresh.error;
+    const prefix='JG-'+assetCode(payload.asset_type)+'-';
+    const nums=(fresh.data||[]).filter(a=>String(a.asset_tag).startsWith(prefix)).map(a=>Number(String(a.asset_tag).slice(prefix.length))).filter(Number.isSafeInteger);
+    payload.asset_tag=prefix+String(Math.max(0,...nums)+1).padStart(3,'0');
+    result=await sb.from('hr_assets').insert(payload).select('id').single();
+    if(!result.error||result.error.code!=='23505')break;
+   }
+  }
   if(result.error)throw result.error;
   const action=!before?'Created':before.status==='Assigned'&&status!=='Assigned'?'Returned':(status==='Assigned'&&before.assigned_member_id!==assigned)?'Assigned':status==='Retired'?'Retired':status==='Lost'?'Lost':'Updated';
   const hist=await sb.from('hr_asset_history').insert({asset_id:result.data.id,action,member_id:status==='Assigned'?assigned:before?.assigned_member_id||null,notes:payload.notes});
@@ -72,7 +100,13 @@
   if(btn.dataset.returnAsset){try{await returnAsset(btn.dataset.returnAsset);}catch(err){message(err.message,true);}}
  });
  root.addEventListener('input',e=>{if(e.target.id==='opsSearch'){search=e.target.value;const pos=e.target.selectionStart;render();document.getElementById('opsSearch')?.focus();document.getElementById('opsSearch')?.setSelectionRange(pos,pos);}});
- root.addEventListener('change',async e=>{if(e.target.dataset.taskStatus){try{await updateTask(e.target.dataset.taskStatus,e.target.value);}catch(err){message(err.message,true);}}});
+ root.addEventListener('change',async e=>{
+  if(e.target.name==='asset_type'&&!editing){
+   const tag=e.target.form?.elements.namedItem('asset_tag');
+   if(tag)tag.value=nextAssetTag(e.target.value);
+  }
+  if(e.target.dataset.taskStatus){try{await updateTask(e.target.dataset.taskStatus,e.target.value);}catch(err){message(err.message,true);}}
+ });
  root.addEventListener('submit',async e=>{
   if(!['assetForm','lifecycleForm'].includes(e.target.id))return;e.preventDefault();
   if(loading)return;loading=true;const button=e.target.querySelector('[type="submit"]');if(button)button.disabled=true;
