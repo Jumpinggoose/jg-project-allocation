@@ -3,7 +3,8 @@
  const cfg=window.JG_SUPABASE,sb=window.supabase.createClient(cfg.url,cfg.publishableKey),root=document.getElementById('hrBoardRoot');
  const allowed=new Set(['piyush@jumpinggoose.com','tuhin@jumpinggoose.com','supriya@jumpinggoose.com','theo@jumpinggoose.com','midhun@jumpinggoose.com']);
  const esc=v=>String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;','\'':'&#39;'}[c]));
- const today=new Intl.DateTimeFormat('en-CA',{timeZone:'Asia/Kolkata',year:'numeric',month:'2-digit',day:'2-digit'}).format(new Date());
+ const todayParts=Object.fromEntries(new Intl.DateTimeFormat('en-GB',{timeZone:'Asia/Kolkata',year:'numeric',month:'2-digit',day:'2-digit'}).formatToParts(new Date()).map(x=>[x.type,x.value]));
+ const today=[todayParts.year,todayParts.month,todayParts.day].join('-');
  const daysFromToday=n=>{const d=new Date(today+'T12:00:00Z');d.setUTCDate(d.getUTCDate()+n);return d.toISOString().slice(0,10);};
  const dateText=d=>d?new Date(d+'T12:00:00Z').toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'numeric',timeZone:'UTC'}):'Not set';
  const stat=(label,value,note)=>'<section class="hrboard-kpi"><div class="hrboard-kpi-label">'+esc(label)+'</div><div class="hrboard-number">'+value+'</div><div class="hrboard-kpi-note">'+esc(note)+'</div></section>';
