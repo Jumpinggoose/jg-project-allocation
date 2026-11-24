@@ -5,7 +5,7 @@
   const path = location.pathname;
   const tab = new URLSearchParams(location.search).get('tab') || 'calendar';
   const view = new URLSearchParams(location.search).get('view') || 'dashboard';
-  const active = dashboard ? view : path.includes('worklog') ? 'worklog' : path.includes('employee-logs') ? 'employee-logs' : path.includes('profitability') ? 'profitability' : path.includes('attendance.html') ? 'attendance' : path.includes('profile.html') ? 'profile' : path.includes('directory.html') ? 'directory' : path.includes('hr.html') ? ({calendar:'hr',leave:'hr-leave',availability:'hr-team',approvals:'hr-approvals',settings:'hr-settings'}[tab] || 'hr') : '';
+  const active = dashboard ? view : path.includes('worklog') ? 'worklog' : path.includes('employee-logs') ? 'employee-logs' : path.includes('profitability') ? 'profitability' : path.includes('attendance.html') ? 'attendance' : path.includes('profile.html') ? 'profile' : path.includes('directory.html') ? 'directory' : path.includes('people-operations.html') ? 'people-operations' : path.includes('hr.html') ? ({calendar:'hr',leave:'hr-leave',availability:'hr-team',approvals:'hr-approvals',settings:'hr-settings'}[tab] || 'hr') : '';
   const items = [
     {type:'heading',label:'MY WORKSPACE'},
     {id:'worklog',label:'My Work Log',icon:'◷',url:'/worklog.html'},
@@ -17,6 +17,7 @@
     {id:'dashboard',label:'Dashboard',icon:'▦',url:'/?view=dashboard'},
     {type:'pond'},
     {id:'directory',label:'Employee Directory',icon:'♧',url:'/directory.html',manager:true},
+    {id:'people-operations',label:'People Operations',icon:'▣',url:'/people-operations.html',managementOnly:true},
     {id:'team',label:'Team Overview',icon:'◎',url:'/?view=team',manager:true},
     {id:'hr-team',label:'Team Availability',icon:'▦',url:'/hr.html?tab=availability',manager:true},
     {id:'hr-approvals',label:'Leave Approvals',icon:'☷',url:'/hr.html?tab=approvals',approver:true},
@@ -27,7 +28,7 @@
   const attr=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
   function link(item){
     const isActive=active===item.id;
-    const attrs=(item.manager?' data-management-nav':'')+(item.manager||item.approver||item.finance||item.admin?' hidden':'');
+    const attrs=(item.manager?' data-management-nav':'')+(item.manager||item.managementOnly||item.approver||item.finance||item.admin?' hidden':'');
     const id=item.id==='employee-logs'?' id="'+(path.includes('/hr.html')?'hrEmployeeLogs':'employeeLogsLink')+'"':item.id==='profitability'?' id="'+(path.includes('/hr.html')?'hrProfitability':'profitLink')+'"':'';
     const label='<span class="nav-icon" aria-hidden="true">'+item.icon+'</span><span>'+attr(item.label)+'</span>';
     if(dashboard) return '<button class="nav-item'+(isActive?' is-active':'')+'" type="button" data-view="'+item.id+'"'+attrs+id+'>'+label+'</button>';
@@ -80,6 +81,7 @@
     show('hr-approvals',isAdmin||canApprove);
     show('hr-team',canManage);
     show('directory',Boolean(flags.isManagement));
+    show('people-operations',Boolean(flags.isManagement));
     show('setup',isAdmin);
     const heading=document.querySelector('.jg-workspace-nav [data-management-section]');
     if (heading) heading.hidden=!canManage;
