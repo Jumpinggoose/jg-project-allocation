@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="theme-color" content="#0F0F0F"><title>HR Dashboard · JUMPINGGOOSE</title>
+<link rel="icon" href="icon.svg" type="image/svg+xml"><link rel="stylesheet" href="styles.css"><link rel="stylesheet" href="jg-dark-pink.css"><link rel="stylesheet" href="jg-navigation.css"><link rel="stylesheet" href="jg-person.css">
+<style>
+.hrboard{display:grid;gap:20px;max-width:1430px;margin:auto}
+.hrboard-summary{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
+.hrboard-kpi{padding:23px;min-width:0;background:linear-gradient(150deg,#27222e,#211d27);border:1px solid #44394b;border-radius:22px}
+.hrboard-kpi:first-child{background:linear-gradient(130deg,#502e46,#302438);border-color:#67415b}
+.hrboard-kpi-label{font-size:12px;color:#c4b8c9}
+.hrboard-number{font-size:36px;line-height:1.2;font-weight:800;letter-spacing:-.045em;margin-top:8px;color:#fff}
+.hrboard-kpi-note{margin-top:8px;color:#bdb1c4;font-size:11px;line-height:1.4}
+.hrboard-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px;align-items:start}
+.hrboard-panel{min-width:0;background:#242029;border:1px solid #413748;border-radius:22px;padding:24px}
+.hrboard-panel h2{font-size:17px;margin:0 0 8px;color:#fff}
+.hrboard-desc{color:#b7acbd;font-size:12px;line-height:1.5;margin:0 0 18px}
+.hrboard-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap}
+.hrboard-button{display:inline-flex;align-items:center;justify-content:center;padding:9px 13px;border:1px solid #665267;background:#362c3a;border-radius:12px;color:#f6eaf2;text-decoration:none;font:inherit;font-size:12px;font-weight:650;cursor:pointer}
+.hrboard-button:hover{background:#49344a}
+.hrboard-table-wrap{max-width:100%;overflow-x:auto}
+.hrboard-table{width:100%;border-collapse:collapse;text-align:left;font-size:12px;min-width:400px}
+.hrboard-table th{color:#ae9fb6;font-size:11px;font-weight:650}
+.hrboard-table th,.hrboard-table td{padding:12px 9px;border-bottom:1px solid #39313e;vertical-align:top}
+.hrboard-table td{color:#f1eaf3;overflow-wrap:anywhere}
+.hrboard-table tbody tr:last-child td{border-bottom:0}
+.hrboard-muted{color:#ad9fb5;font-size:11px}
+.hrboard-pill{display:inline-flex;padding:5px 9px;border-radius:999px;background:#382d3b;color:#eec2d8;font-size:11px}
+.hrboard-empty{padding:18px 0;color:#afa4b5;font-size:13px}
+.hrboard-warning{padding:15px 18px;border-radius:14px;background:#3a2d34;border:1px solid #79515a;color:#ffd9e0;font-size:12px}
+.hrboard-foot{font-size:11px;color:#a99daf}
+@media(max-width:1000px){.hrboard-summary{grid-template-columns:repeat(2,minmax(0,1fr))}.hrboard-grid{grid-template-columns:1fr}}
+@media(max-width:540px){.hrboard-summary{gap:10px}.hrboard-kpi{padding:16px;border-radius:18px}.hrboard-number{font-size:29px}.hrboard-panel{padding:16px;border-radius:18px}.hrboard-table{min-width:360px}}
+</style></head><body class="jg-rounded-workspace"><div class="app-shell"><aside class="sidebar"><div class="brand-lockup"><div class="brand-mark">JG</div><div><div class="brand-name">JUMPINGGOOSE</div><div class="brand-subtitle">Project Allocation</div></div></div><nav class="nav-list jg-workspace-nav" aria-label="Workspace navigation"></nav><div class="sidebar-spacer"></div><div class="sync-card"><span class="sync-dot is-online"></span><div><strong id="personUser">Loading…</strong><small>Management</small></div></div></aside>
+<main class="main-area"><header class="topbar"><div class="history-nav"><button class="icon-button history-button" id="historyBack" type="button" aria-label="Go back">←</button><button class="icon-button history-button" id="historyForward" type="button" aria-label="Go forward">→</button></div><div class="page-heading"><div class="eyebrow">JUMPINGGOOSE · MANAGEMENT</div><h1>HR Dashboard</h1><p>People, onboarding, exits and company assets.</p></div><div class="topbar-actions"><button class="button button-secondary" type="button" id="logoutButton">Log out</button></div></header>
+<section class="view-container jg-person-page"><div class="hrboard" id="hrBoardRoot"><section class="hrboard-panel">Loading your HR overview…</section></div></section></main></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.110.3"></script><script src="supabase-config.js"></script><script src="jg-navigation.js"></script><script src="hr-dashboard.js" defer></script></body></html>
