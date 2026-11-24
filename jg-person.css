@@ -93,3 +93,17 @@ body.jg-rounded-workspace .jg-dir-initials{border-radius:14px!important}
 .jg-dir-subtle{color:#b8aebf;font-size:12px;line-height:1.6}
 @media(max-width:1150px){.jg-dir-list{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:690px){body.jg-rounded-workspace .jg-person-card{border-radius:20px!important}.jg-dir-list{grid-template-columns:1fr}.jg-dir-fields{grid-template-columns:1fr}.jg-dir-toolbar input,.jg-dir-toolbar select{width:100%}.jg-dir-toolbar{align-items:stretch}}
+
+
+/* Phase 2 integrated employee profiles */
+.jg-dir-profile{display:grid;gap:18px;min-width:0}
+.jg-dir-profile>.jg-dir-toolbar{padding:20px 24px;border:1px solid #393440;border-radius:20px;background:#25212c}
+.jg-dir-profile-tabs{display:flex;align-items:center;gap:8px;flex-wrap:wrap;border-bottom:1px solid #45394a;padding-bottom:14px}
+.jg-dir-profile-tabs button{background:#302a37;color:#cfc5d3;border:1px solid #514658;border-radius:12px;padding:11px 17px;font:inherit;font-size:13px;font-weight:650;cursor:pointer}
+.jg-dir-profile-tabs button[aria-selected="true"]{background:#ca337b;color:white;border-color:#ca337b}
+.jg-dir-profile .jg-person-card{min-height:0}
+.jg-dir-profile .jg-person-line>div{min-width:0}
+.jg-dir-profile .jg-person-line strong{overflow-wrap:anywhere;text-align:left}
+.jg-dir-profile input[type="month"]{display:block;background:#302a37;color:#f9f5fc;border:1px solid #514658;border-radius:10px;padding:9px;font:inherit;max-width:180px}
+.jg-dir-profile .jg-person-grid>div{padding:12px;background:#302a37;border:1px solid #403746;border-radius:14px}
+@media(max-width:680px){.jg-dir-profile>.jg-dir-toolbar{padding:16px}.jg-dir-profile-tabs button{flex:1 1 calc(50% - 8px)}.jg-dir-profile .jg-person-line{align-items:flex-start;flex-wrap:wrap}}
