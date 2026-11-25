@@ -2,7 +2,7 @@
 const hcfg=window.JG_SUPABASE;
 const hsb=window.supabase.createClient(hcfg.url,hcfg.publishableKey);
 const root=document.getElementById('hrRoot');
-let me=null,access=null,appState=null,members=[],reporting=[],policies=[],holidays=[],requests=[],blocks=[],openings=[],tab=new URLSearchParams(location.search).get('tab')||'calendar',year=new Date().getFullYear(),month=new Date().getMonth()+1,hrAdmin=false,canApprove=false;
+let me=null,access=null,appState=null,members=[],reporting=[],policies=[],holidays=[],requests=[],blocks=[],openings=[],tab=new URLSearchParams(location.search).get('tab')||'calendar',year=new Date().getFullYear()<2027?2027:new Date().getFullYear(),month=new Date().getMonth()+1,hrAdmin=false,canApprove=false;
 const names=new Map();
 const LEAVE_OPEN_DATE='2027-01-01';
 const leaveIsOpen=()=>localDate()>=LEAVE_OPEN_DATE;
