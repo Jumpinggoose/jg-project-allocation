@@ -4,6 +4,9 @@ const hsb=window.supabase.createClient(hcfg.url,hcfg.publishableKey);
 const root=document.getElementById('hrRoot');
 let me=null,access=null,appState=null,members=[],reporting=[],policies=[],holidays=[],requests=[],blocks=[],openings=[],tab=new URLSearchParams(location.search).get('tab')||'calendar',year=new Date().getFullYear(),month=new Date().getMonth()+1,hrAdmin=false,canApprove=false;
 const names=new Map();
+const LEAVE_OPEN_DATE='2027-01-01';
+const leaveIsOpen=()=>localDate()>=LEAVE_OPEN_DATE;
+const leavePauseMessage=()=>section('Leave applications reopen 1 January 2027','<p class="hr-muted">Leave requests are temporarily unavailable while HR finalises the 2027 holiday calendar and leave policy. You can continue viewing the Holiday & Leave Calendar. New requests can be submitted from 1 January 2027.</p><p class="hr-muted">No action is needed from employees at this stage.</p>');
 function esc(v){return String(v??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));}
 function localDate(){const d=new Date();return [d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-');}
 function iso(y,m,d){return y+'-'+String(m).padStart(2,'0')+'-'+String(d).padStart(2,'0');}
@@ -71,7 +74,7 @@ try{
  window.JGNav?.setAccess({level:access.access_level,memberId:access.member_id,email,canApprove});
  render();
 }catch(err){console.error(err);root.innerHTML='<section class="hr-card"><h2>Unable to load People & Leave</h2><p>'+esc(err.message||'Please try again.')+'</p></section>';}}
-function nav(){const items=[['calendar','Calendar'],['leave','My Leave'],['availability','Team Availability']];if(canApprove)items.push(['approvals','Approvals']);if(hrAdmin)items.push(['settings','HR Settings']);return '<div class="hr-tabs">'+items.map(([id,n])=>'<button type="button" data-tab="'+id+'" class="'+(tab===id?'is-active':'')+'">'+n+'</button>').join('')+'</div>';}
+function nav(){const items=[['calendar','Calendar'],['leave',leaveIsOpen()?'My Leave':'My Leave · Jan 2027'],['availability','Team Availability']];if(canApprove)items.push(['approvals','Approvals']);if(hrAdmin)items.push(['settings','HR Settings']);return '<div class="hr-tabs">'+items.map(([id,n])=>'<button type="button" data-tab="'+id+'" class="'+(tab===id?'is-active':'')+'">'+n+'</button>').join('')+'</div>';}
 function calendar(){
 let first=new Date(year,month-1,1).getDay();first=(first+6)%7;
 const max=new Date(year,month,0).getDate();
@@ -86,9 +89,10 @@ cells.push('<div class="hr-day '+(!valid?'outside ':'')+(date===localDate()?'tod
 }
 const count=holidays.filter(h=>h.holiday_date.slice(0,4)===String(year)&&h.holiday_type!=='Optional'&&h.location==='All').length;
 const navigation='<div class="hr-row"><div><h2 style="margin:0">'+esc(calendarMonths())+'</h2><div class="hr-muted">Calendar year · '+count+' published company/public holidays · annual list editable by HR</div></div><div class="hr-pills"><button class="hr-action secondary" data-month="-1">‹ Previous</button><button class="hr-action secondary" data-month="1">Next ›</button></div></div>';
-return section('Holiday & Leave Calendar',navigation+'<div class="hr-calendar" style="margin-top:16px">'+cells.join('')+'</div><p class="hr-muted">Holidays will be entered by management. Approved leave appears as “Away”; personal reasons remain private.</p>');
+return section('Holiday & Leave Calendar',(leaveIsOpen()?'':'<p class="hr-muted" style="padding:12px 16px;border:1px solid #67455c;border-radius:12px;margin:12px 0">Leave applications are paused until 1 January 2027 while HR prepares the new holiday list. The calendar remains available for reference.</p>')+navigation+'<div class="hr-calendar" style="margin-top:16px">'+cells.join('')+'</div><p class="hr-muted">Holidays will be entered by management. Approved leave appears as “Away”; personal reasons remain private.</p>');
 }
 function leave(){
+if(!leaveIsOpen())return leavePauseMessage();
 const p=currentPolicy();
 const boxes=[['Earned Leave',balance(access.member_id,'Earned Leave')],['Sick Leave',balance(access.member_id,'Sick Leave')],['Compassion Leave',Math.max(0,Number(p?.compassion_days||0)-totalFor(access.member_id,'Compassion Leave'))]];
 const cards='<div class="hr-grid">'+boxes.map(([n,v])=>'<div class="hr-card"><div class="hr-muted">'+n+' · indicative balance</div><div class="hr-stat">'+v+' days</div></div>').join('')+'</div>';
@@ -113,6 +117,7 @@ return '<section class="hr-card"><h3>'+g+'</h3><div class="hr-stat">'+(items.len
 return '<div class="hr-grid">'+by+'</div><p class="hr-muted">Availability reflects approved leave only. Attendance, WFH status and adjusted monthly capacity are not yet connected.</p>';
 }
 function approvals(){
+if(!leaveIsOpen())return leavePauseMessage();
 const visible=requests.filter(r=>hrAdmin||reporting.some(x=>x.member_id===r.member_id&&x.manager_member_id===access.member_id));
 const list=visible.sort((a,b)=>String(b.created_at).localeCompare(String(a.created_at))).map(r=>
 '<div class="hr-list-item"><div class="hr-row"><div><strong>'+esc(person(r.member_id))+' · '+esc(r.leave_type)+'</strong><div class="hr-muted">'+fmt(r.start_date)+' – '+fmt(r.end_date)+' · '+r.days+' days</div></div>'+statusPill(r.status)+'</div>'+
@@ -143,6 +148,7 @@ root.innerHTML=nav()+'<div id="hrFlash" hidden></div><div class="hr-row"><div cl
 (tab==='calendar'?calendar():tab==='leave'?leave():tab==='availability'?availability():tab==='approvals'?approvals():settings());
 }
 async function writeRequest(form){
+if(!leaveIsOpen())throw Error('Leave requests reopen on 1 January 2027.');
 const f=new FormData(form),type=f.get('type'),start=String(f.get('start')),end=String(f.get('end')),reason=String(f.get('reason')||'').trim();
 if(!['Earned Leave','Sick Leave','Compassion Leave'].includes(type))throw Error('Unsupported leave type. Contact HR.');
 const days=daysRange(start,end);
@@ -161,6 +167,7 @@ const result=await hsb.from('hr_leave_requests').insert(payload);if(result.error
 await refresh();message('Leave request submitted. HR / reporting manager will review it.');
 }
 async function decision(id,status){
+if(!leaveIsOpen())throw Error('Leave approvals reopen on 1 January 2027.');
 if(!canApprove)return;
 const req=requests.find(r=>r.id===id);if(!req||req.status!=='Pending')throw Error('This request is no longer pending.');
 if(!window.confirm(status+' the request from '+person(req.member_id)+'?'))return;
