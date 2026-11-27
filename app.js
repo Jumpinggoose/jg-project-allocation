@@ -2040,6 +2040,7 @@ function openDataModal() {
         ${canEdit ? `<button class="data-action" type="button" data-data-action="import-json"><strong>Import backup</strong><span>Restores a previously exported JSON file and replaces the current data.</span></button>` : ''}
         ${conflictAvailable ? `<button class="data-action" type="button" data-data-action="export-conflict"><strong>Export unsaved conflict copy</strong><span>Downloads the version preserved when another person saved first.</span></button>` : ''}
         <button class="data-action" type="button" data-data-action="export-fy-review"><strong>Export FY Review (.xlsx)</strong><span>Creates a multi-tab annual review workbook that opens directly in Excel or Google Sheets.</span></button>
+        ${(userIsAdmin() && ['piyush@jumpinggoose.com','tuhin@jumpinggoose.com','theo@jumpinggoose.com','accounts@jumpinggoose.com'].includes(String(sessionUser?.email||'').toLowerCase())) ? `<button class="data-action" type="button" data-data-action="export-management"><strong>Complete Management Excel (.xlsx)</strong><span>Includes projects, actual Work Logs, profitability, financials, attendance, leave balances, directory, onboarding and exits. Confidential.</span></button>` : ''}
         <button class="data-action" type="button" data-data-action="export-projects"><strong>Export projects CSV</strong><span>Downloads the selected FY project register for both Ponds.</span></button>
         <button class="data-action" type="button" data-data-action="export-team"><strong>Export team CSV</strong><span>Downloads calculated team allocation for the selected FY.</span></button>
         <button class="data-action" type="button" data-data-action="print"><strong>Print current view</strong><span>Uses the browser print dialog for a PDF or paper copy.</span></button>
@@ -2074,6 +2075,7 @@ function handleDataAction(action) {
     }
   }
   if (action === 'export-fy-review') exportFYReviewWorkbook(document.getElementById('fyExportSelect')?.value || state.meta.currentFY);
+  if (action === 'export-management') exportFYReviewWorkbook(document.getElementById('fyExportSelect')?.value || state.meta.currentFY,true);
   if (action === 'export-projects') exportProjectsCsv();
   if (action === 'export-team') exportTeamCsv();
   if (action === 'print') {
@@ -2154,7 +2156,7 @@ function ensureExcelLibrary() {
   }).catch(error => { excelLibraryPromise = null; throw error; });
   return excelLibraryPromise;
 }
-async function exportFYReviewWorkbook(fy) {
+async function exportFYReviewWorkbook(fy,includeManagement=false) {
   try { await ensureExcelLibrary(); }
   catch (error) { showToast('Could not load Excel export. Please try again.', 'error'); return; }
   const projects = state.projects.filter((project) => project.financialYear === fy);
@@ -2204,8 +2206,18 @@ async function exportFYReviewWorkbook(fy) {
       return [member.name,member.group,member.type,stats.weeklyCapacity,worked,stats.activeLoad,stats.allocatedHours,stats.availableHours,formatPercent(stats.utilization),stats.roleHours.leadSpoc,stats.roleHours.primary,stats.roleHours.support,stats.roleHours.mentor,stats.loadStatus];
     });
     addSheet('Team Review', teamHeaders, teamRows);
-    XLSX.writeFile(workbook, `JG_FY_${fy}_Review_${dateStamp()}.xlsx`);
-    showToast(`FY ${fy} review workbook exported.`);
+    if(includeManagement){
+      try{
+        if(!userIsAdmin() || !window.JGManagementExport)throw new Error('Management export is not available. Refresh and try again.');
+        await window.JGManagementExport.append(sb,fy,addSheet,projects);
+      }catch(error){
+        console.error('Management export failed',error);
+        showToast('Complete export stopped: '+String(error.message||error),'error');
+        return;
+      }
+    }
+    XLSX.writeFile(workbook, `JG_FY_${fy}_${includeManagement?'Complete_Management':'Review'}_${dateStamp()}.xlsx`);
+    showToast(`FY ${fy} ${includeManagement?'complete management':'review'} workbook exported.`);
   } finally {
     ui.financialYear = previousFY;
   }
