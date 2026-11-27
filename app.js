@@ -2173,9 +2173,9 @@ async function exportFYReviewWorkbook(fy,includeManagement=false) {
       amber:'FFF1D7', green:'0F766E'
     };
     let tableIndex = 0;
-    const numberPattern = '#,##0.00;[Red](#,##0.00);–';
-    const currencyPattern = '"₹" #,##0.00;[Red]("₹" #,##0.00);–';
-    const percentPattern = '0.0%;[Red](0.0%);–';
+    const numberPattern = '#,##0.00;[Red](#,##0.00);"-"';
+    const currencyPattern = '"₹" #,##0.00;[Red]("₹" #,##0.00);"-"';
+    const percentPattern = '0.0%;[Red](0.0%);"-"';
     const dates = /(?:^date$|^start$|^end$|date$|from$|to$|^month$|^due date$|^completed on$|^joining date$|^last working date$|^effective from$|^effective to$)/i;
     const numericHeader = /(?:^minutes$|^hours$|hrs|^entries$|count|capacity|revenue|cost|profit|margin|utilisation|allocated|available|balance|credited|adjustment|used|entitlement|^days$|^monthly|^external|^total|^projects worked$|^live projects$)/i;
     const projectHeaders = ['Financial Year','Pond','Project Type','Brand','Agency/Team','Engagement','Start Date','End Date','Status','Priority','Lead SPOC','Primary 1','Primary 2','Support 1','Support 2','Support 3','Support 4','Mentor 1','Mentor 2','Notes'];
