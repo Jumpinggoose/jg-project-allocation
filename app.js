@@ -2209,7 +2209,7 @@ async function exportFYReviewWorkbook(fy,includeManagement=false) {
     if(includeManagement){
       try{
         if(!userIsAdmin() || !window.JGManagementExport)throw new Error('Management export is not available. Refresh and try again.');
-        await window.JGManagementExport.append(sb,fy,addSheet,projects);
+        await window.JGManagementExport.append(supabaseClient,fy,addSheet,projects);
       }catch(error){
         console.error('Management export failed',error);
         showToast('Complete export stopped: '+String(error.message||error),'error');
