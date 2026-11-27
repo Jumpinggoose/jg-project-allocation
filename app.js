@@ -2023,6 +2023,11 @@ function deleteMember(id) {
   renderCurrentView();
 }
 
+function canDownloadManagementExcel() {
+  return userIsAdmin() && ['piyush@jumpinggoose.com','tuhin@jumpinggoose.com',
+    'theo@jumpinggoose.com'].includes(String(sessionUser?.email || '').toLowerCase());
+}
+
 function openDataModal() {
   const canEdit = userIsAdmin() && storageMode === 'server';
   const conflictAvailable = Boolean(localStorage.getItem(CONFLICT_STORAGE_KEY));
@@ -2039,8 +2044,8 @@ function openDataModal() {
         <button class="data-action" type="button" data-data-action="export-json"><strong>Export complete backup</strong><span>Downloads all projects, people and settings as a restorable JSON file.</span></button>
         ${canEdit ? `<button class="data-action" type="button" data-data-action="import-json"><strong>Import backup</strong><span>Restores a previously exported JSON file and replaces the current data.</span></button>` : ''}
         ${conflictAvailable ? `<button class="data-action" type="button" data-data-action="export-conflict"><strong>Export unsaved conflict copy</strong><span>Downloads the version preserved when another person saved first.</span></button>` : ''}
-        <button class="data-action" type="button" data-data-action="export-fy-review"><strong>Export FY Review (.xlsx)</strong><span>Creates a multi-tab annual review workbook that opens directly in Excel or Google Sheets.</span></button>
-        ${(userIsAdmin() && ['piyush@jumpinggoose.com','tuhin@jumpinggoose.com','theo@jumpinggoose.com','accounts@jumpinggoose.com'].includes(String(sessionUser?.email||'').toLowerCase())) ? `<button class="data-action" type="button" data-data-action="export-management"><strong>Complete Management Excel (.xlsx)</strong><span>Includes projects, actual Work Logs, profitability, financials, attendance, leave balances, directory, onboarding and exits. Confidential.</span></button>` : ''}
+        ${canDownloadManagementExcel() ? `<button class="data-action" type="button" data-data-action="export-management"><strong>Download Complete FY Excel (.xlsx) · 23 sheets</strong><span>Full FY export including Work Logs and tasks, project hours, profitability, financials, attendance, leave, directory and onboarding/exits. Confidential management only.</span></button>` : ''}
+        <button class="data-action" type="button" data-data-action="export-fy-review"><strong>Download Project-Only FY Excel (.xlsx) · 10 sheets</strong><span>Projects, Pond allocations, status summaries and team capacity only. Does not include Work Logs, HR or financials.</span></button>
         <button class="data-action" type="button" data-data-action="export-projects"><strong>Export projects CSV</strong><span>Downloads the selected FY project register for both Ponds.</span></button>
         <button class="data-action" type="button" data-data-action="export-team"><strong>Export team CSV</strong><span>Downloads calculated team allocation for the selected FY.</span></button>
         <button class="data-action" type="button" data-data-action="print"><strong>Print current view</strong><span>Uses the browser print dialog for a PDF or paper copy.</span></button>
@@ -2075,7 +2080,7 @@ function handleDataAction(action) {
     }
   }
   if (action === 'export-fy-review') exportFYReviewWorkbook(document.getElementById('fyExportSelect')?.value || state.meta.currentFY);
-  if (action === 'export-management') exportFYReviewWorkbook(document.getElementById('fyExportSelect')?.value || state.meta.currentFY,true);
+  if (action === 'export-management') { if (!canDownloadManagementExcel()) return showToast('Management access required for this report.', 'error'); exportFYReviewWorkbook(document.getElementById('fyExportSelect')?.value || state.meta.currentFY,true); }
   if (action === 'export-projects') exportProjectsCsv();
   if (action === 'export-team') exportTeamCsv();
   if (action === 'print') {
@@ -2300,13 +2305,22 @@ async function exportFYReviewWorkbook(fy,includeManagement=false) {
     addSheet('Team Review', teamHeaders, teamRows);
     if(includeManagement){
       try{
-        if(!userIsAdmin() || !window.JGManagementExport)throw new Error('Management export is not available. Refresh and try again.');
+        if(!canDownloadManagementExcel() || !window.JGManagementExport)throw new Error('Management export is not available for this account.');
         await window.JGManagementExport.append(supabaseClient,fy,addSheet,projects);
       }catch(error){
         console.error('Management export failed',error);
         showToast('Complete export stopped: '+String(error.message||error),'error');
         return;
       }
+    }
+    const expected = includeManagement ? 23 : 10;
+    const actual = workbook.worksheets.length;
+    const requiredSheets = ['Daily Work Logs','Actual Project Hours','Project Profitability',
+      'Financial Entries','Employee Attendance','Leave History','Leave Balances',
+      'Employee Directory','Onboarding Exits'];
+    if(actual !== expected || (includeManagement && requiredSheets.some(name=>!workbook.getWorksheet(name)))) {
+      showToast('Export validation failed: expected '+expected+' worksheets but found '+actual+'. No incomplete workbook was downloaded.', 'error');
+      return;
     }
     const binary = await workbook.xlsx.writeBuffer();
     downloadFile(`JG_FY_${fy}_${includeManagement?'Complete_Management':'Review'}_${dateStamp()}.xlsx`,
