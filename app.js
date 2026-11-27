@@ -2145,12 +2145,12 @@ function exportTeamCsv() {
 
 let excelLibraryPromise = null;
 function ensureExcelLibrary() {
-  if (window.XLSX) return Promise.resolve();
+  if (window.ExcelJS) return Promise.resolve();
   if (excelLibraryPromise) return excelLibraryPromise;
   excelLibraryPromise = new Promise((resolve, reject) => {
     const script = document.createElement('script');
-    script.src = 'https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js';
-    script.onload = () => window.XLSX ? resolve() : reject(new Error('Excel library unavailable'));
+    script.src = 'https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js';
+    script.onload = () => window.ExcelJS ? resolve() : reject(new Error('Excel library unavailable'));
     script.onerror = () => reject(new Error('Excel library download failed'));
     document.head.appendChild(script);
   }).catch(error => { excelLibraryPromise = null; throw error; });
@@ -2163,13 +2163,105 @@ async function exportFYReviewWorkbook(fy,includeManagement=false) {
   const previousFY = ui.financialYear;
   ui.financialYear = fy;
   try {
-    const workbook = XLSX.utils.book_new();
+    const workbook = new window.ExcelJS.Workbook();
+    workbook.creator = 'JUMPINGGOOSE';
+    workbook.created = new Date();
+    workbook.company = 'JUMPINGGOOSE';
+    const exportColors = {
+      ink:'1B2432', navy:'152638', pink:'D42066', pale:'F5F7FA',
+      white:'FFFFFF', muted:'607184', teal:'E5F4F0',
+      amber:'FFF1D7', green:'0F766E'
+    };
+    let tableIndex = 0;
+    const numberPattern = '#,##0.00;[Red](#,##0.00);–';
+    const currencyPattern = '"₹" #,##0.00;[Red]("₹" #,##0.00);–';
+    const percentPattern = '0.0%;[Red](0.0%);–';
+    const dates = /(?:^date$|^start$|^end$|date$|from$|to$|^month$|^due date$|^completed on$|^joining date$|^last working date$|^effective from$|^effective to$)/i;
+    const numericHeader = /(?:^minutes$|^hours$|hrs|^entries$|count|capacity|revenue|cost|profit|margin|utilisation|allocated|available|balance|credited|adjustment|used|entitlement|^days$|^monthly|^external|^total|^projects worked$|^live projects$)/i;
     const projectHeaders = ['Financial Year','Pond','Project Type','Brand','Agency/Team','Engagement','Start Date','End Date','Status','Priority','Lead SPOC','Primary 1','Primary 2','Support 1','Support 2','Support 3','Support 4','Mentor 1','Mentor 2','Notes'];
     const projectRow = (project) => [project.financialYear,project.pond,project.type,project.brand,project.agencies,project.engagement,project.startDate,project.endDate,project.status,project.priority,memberName(project.leadSpoc),memberName(project.primary1),memberName(project.primary2),memberName(project.support1),memberName(project.support2),memberName(project.support3),memberName(project.support4),memberName(project.mentor1),memberName(project.mentor2),project.notes];
     const addSheet = (name, headers, rows) => {
-      const sheet = XLSX.utils.aoa_to_sheet([headers, ...rows]);
-      sheet['!cols'] = headers.map((header, index) => ({ wch: Math.min(40, Math.max(String(header).length + 2, ...rows.slice(0, 100).map((row) => String(row[index] ?? '').length + 2))) }));
-      XLSX.utils.book_append_sheet(workbook, sheet, name.slice(0, 31));
+      const sheet = workbook.addWorksheet(name.slice(0,31), {
+        views:[{state:'frozen',ySplit:4,showGridLines:false,zoomScale:90}],
+        properties:{defaultRowHeight:21}
+      });
+      const width = Math.max(2,headers.length);
+      const lastLetter = sheet.getCell(1,width).address.replace(/\d/g,'');
+      sheet.mergeCells('A1:'+lastLetter+'1');
+      sheet.mergeCells('A2:'+lastLetter+'2');
+      sheet.getRow(1).height = 38;
+      sheet.getRow(2).height = 25;
+      sheet.getRow(3).height = 12;
+      const heading = sheet.getCell('A1');
+      heading.value = 'JUMPINGGOOSE  /  '+name.toUpperCase();
+      heading.font = {name:'Aptos Display',size:17,bold:true,color:{argb:'FFFFFFFF'}};
+      heading.fill = {type:'pattern',pattern:'solid',fgColor:{argb:'FF'+exportColors.navy}};
+      heading.alignment = {vertical:'middle',indent:1};
+      const context=sheet.getCell('A2');
+      context.value='FY '+fy+'   •   '+rows.length.toLocaleString('en-IN')+' records'+
+        (includeManagement?'   •   CONFIDENTIAL MANAGEMENT REPORT':'   •   FINANCIAL YEAR REVIEW');
+      context.font={name:'Aptos',size:10,bold:true,color:{argb:'FF'+exportColors.muted}};
+      context.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF'+exportColors.pale}};
+      context.alignment={vertical:'middle',indent:2};
+      const prepared=rows.map(row=>headers.map((h,i)=>{
+        const v=row[i];
+        if(v==null||v==='')return null;
+        if(v instanceof Date)return v;
+        // Only explicit date columns are converted to Excel date cells.
+        if(dates.test(h)&&typeof v==='string'&&/^\d{4}-\d{2}-\d{2}$/.test(v)){
+          const d=new Date(v+'T12:00:00Z');
+          return Number.isNaN(d.getTime())?v:d;
+        }
+        // Never interpret user-entered values as formulas.
+        if(typeof v==='string'&&/^[\s]*[=+@\t\r]/.test(v))return "'"+v;
+        return v;
+      }));
+      const tableName='JGTable'+(++tableIndex);
+      sheet.addTable({
+        name:tableName,ref:'A4',headerRow:true,totalsRow:false,
+        style:{theme:'TableStyleMedium2',showRowStripes:true},
+        columns:headers.map(h=>({name:h,filterButton:true})),
+        rows:prepared
+      });
+      sheet.getRow(4).height=31;
+      const headerRow=sheet.getRow(4);
+      headerRow.eachCell({includeEmpty:true},cell=>{
+        cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF'+exportColors.navy}};
+        cell.font={name:'Aptos',size:10,bold:true,color:{argb:'FFFFFFFF'}};
+        cell.alignment={vertical:'middle',wrapText:true,indent:1};
+        cell.border={bottom:{style:'medium',color:{argb:'FF'+exportColors.pink}}};
+      });
+      headers.forEach((h,i)=>{
+        const sample=prepared.slice(0,120).map(r=>String(r[i]??'').length);
+        const longest=Math.max(h.length+3,...sample,12);
+        const max=/(task|note|description)/i.test(h)?55:/(project|employee|brand)/i.test(h)?40:34;
+        sheet.getColumn(i+1).width=Math.min(max,Math.max(15,longest+2));
+        const isMoney=/(?:revenue|labour cost|external cost|total cost|profit|monthly cost|hourly override)/i.test(h);
+        const isPct=/^(margin|utilisation)$/.test(h.toLowerCase());
+        const isDate=dates.test(h);
+        for(let idx=5;idx<=prepared.length+4;idx++){
+          const cell=sheet.getCell(idx,i+1);
+          cell.font={name:'Aptos',size:10,color:{argb:'FF'+exportColors.ink}};
+          cell.alignment={vertical:'middle',wrapText:/(task|note|description)/i.test(h),
+            horizontal:typeof prepared[idx-5][i]==='number'?'right':'left'};
+          if(idx%2===0) cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF'+exportColors.pale}};
+          if(isMoney)cell.numFmt=currencyPattern;
+          else if(isPct && typeof prepared[idx-5][i]==='number')cell.numFmt=percentPattern;
+          else if(isDate)cell.numFmt='dd mmm yyyy';
+          else if(numericHeader.test(h) && typeof prepared[idx-5][i]==='number')cell.numFmt=numberPattern;
+          const v=prepared[idx-5][i];
+          if(typeof v==='string'&&/^(warning|not configured|missing cost|awaiting|indicative)/i.test(v)){
+            cell.font={name:'Aptos',size:10,bold:true,color:{argb:'FF9C5600'}};
+            cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF'+exportColors.amber}};
+          }
+          if(typeof v==='string'&&/^(completed|approved|active)$/i.test(v)){
+            cell.font={name:'Aptos',size:10,bold:true,color:{argb:'FF'+exportColors.green}};
+            cell.fill={type:'pattern',pattern:'solid',fgColor:{argb:'FF'+exportColors.teal}};
+          }
+        }
+      });
+      sheet.pageSetup={paperSize:9,orientation:'landscape',fitToPage:true,fitToWidth:1,fitToHeight:0};
+      sheet.headerFooter.oddFooter='JUMPINGGOOSE  •  Internal  |  Page &P of &N';
     };
 
     const paidProjects = projects.filter(isPaidProject);
@@ -2216,7 +2308,9 @@ async function exportFYReviewWorkbook(fy,includeManagement=false) {
         return;
       }
     }
-    XLSX.writeFile(workbook, `JG_FY_${fy}_${includeManagement?'Complete_Management':'Review'}_${dateStamp()}.xlsx`);
+    const binary = await workbook.xlsx.writeBuffer();
+    downloadFile(`JG_FY_${fy}_${includeManagement?'Complete_Management':'Review'}_${dateStamp()}.xlsx`,
+      binary,'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
     showToast(`FY ${fy} ${includeManagement?'complete management':'review'} workbook exported.`);
   } finally {
     ui.financialYear = previousFY;
