@@ -2045,7 +2045,7 @@ function openDataModal() {
         ${canEdit ? `<button class="data-action" type="button" data-data-action="import-json"><strong>Import backup</strong><span>Restores a previously exported JSON file and replaces the current data.</span></button>` : ''}
         ${conflictAvailable ? `<button class="data-action" type="button" data-data-action="export-conflict"><strong>Export unsaved conflict copy</strong><span>Downloads the version preserved when another person saved first.</span></button>` : ''}
         ${canDownloadManagementExcel() ? `<button class="data-action" type="button" data-data-action="export-management"><strong>Download Complete FY Excel (.xlsx) · 23 sheets</strong><span>Full FY export including Work Logs and tasks, project hours, profitability, financials, attendance, leave, directory and onboarding/exits. Confidential management only.</span></button>` : ''}
-        <button class="data-action" type="button" data-data-action="export-fy-review"><strong>Download Project-Only FY Excel (.xlsx) · 10 sheets</strong><span>Projects, Pond allocations, status summaries and team capacity only. Does not include Work Logs, HR or financials.</span></button>
+        <button class="data-action" type="button" data-data-action="export-fy-project-only"><strong>Download Project-Only FY Excel (.xlsx) · 10 sheets</strong><span>Projects, Pond allocations, status summaries and team capacity only. Does not include Work Logs, HR or financials.</span></button>
         <button class="data-action" type="button" data-data-action="export-projects"><strong>Export projects CSV</strong><span>Downloads the selected FY project register for both Ponds.</span></button>
         <button class="data-action" type="button" data-data-action="export-team"><strong>Export team CSV</strong><span>Downloads calculated team allocation for the selected FY.</span></button>
         <button class="data-action" type="button" data-data-action="print"><strong>Print current view</strong><span>Uses the browser print dialog for a PDF or paper copy.</span></button>
@@ -2079,7 +2079,10 @@ function handleDataAction(action) {
       showToast('Unsaved conflict copy exported.');
     }
   }
-  if (action === 'export-fy-review') exportFYReviewWorkbook(document.getElementById('fyExportSelect')?.value || state.meta.currentFY);
+  // Older open dialogs or cached links calling the previous FY action now get the
+  // complete workbook when their management permissions allow it.
+  if (action === 'export-fy-review') exportFYReviewWorkbook(document.getElementById('fyExportSelect')?.value || state.meta.currentFY,canDownloadManagementExcel());
+  if (action === 'export-fy-project-only') exportFYReviewWorkbook(document.getElementById('fyExportSelect')?.value || state.meta.currentFY,false);
   if (action === 'export-management') { if (!canDownloadManagementExcel()) return showToast('Management access required for this report.', 'error'); exportFYReviewWorkbook(document.getElementById('fyExportSelect')?.value || state.meta.currentFY,true); }
   if (action === 'export-projects') exportProjectsCsv();
   if (action === 'export-team') exportTeamCsv();
