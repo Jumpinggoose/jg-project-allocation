@@ -53,6 +53,29 @@
       return link(item);
       }).join('');
     }
+    // Older pages have fixed canonical sidebars. Keep their links in sync
+    // with new management modules without rebuilding existing navigation.
+    const managerLinks=items.filter(item=>item.managementOnly);
+    const insertionPoint=nav.querySelector('[data-view="directory"]') ||
+      nav.querySelector('[data-view="team"]') ||
+      nav.querySelector('[data-view="dashboard"]');
+    for(const item of managerLinks){
+      if(nav.querySelector('[data-view="'+item.id+'"]'))continue;
+      const node=document.createElement('a');
+      node.className='nav-item'+(active===item.id?' is-active':'');
+      node.dataset.view=item.id;
+      node.href=item.url;
+      node.hidden=true;
+      const glyph=document.createElement('span');
+      glyph.className='nav-icon';
+      glyph.setAttribute('aria-hidden','true');
+      glyph.textContent=item.icon;
+      const label=document.createElement('span');
+      label.textContent=item.label;
+      node.append(glyph,label);
+      if(insertionPoint)insertionPoint.insertAdjacentElement('afterend',node);
+      else nav.appendChild(node);
+    }
     nav.classList.add('jg-workspace-nav');
     if(path.includes('worklog')) nav.id='worklogSidebarNav';
     nav.setAttribute('aria-label','Workspace navigation');
